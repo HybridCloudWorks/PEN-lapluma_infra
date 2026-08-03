@@ -1,0 +1,417 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LaPluma Catalog API",
+    "version": "0.2.0",
+    "description": "Non-personalized form catalog and immutable edition-schema contract. Catalog operations accept no person, folder, case, document, eligibility, or free-text facts."
+  },
+  "servers": [
+    {
+      "url": "https://api.example.invalid",
+      "description": "Placeholder only; no production endpoint is committed"
+    }
+  ],
+  "tags": [
+    { "name": "Health" },
+    { "name": "Catalog" },
+    { "name": "Schemas" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Process is alive",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Process is ready to serve its local catalog fixture",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/catalog/categories": {
+      "get": {
+        "operationId": "listCatalogHierarchy",
+        "summary": "Return the deterministic category and subcategory hierarchy",
+        "description": "The response is identical for all authorized users and is never ranked from user or case facts.",
+        "tags": ["Catalog"],
+        "responses": {
+          "200": {
+            "description": "Catalog hierarchy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CatalogHierarchyResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/catalog/packages": {
+      "get": {
+        "operationId": "listFormPackages",
+        "summary": "List non-personalized form packages",
+        "description": "Filters use stable catalog taxonomy only. This operation accepts no case data and does not recommend or rank packages.",
+        "tags": ["Catalog"],
+        "parameters": [
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/CatalogCode" }
+          },
+          {
+            "name": "subcategoryCode",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/CatalogCode" }
+          },
+          {
+            "name": "activationState",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/FormActivationState" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deterministically ordered packages",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FormPackageListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/v1/catalog/packages/{packageCode}": {
+      "get": {
+        "operationId": "getFormPackage",
+        "summary": "Get one package by stable package code",
+        "tags": ["Catalog"],
+        "parameters": [
+          {
+            "name": "packageCode",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/CatalogCode" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form package",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FormPackage" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/v1/catalog/authorities/{authority}/forms/{formId}/editions/{editionDate}/schemas/{schemaVersion}": {
+      "get": {
+        "operationId": "getExtractedFormSchema",
+        "summary": "Get a field manifest pinned to one immutable form edition and schema version",
+        "tags": ["Schemas"],
+        "parameters": [
+          {
+            "name": "authority",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 160 }
+          },
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/FormId" }
+          },
+          {
+            "name": "editionDate",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/EditionDate" }
+          },
+          {
+            "name": "schemaVersion",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/SchemaVersion" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Edition-pinned schema manifest",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExtractedFormSchema" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Problem": {
+        "description": "Problem details without case-content leakage",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "service", "version"],
+        "properties": {
+          "status": { "type": "string", "enum": ["ok", "ready"] },
+          "service": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      },
+      "CatalogCode": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]{1,63}$"
+      },
+      "FormId": {
+        "type": "string",
+        "pattern": "^[A-Z0-9][A-Z0-9-]{0,31}$"
+      },
+      "EditionDate": {
+        "type": "string",
+        "format": "date"
+      },
+      "SchemaVersion": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$"
+      },
+      "CatalogCategory": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "title", "sortOrder"],
+        "properties": {
+          "code": { "$ref": "#/components/schemas/CatalogCode" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "sortOrder": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "CatalogSubcategory": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "categoryCode", "title", "sortOrder"],
+        "properties": {
+          "code": { "$ref": "#/components/schemas/CatalogCode" },
+          "categoryCode": { "$ref": "#/components/schemas/CatalogCode" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "sortOrder": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "CatalogCategoryNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "subcategories"],
+        "properties": {
+          "category": { "$ref": "#/components/schemas/CatalogCategory" },
+          "subcategories": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CatalogSubcategory" }
+          }
+        }
+      },
+      "CatalogHierarchyResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CatalogCategoryNode" }
+          }
+        }
+      },
+      "FormArtifactKind": {
+        "type": "string",
+        "enum": ["OFFICIAL_PDF", "EXTERNAL_WORKFLOW", "PROPRIETARY_FORM", "AUTHORED_TEMPLATE"]
+      },
+      "FormFillCapability": {
+        "type": "string",
+        "enum": ["AUTOMATIC_FILL", "ASSISTED_PREPARATION", "REFERENCE_ONLY"]
+      },
+      "FormActivationState": {
+        "type": "string",
+        "enum": ["UNAVAILABLE", "CATALOG_ONLY", "ASSISTED", "PILOT"],
+        "description": "Only ASSISTED and PILOT permit case creation; the server remains authoritative."
+      },
+      "FormEncoding": {
+        "type": "string",
+        "enum": ["ACROFORM", "XFA", "FLAT"]
+      },
+      "FormEditionId": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["authority", "formID", "editionDate"],
+        "properties": {
+          "authority": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "formID": { "$ref": "#/components/schemas/FormId" },
+          "editionDate": { "$ref": "#/components/schemas/EditionDate" }
+        }
+      },
+      "FormSourceMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["issuingAuthority", "sourcePageURL", "officialDomain", "lastVerified"],
+        "properties": {
+          "issuingAuthority": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "sourcePageURL": { "type": "string", "format": "uri", "pattern": "^https://" },
+          "artifactURL": { "type": ["string", "null"], "format": "uri", "pattern": "^https://" },
+          "officialDomain": { "type": "string", "pattern": "^[a-z0-9.-]+\\.[a-z]{2,}$" },
+          "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+          "lastVerified": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CatalogForm": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["formNumber", "title", "editionDate", "encoding", "pageCount", "artifactKind", "fillCapability", "activationState"],
+        "properties": {
+          "formNumber": { "$ref": "#/components/schemas/FormId" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "editionDate": { "$ref": "#/components/schemas/EditionDate" },
+          "encoding": { "$ref": "#/components/schemas/FormEncoding" },
+          "pageCount": { "type": "integer", "minimum": 0 },
+          "artifactKind": { "$ref": "#/components/schemas/FormArtifactKind" },
+          "fillCapability": { "$ref": "#/components/schemas/FormFillCapability" },
+          "activationState": { "$ref": "#/components/schemas/FormActivationState" },
+          "source": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/FormSourceMetadata" },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "FormPackage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["packageCode", "title", "category", "subcategory", "agency", "forms", "sourceURL", "lastVerified"],
+        "properties": {
+          "packageCode": { "$ref": "#/components/schemas/CatalogCode" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "category": { "$ref": "#/components/schemas/CatalogCategory" },
+          "subcategory": { "$ref": "#/components/schemas/CatalogSubcategory" },
+          "agency": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "agencyCategoryLabel": { "type": ["string", "null"], "maxLength": 200 },
+          "forms": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/CatalogForm" }
+          },
+          "feeUSDCents": { "type": ["integer", "null"], "minimum": 0 },
+          "feeCitationURL": { "type": ["string", "null"], "format": "uri", "pattern": "^https://" },
+          "sourceURL": { "type": "string", "format": "uri", "pattern": "^https://" },
+          "lastVerified": { "type": "string", "format": "date-time" }
+        }
+      },
+      "FormPackageListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FormPackage" }
+          }
+        }
+      },
+      "ExtractedFieldValueType": {
+        "type": "string",
+        "enum": ["TEXT", "DATE", "BOOLEAN", "CHOICE", "SIGNATURE"]
+      },
+      "FieldBounds": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["page", "x", "y", "width", "height"],
+        "properties": {
+          "page": { "type": "integer", "minimum": 1 },
+          "x": { "type": "number", "minimum": 0 },
+          "y": { "type": "number", "minimum": 0 },
+          "width": { "type": "number", "exclusiveMinimum": 0 },
+          "height": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      },
+      "ExtractedFieldManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fieldName", "label", "valueType", "required", "confidence"],
+        "properties": {
+          "fieldName": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "label": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "valueType": { "$ref": "#/components/schemas/ExtractedFieldValueType" },
+          "required": { "type": "boolean" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "bounds": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/FieldBounds" },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "ExtractedFormSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["edition", "schemaVersion", "fields"],
+        "properties": {
+          "edition": { "$ref": "#/components/schemas/FormEditionId" },
+          "schemaVersion": { "$ref": "#/components/schemas/SchemaVersion" },
+          "fields": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ExtractedFieldManifest" }
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "title", "status", "correlationId"],
+        "properties": {
+          "type": { "type": "string", "format": "uri-reference" },
+          "title": { "type": "string" },
+          "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "detail": { "type": ["string", "null"] },
+          "correlationId": { "type": "string", "format": "uuid" }
+        }
+      }
+    }
+  }
+}

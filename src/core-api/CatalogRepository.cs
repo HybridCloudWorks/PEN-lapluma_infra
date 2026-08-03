@@ -1,0 +1,142 @@
+namespace LaPluma.CoreApi;
+
+public sealed class CatalogRepository
+{
+    private static readonly CatalogCategory Federal = new("FEDERAL", "Federal", 10);
+    private static readonly CatalogCategory Education = new("EDUCATION", "Education", 20);
+
+    private static readonly CatalogSubcategory Immigration =
+        new("IMMIGRATION", Federal.Code, "Immigration", 10);
+    private static readonly CatalogSubcategory Passport =
+        new("PASSPORT", Federal.Code, "Passport", 20);
+    private static readonly CatalogSubcategory FinancialAid =
+        new("FINANCIAL_AID", Education.Code, "Financial aid", 10);
+
+    private static readonly Uri PlaceholderSource = new("https://example.invalid/official-source");
+    private static readonly DateTimeOffset FixtureVerifiedAt =
+        new(2026, 8, 2, 0, 0, 0, TimeSpan.Zero);
+
+    // Sprint 2 is deliberately fail-closed. These are priority fixtures, not claims that an
+    // edition has been acquired or approved. Acquisition creates a new immutable edition record.
+    private static readonly IReadOnlyList<FormPackage> Packages =
+    [
+        Package(
+            "FAMILY_I130", "Petition for Alien Relative", Federal, Immigration, "USCIS",
+            Form("I-130", "Petition for Alien Relative", FormArtifactKind.OfficialPdf,
+                FormFillCapability.AutomaticFill, FormActivationState.CatalogOnly),
+            Form("I-130A", "Supplemental Information for Spouse Beneficiary",
+                FormArtifactKind.OfficialPdf, FormFillCapability.AutomaticFill,
+                FormActivationState.CatalogOnly)),
+        Package(
+            "ADJUSTMENT_I485_I864", "Adjustment of Status with Affidavit of Support",
+            Federal, Immigration, "USCIS",
+            Form("I-485", "Application to Register Permanent Residence or Adjust Status",
+                FormArtifactKind.OfficialPdf, FormFillCapability.AutomaticFill,
+                FormActivationState.CatalogOnly),
+            Form("I-864", "Affidavit of Support Under Section 213A of the INA",
+                FormArtifactKind.OfficialPdf, FormFillCapability.AutomaticFill,
+                FormActivationState.CatalogOnly)),
+        Package(
+            "PASSPORT_DS11", "DS-11", Federal, Passport, "U.S. Department of State",
+            Form("DS-11", "Application for a U.S. Passport", FormArtifactKind.OfficialPdf,
+                FormFillCapability.AutomaticFill, FormActivationState.CatalogOnly)),
+        Package(
+            "FINANCIAL_AID_FAFSA", "FAFSA", Education, FinancialAid,
+            "U.S. Department of Education",
+            Form("FAFSA", "Free Application for Federal Student Aid",
+                FormArtifactKind.ExternalWorkflow, FormFillCapability.ReferenceOnly,
+                FormActivationState.Unavailable))
+    ];
+
+    public IReadOnlyList<CatalogCategoryNode> GetHierarchy() =>
+    [
+        new(Federal, [Immigration, Passport]),
+        new(Education, [FinancialAid])
+    ];
+
+    public IReadOnlyList<FormPackage> ListPackages(
+        string? categoryCode,
+        string? subcategoryCode,
+        FormActivationState? activationState) =>
+        Packages
+            .Where(package => categoryCode is null ||
+                package.Category.Code.Equals(categoryCode, StringComparison.OrdinalIgnoreCase))
+            .Where(package => subcategoryCode is null ||
+                package.Subcategory.Code.Equals(subcategoryCode, StringComparison.OrdinalIgnoreCase))
+            .Where(package => activationState is null || package.ActivationState == activationState)
+            .OrderBy(package => package.Category.SortOrder)
+            .ThenBy(package => package.Subcategory.SortOrder)
+            .ThenBy(package => package.PackageCode, StringComparer.Ordinal)
+            .ToArray();
+
+    public FormPackage? GetPackage(string packageCode) =>
+        Packages.SingleOrDefault(package =>
+            package.PackageCode.Equals(packageCode, StringComparison.OrdinalIgnoreCase));
+
+    public ExtractedFormSchema? GetSchema(
+        string authority,
+        string formId,
+        DateOnly editionDate,
+        string schemaVersion)
+    {
+        // No schema is activated until catalog acquisition, immutable edition metadata, and the
+        // two-person field-map approval gate exist. Returning 404 is the fail-closed contract.
+        _ = authority;
+        _ = formId;
+        _ = editionDate;
+        _ = schemaVersion;
+        return null;
+    }
+
+    private static FormPackage Package(
+        string code,
+        string title,
+        CatalogCategory category,
+        CatalogSubcategory subcategory,
+        string agency,
+        params CatalogForm[] forms) =>
+        new(
+            code,
+            title,
+            category,
+            subcategory,
+            agency,
+            null,
+            forms,
+            null,
+            null,
+            PlaceholderSource,
+            FixtureVerifiedAt);
+
+    private static CatalogForm Form(
+        string formNumber,
+        string title,
+        FormArtifactKind artifactKind,
+        FormFillCapability fillCapability,
+        FormActivationState activationState)
+    {
+        var authority = formNumber switch
+        {
+            "I-130" or "I-130A" or "I-485" or "I-864" => "USCIS",
+            "DS-11" => "U.S. Department of State",
+            "FAFSA" => "Federal Student Aid",
+            _ => throw new InvalidOperationException("Unapproved Alpha 0.2 priority form")
+        };
+        return new(
+            formNumber,
+            title,
+            new DateOnly(1970, 1, 1),
+            fillCapability == FormFillCapability.AutomaticFill ? FormEncoding.AcroForm : FormEncoding.Flat,
+            0,
+            artifactKind,
+            fillCapability,
+            activationState,
+            new FormSourceMetadata(
+                authority,
+                PlaceholderSource,
+                null,
+                "example.invalid",
+                null,
+                FixtureVerifiedAt));
+    }
+}

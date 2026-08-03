@@ -1,0 +1,49 @@
+name: Foundation validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/**
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Validate contracts, priorities, placeholders, and secret absence
+        run: python tools/validate_foundation.py
+
+      - name: Run Python contract tests
+        run: |
+          python -m unittest discover -s src/document-processing -p 'test_*.py'
+          python -m unittest discover -s src/functions -p 'test_*.py'
+          python -m py_compile src/document-processing/*.py src/functions/*.py
+
+      - name: Build .NET core API
+        run: dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
+
+      - name: Compile Bicep without provisioning
+        run: az bicep build --file infra/main.bicep
+
+      - name: Build non-root service images
+        run: |
+          docker build --tag lapluma-core-api:validation src/core-api
+          docker build --tag lapluma-processing-worker:validation src/document-processing

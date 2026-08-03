@@ -1,0 +1,23 @@
+name: lapluma-infra
+metadata:
+  template: lapluma-infra-0.0
+
+services:
+  core-api:
+    project: ./src/core-api
+    host: containerapp
+    docker:
+      path: ./src/core-api/Dockerfile
+      context: ./src/core-api
+
+  processing-worker:
+    project: ./src/document-processing
+    host: containerapp
+    docker:
+      path: ./src/document-processing/Dockerfile
+      context: ./src/document-processing
+
+  acquisition-functions:
+    project: ./src/functions
+    language: python
+    host: function
