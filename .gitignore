@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.azure/*/.env
+.azure/*/config.json
+**/bin/
+**/obj/
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+infra/main.json
