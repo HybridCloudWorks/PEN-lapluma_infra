@@ -96,8 +96,13 @@ Recorded 2026-08-02 and re-confirmed on 2026-08-07 where the toolchain was avail
 | JSON and YAML syntax | Local Python parsers | Passed | 2026-08-02 |
 | Whitespace validation | `git diff --check` | Passed | 2026-08-02 |
 | Bicep compilation | Bicep CLI v0.46.1, independent agent review | Passed with no diagnostics | 2026-08-02 |
+| Bicep compilation | `az bicep build --file infra/main.bicep`, foundation validation workflow | Passed | 2026-08-07 |
+| .NET core API build | `dotnet build --configuration Release`, foundation validation workflow | Passed | 2026-08-07 |
+| Non-root container images | `docker build` for `src/core-api` and `src/document-processing`, foundation validation workflow | Both passed | 2026-08-07 |
 
-.NET and container builds have not been verified locally — no .NET SDK is installed and the Docker
-daemon is not running in the development environment. They are exercised by the CI workflow;
-recording that evidence is tracked as `TODO.md` item **4.2**. Azure subscription preflight remains
-blocked by design until the context gate in `REVIEW.md` closes.
+Every check above has now been observed passing. The .NET and container builds — pending since
+generation because no local .NET SDK or Docker daemon was available — were confirmed by run
+[31149584806](https://github.com/HybridCloudWorks/PEN-lapluma_infra/actions/runs/31149584806), in
+which all nine workflow steps succeeded.
+
+Azure subscription preflight remains blocked by design until the context gate in `REVIEW.md` closes.
