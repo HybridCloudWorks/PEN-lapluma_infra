@@ -1,38 +1,94 @@
 # LaPluma Azure infrastructure and backend
 
-This repository will contain the backend contracts, Azure infrastructure as code, and backend
-services for the LaPluma `lapluma-app-0.2` supervised pilot. It is a placeholder-only code and
-planning foundation; it is not deployed.
+Backend contracts, Azure infrastructure as code, and backend services for the LaPluma
+`lapluma-app-0.2` supervised pilot.
 
-The versioned package identity/composition handshake shared with the iOS repository is
+This repository is a placeholder-only planning and scaffold foundation. Nothing here has been
+deployed: no AZD environment exists, no Azure subscription has been contacted, and the Bicep
+entrypoint structurally accepts only `enableProvisioning: false`.
+
+The native iOS client lives in its own repository. The versioned package identity and composition
+handshake shared with it is
 [`contracts/catalog-package-compatibility.json`](contracts/catalog-package-compatibility.json).
 
-Start with [`.azure/plan.md`](.azure/plan.md). That file is the source of truth for architecture,
-scope, gates, generation, validation, and deployment. Missing non-secret values and approval owners
-are tracked in [`IMPLEMENTATION_LEDGER.md`](IMPLEMENTATION_LEDGER.md).
+## Repository layout
 
-## Current status
+| Path | Contents |
+|------|----------|
+| `contracts/` | OpenAPI 3.1 catalog contract and the iOS package-compatibility handshake |
+| `infra/` | Subscription-scope Bicep entrypoint, modules, and the AZD parameter file |
+| `src/core-api/` | .NET 9 catalog and health API |
+| `src/document-processing/` | Python 3.12 isolated processing worker |
+| `src/functions/` | Durable Functions catalog-acquisition skeleton |
+| `tools/` | `validate_foundation.py`, the dependency-free contract and interlock validator |
+| `azure.yaml` | AZD service definitions |
+| `wiki/` | Wiki pages staged for publication — see [Documentation](#documentation) |
 
-- Initial `lapluma-infra-0.0` contract, service, and infrastructure scaffold.
-- Azure preparation path: AZD with Bicep.
-- Region: US-only East US 2, subject to service/SKU/quota verification.
-- Pilot: approximately 40 initial supervised cases, with a server-enforced maximum of 999 enrolled
-  users before a new approval cycle.
-- `azure.yaml`, modular Bicep, OpenAPI, and minimal backend source are generated for review.
-- Bicep structurally permits only `enableProvisioning: false`; unlocking it requires a reviewed
-  code change after the missing private connectivity, workload hosts, RBAC, encryption bindings,
-  diagnostics, and lifecycle controls are implemented.
-- No AZD environment or Azure resource has been created, validated against a subscription, or deployed.
-- Azure tenant and subscription are unknown. Placeholder-only local generation is approved, but
-  Azure environment creation, preflight, provisioning, and deployment remain blocked.
+## Requirements
 
-## Required workflow
+- Python 3.12
+- .NET 9 SDK
+- Azure CLI with the Bicep extension
+- Docker, to build the service images
 
-1. Review `.azure/plan.md`, the contracts, and the generated placeholder scaffold.
-2. Confirm the actual Azure tenant and subscription by display name and ID when deployment planning begins.
-3. Verify East US 2 service availability, private-network features, quota, and expected cost.
-4. Run `azure-validate` and record evidence in the plan before any deployment request.
-5. Obtain separate explicit deployment approval, then use `azure-deploy`.
+## Quick start
 
-Do not store credentials, private keys, connection strings, passkey material, tokens, document
-content, applicant identifiers, or other production data in this repository or its ledger.
+```bash
+# Contract, interlock, and secret-absence validation
+python3 tools/validate_foundation.py
+
+# Python contract tests
+python3 -m unittest discover -s src/document-processing -p 'test_*.py'
+python3 -m unittest discover -s src/functions -p 'test_*.py'
+
+# .NET build
+dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
+
+# Bicep compilation (no provisioning)
+az bicep build --file infra/main.bicep
+
+# Container images
+docker build --tag lapluma-core-api:validation src/core-api
+docker build --tag lapluma-processing-worker:validation src/document-processing
+```
+
+The same steps run in CI via `.github/workflows/foundation-validation.yml`.
+
+## Configuration overview
+
+`infra/main.parameters.json` resolves every value from an `${ENVIRONMENT_VARIABLE}` reference at
+provision time. It holds no literal values and no secrets. `enableProvisioning` is pinned to
+`false` there and is restricted to `false` by the Bicep `@allowed` list, so the template can be
+compiled and reviewed but cannot create a resource.
+
+Each configuration input, its expected format, owning role, and consuming component is documented on
+the wiki's **Configuration Contract** page.
+
+## Repository conventions
+
+- **Never** commit credentials, private keys, connection strings, passkey material, tokens, document
+  content, applicant identifiers, or any other production data. `tools/validate_foundation.py`
+  scans for several of these classes on every CI run.
+- Managed identity is the default for workload access. If a dependency genuinely cannot use it,
+  record the secret's purpose, owner, rotation interval, destination store, and consumer on the
+  Configuration Contract wiki page — never its value.
+- Documentation belongs in exactly one place. See [Documentation](#documentation).
+- Dot-prefixed folders hold configuration only, never documentation.
+
+## Documentation
+
+| Where | What |
+|-------|------|
+| `README.md` | This file: repository purpose, setup, and navigation |
+| [`CHANGELOG.md`](CHANGELOG.md) | Completed work |
+| [`REVIEW.md`](REVIEW.md) | Blockers only a human decision, approval, or access grant can clear |
+| [`TODO.md`](TODO.md) | The engineering work queue |
+| [GitHub Wiki](https://github.com/HybridCloudWorks/PEN-lapluma_infra/wiki) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record |
+
+The `wiki/` directory holds those pages as files, ready to publish. They are staged in the
+repository because publishing requires GitHub Wiki write access, which automation does not have
+(tracked as `R-17` in `REVIEW.md`). Once the pages are published, `wiki/` is deleted — see
+`TODO.md` item **6.1**.
+
+The classification rules that decide where a new document goes are on the wiki's **Documentation
+Standards** page.
