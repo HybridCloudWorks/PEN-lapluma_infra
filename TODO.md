@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.8 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -245,7 +245,7 @@ close that gap.
   requires.
 - **Status:** Not started
 - **Notes for future engineers:** Log Analytics retention is currently hard-coded to 365 days; see
-  item 4.6. Add the diagnostic settings before parameterizing retention, so the retention change can
+  item 4.5. Add the diagnostic settings before parameterizing retention, so the retention change can
   be validated against real ingested categories.
 
 ### 3.2 — Decide and implement resilience settings
@@ -347,22 +347,7 @@ close that gap.
   should too. `TryParseActivationState` returns `true` for a null value and `false` for an
   unrecognized string — cover both.
 
-### 4.2 — Record CI evidence for the .NET and container builds
-
-- **Priority:** P2
-- **Description:** The .NET build and both container builds have never been verified. They were
-  pending at generation time because no local .NET SDK was available and the Docker daemon was
-  stopped, and that is still true in the current development environment. CI runs them, but no run
-  result has been recorded as evidence.
-- **Dependencies:** None.
-- **Recommended action:** Trigger the foundation validation workflow, confirm the .NET build and
-  both `docker build` steps succeed, and record the result in `CHANGELOG.md` under the validation
-  evidence table.
-- **Status:** Not started
-- **Notes for future engineers:** This is the last unverified row in the validation evidence table.
-  Everything else has been re-confirmed locally.
-
-### 4.3 — Update the CI branch filter
+### 4.2 — Update the CI branch filter
 
 - **Priority:** P3
 - **Description:** `.github/workflows/foundation-validation.yml` triggers on pushes to `main` and
@@ -376,7 +361,7 @@ close that gap.
 - **Notes for future engineers:** Dropping the filter entirely is the lower-maintenance option; the
   `pull_request` trigger already prevents anything unvalidated from merging.
 
-### 4.4 — Add repository governance files
+### 4.3 — Add repository governance files
 
 - **Priority:** P2
 - **Description:** The repository has no `CODEOWNERS`, no Dependabot configuration, no pull-request
@@ -393,7 +378,7 @@ close that gap.
 - **Notes for future engineers:** These are the only markdown files permitted in `.github/`. Keep
   them minimal — the documentation model treats anything longer as content that belongs in the wiki.
 
-### 4.5 — Add the missing `.env.example`
+### 4.4 — Add the missing `.env.example`
 
 - **Priority:** P3
 - **Description:** `.gitignore` contains `!.env.example`, a negation that exists to keep such a file
@@ -407,7 +392,7 @@ close that gap.
 - **Notes for future engineers:** The Configuration Contract wiki page is the descriptive reference;
   `.env.example` is the machine-adjacent checklist. Keep them consistent.
 
-### 4.6 — Parameterize the hard-coded baselines
+### 4.5 — Parameterize the hard-coded baselines
 
 - **Priority:** P2
 - **Description:** Several policy-bearing values are literals in the Bicep rather than parameters:
@@ -423,7 +408,7 @@ close that gap.
 - **Notes for future engineers:** The full list of current literals and their locations is in the
   "Hard-coded baselines in the generated Bicep" table on the Configuration Contract wiki page.
 
-### 4.7 — Pin container base images by digest
+### 4.6 — Pin container base images by digest
 
 - **Priority:** P2
 - **Description:** `src/core-api/Dockerfile` uses `mcr.microsoft.com/dotnet/sdk:9.0` and
@@ -433,13 +418,13 @@ close that gap.
   design calls for.
 - **Dependencies:** None.
 - **Recommended action:** Pin all three to `image@sha256:...` digests and let Dependabot propose
-  digest bumps once item 4.4 lands.
+  digest bumps once item 4.3 lands.
 - **Status:** Not started
 - **Notes for future engineers:** This pairs with the Container Registry content-trust and
   provenance controls in the service mapping — pinning at build time is the half of that story this
   repository owns.
 
-### 4.8 — Confirm the Functions subnet delegation matches the hosting SKU
+### 4.7 — Confirm the Functions subnet delegation matches the hosting SKU
 
 - **Priority:** P2
 - **Description:** `infra/modules/network.bicep` delegates `snet-functions` to
