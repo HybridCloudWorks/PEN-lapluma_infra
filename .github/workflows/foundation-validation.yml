@@ -32,13 +32,25 @@ jobs:
         run: |
           python -m unittest discover -s src/document-processing -p 'test_*.py'
           python -m unittest discover -s src/functions -p 'test_*.py'
+          python -m unittest discover -s tools -p 'test_*.py'
           python -m py_compile src/document-processing/*.py src/functions/*.py
 
       - name: Build .NET core API
         run: dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
 
-      - name: Compile Bicep without provisioning
-        run: az bicep build --file infra/main.bicep
+      - name: Compile Bicep without provisioning and fail on any diagnostic
+        run: |
+          set -o pipefail
+          diagnostics="$RUNNER_TEMP/bicep-diagnostics.txt"
+          az bicep build --file infra/main.bicep 2> "$diagnostics" || {
+            cat "$diagnostics"
+            exit 1
+          }
+          cat "$diagnostics"
+          if grep -Eq '\) : (Error|Warning) ' "$diagnostics"; then
+            echo "::error::Bicep emitted diagnostics; bicepconfig.json treats these as build failures."
+            exit 1
+          fi
 
       - name: Build non-root service images
         run: |
