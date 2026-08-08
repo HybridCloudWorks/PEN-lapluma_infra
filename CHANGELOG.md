@@ -19,8 +19,23 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - Rewrote `README.md` so it covers only repository purpose, layout, requirements, quick start,
   configuration overview, conventions, and navigation.
 
+### Fixed
+
+- The validator's secret scan no longer walks generated output. It previously read every file under
+  the repository root except its own source, so compiling the validator wrote a `.pyc` containing its
+  own pattern literals and the next run failed as though a storage connection string had leaked.
+  `__pycache__`, `bin`, `obj`, `.venv`, and `node_modules` are now skipped, matching `.gitignore`.
+  The scan's own source stays excluded — it defines the patterns as literals and would match itself.
+
 ### Added
 
+- `bicepconfig.json`, setting twenty security-relevant linter rules to `error`, including
+  `no-hardcoded-location`, `secure-parameter-default`, and `no-unused-params`. The Bicep CI step now
+  fails on any diagnostic, so a rule left at warning level cannot pass silently.
+- `tools/test_validate_foundation.py`, covering the secret scan: every pattern is still detected in
+  tracked source, generated directories and binary suffixes are skipped, a file merely named like a
+  skipped directory is still scanned, and the repository tree itself is clean. Wired into CI beside
+  the existing contract tests.
 - `.env.example`, listing every environment variable `infra/main.parameters.json` substitutes, with
   no values and a short comment each. `tools/validate_foundation.py` now fails if the file drifts
   from the parameter file in either direction, or if any variable is committed carrying a value.
