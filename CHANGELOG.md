@@ -7,6 +7,12 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- Pinned all three container base images by digest: `mcr.microsoft.com/dotnet/sdk:9.0` and
+  `mcr.microsoft.com/dotnet/aspnet:9.0` in `src/core-api/Dockerfile`, and `python:3.12-slim` in
+  `src/document-processing/Dockerfile`. Two builds of the same commit now resolve the same base
+  layers. Each pin keeps its tag alongside the digest for readability; the digest is what resolves.
+- Removed the `main` and `codex/**` branch filter from the foundation validation workflow's `push`
+  trigger, so every branch gets push validation rather than only two prefixes.
 - Consolidated repository documentation into a single model: `README.md` for repository purpose,
   `CHANGELOG.md` for completed work, `REVIEW.md` for human-resolvable blockers, `TODO.md` for the
   engineering work queue, and the GitHub Wiki for everything else.

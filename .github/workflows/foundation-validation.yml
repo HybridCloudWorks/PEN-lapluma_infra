@@ -3,9 +3,6 @@ name: Foundation validation
 on:
   pull_request:
   push:
-    branches:
-      - main
-      - codex/**
 
 permissions:
   contents: read
