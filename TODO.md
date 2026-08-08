@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.6 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.5 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -245,7 +245,7 @@ close that gap.
   requires.
 - **Status:** Not started
 - **Notes for future engineers:** Log Analytics retention is currently hard-coded to 365 days; see
-  item 4.4. Add the diagnostic settings before parameterizing retention, so the retention change can
+  item 4.3. Add the diagnostic settings before parameterizing retention, so the retention change can
   be validated against real ingested categories.
 
 ### 3.2 — Decide and implement resilience settings
@@ -347,21 +347,7 @@ close that gap.
   should too. `TryParseActivationState` returns `true` for a null value and `false` for an
   unrecognized string — cover both.
 
-### 4.2 — Update the CI branch filter
-
-- **Priority:** P3
-- **Description:** `.github/workflows/foundation-validation.yml` triggers on pushes to `main` and
-  `codex/**`. That prefix reflects one historical automation and silently skips push validation for
-  every other branch prefix. Pull requests are still validated, so the impact is limited to
-  pre-PR feedback.
-- **Dependencies:** None.
-- **Recommended action:** Either drop the branch filter from the `push` trigger so all branches are
-  validated, or replace the prefix list with one that matches current practice.
-- **Status:** Not started
-- **Notes for future engineers:** Dropping the filter entirely is the lower-maintenance option; the
-  `pull_request` trigger already prevents anything unvalidated from merging.
-
-### 4.3 — Add repository governance files
+### 4.2 — Add repository governance files
 
 - **Priority:** P2
 - **Description:** The repository has no `CODEOWNERS`, no Dependabot configuration, no pull-request
@@ -377,8 +363,11 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** These are the only markdown files permitted in `.github/`. Keep
   them minimal — the documentation model treats anything longer as content that belongs in the wiki.
+  The Docker and GitHub Actions Dependabot ecosystems are now load-bearing rather than optional: both
+  container base images and every workflow action are pinned by digest or commit SHA, so until this
+  item lands there is nothing proposing those bumps and the pins go stale silently.
 
-### 4.4 — Parameterize the hard-coded baselines
+### 4.3 — Parameterize the hard-coded baselines
 
 - **Priority:** P2
 - **Description:** Several policy-bearing values are literals in the Bicep rather than parameters:
@@ -394,23 +383,7 @@ close that gap.
 - **Notes for future engineers:** The full list of current literals and their locations is in the
   "Hard-coded baselines in the generated Bicep" table on the Configuration Contract wiki page.
 
-### 4.5 — Pin container base images by digest
-
-- **Priority:** P2
-- **Description:** `src/core-api/Dockerfile` uses `mcr.microsoft.com/dotnet/sdk:9.0` and
-  `mcr.microsoft.com/dotnet/aspnet:9.0`, and `src/document-processing/Dockerfile` uses
-  `python:3.12-slim`. All three are floating tags, so two builds of the same commit can produce
-  different images — which undermines the deterministic, provenance-controlled image posture the
-  design calls for.
-- **Dependencies:** None.
-- **Recommended action:** Pin all three to `image@sha256:...` digests and let Dependabot propose
-  digest bumps once item 4.3 lands.
-- **Status:** Not started
-- **Notes for future engineers:** This pairs with the Container Registry content-trust and
-  provenance controls in the service mapping — pinning at build time is the half of that story this
-  repository owns.
-
-### 4.6 — Confirm the Functions subnet delegation matches the hosting SKU
+### 4.4 — Confirm the Functions subnet delegation matches the hosting SKU
 
 - **Priority:** P2
 - **Description:** `infra/modules/network.bicep` delegates `snet-functions` to
@@ -425,6 +398,28 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
+
+### 4.5 — Exclude generated artifacts from the validator's secret scan
+
+- **Priority:** P3
+- **Description:** `validate_no_sensitive_values()` in `tools/validate_foundation.py` walks every
+  file under the repository root, excluding only `.git` and the validator's own source file. It does
+  not exclude `__pycache__`, so `python3 -m py_compile tools/validate_foundation.py` — a command the
+  `CHANGELOG.md` validation evidence table records as part of the check sequence — writes a `.pyc`
+  containing the scanner's own pattern literals, and the next validator run fails with
+  `Azure storage connection string found in tools/__pycache__/validate_foundation.cpython-3xx.pyc`.
+  CI is unaffected: it compiles only `src/`, and the validator step runs before the tests that would
+  create bytecode. The cost is a confusing local failure that looks like a real secret leak.
+- **Dependencies:** None.
+- **Recommended action:** Skip `__pycache__`, `bin`, and `obj` directories in the walk — the same
+  paths `.gitignore` already excludes — so the scan covers tracked source rather than build output.
+  Excluding the validator's source by path is then unnecessary and can go. Add a test or a fixture
+  asserting that a planted pattern in a tracked file is still caught, so narrowing the walk does not
+  quietly narrow the guarantee.
+- **Status:** Not started
+- **Notes for future engineers:** Reproduce with `python3 -m py_compile tools/validate_foundation.py
+  && python3 tools/validate_foundation.py`. Do not fix it by adding `.pyc` to the extension skip
+  list — that would also skip a real secret compiled into a shipped artifact. Narrow by directory.
 
 ---
 
