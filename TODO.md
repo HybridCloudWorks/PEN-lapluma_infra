@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.6 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -245,7 +245,7 @@ close that gap.
   requires.
 - **Status:** Not started
 - **Notes for future engineers:** Log Analytics retention is currently hard-coded to 365 days; see
-  item 4.5. Add the diagnostic settings before parameterizing retention, so the retention change can
+  item 4.4. Add the diagnostic settings before parameterizing retention, so the retention change can
   be validated against real ingested categories.
 
 ### 3.2 — Decide and implement resilience settings
@@ -378,21 +378,7 @@ close that gap.
 - **Notes for future engineers:** These are the only markdown files permitted in `.github/`. Keep
   them minimal — the documentation model treats anything longer as content that belongs in the wiki.
 
-### 4.4 — Add the missing `.env.example`
-
-- **Priority:** P3
-- **Description:** `.gitignore` contains `!.env.example`, a negation that exists to keep such a file
-  tracked, but the file was never created. A new engineer has no template showing which environment
-  variables the AZD parameter file expects.
-- **Dependencies:** None.
-- **Recommended action:** Add `.env.example` listing every `${VARIABLE}` referenced by
-  `infra/main.parameters.json` with empty values and a short comment each. Include no real value,
-  and add a validator check that it stays in sync with the parameter file.
-- **Status:** Not started
-- **Notes for future engineers:** The Configuration Contract wiki page is the descriptive reference;
-  `.env.example` is the machine-adjacent checklist. Keep them consistent.
-
-### 4.5 — Parameterize the hard-coded baselines
+### 4.4 — Parameterize the hard-coded baselines
 
 - **Priority:** P2
 - **Description:** Several policy-bearing values are literals in the Bicep rather than parameters:
@@ -408,7 +394,7 @@ close that gap.
 - **Notes for future engineers:** The full list of current literals and their locations is in the
   "Hard-coded baselines in the generated Bicep" table on the Configuration Contract wiki page.
 
-### 4.6 — Pin container base images by digest
+### 4.5 — Pin container base images by digest
 
 - **Priority:** P2
 - **Description:** `src/core-api/Dockerfile` uses `mcr.microsoft.com/dotnet/sdk:9.0` and
@@ -424,7 +410,7 @@ close that gap.
   provenance controls in the service mapping — pinning at build time is the half of that story this
   repository owns.
 
-### 4.7 — Confirm the Functions subnet delegation matches the hosting SKU
+### 4.6 — Confirm the Functions subnet delegation matches the hosting SKU
 
 - **Priority:** P2
 - **Description:** `infra/modules/network.bicep` delegates `snet-functions` to

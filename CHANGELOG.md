@@ -15,6 +15,9 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Added
 
+- `.env.example`, listing every environment variable `infra/main.parameters.json` substitutes, with
+  no values and a short comment each. `tools/validate_foundation.py` now fails if the file drifts
+  from the parameter file in either direction, or if any variable is committed carrying a value.
 - `CHANGELOG.md`, `REVIEW.md`, and `TODO.md`.
 - Nine GitHub Wiki pages staged under `wiki/`: an index plus the architecture, deployment plan,
   environment and release path, configuration contract, security policy, pilot and compliance gates,

@@ -61,8 +61,10 @@ provision time. It holds no literal values and no secrets. `enableProvisioning` 
 `false` there and is restricted to `false` by the Bicep `@allowed` list, so the template can be
 compiled and reviewed but cannot create a resource.
 
-Each configuration input, its expected format, owning role, and consuming component is documented on
-the wiki's **Configuration Contract** page.
+`.env.example` is the checklist of those variables, ready to copy into an AZD environment. It is
+tracked, so it carries names and comments only — never a value. Each configuration input, its
+expected format, owning role, and consuming component is documented on the wiki's **Configuration
+Contract** page.
 
 ## Repository conventions
 

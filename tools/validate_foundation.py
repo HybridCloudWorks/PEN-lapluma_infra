@@ -143,6 +143,38 @@ def validate_azure_interlock() -> None:
     require("kv-lapluma-${suffix}" in security_bicep, "Key Vault name must stay within its 24-character limit")
 
 
+def validate_env_example() -> None:
+    parameters_text = (ROOT / "infra/main.parameters.json").read_text(encoding="utf-8")
+    referenced = set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", parameters_text))
+
+    path = ROOT / ".env.example"
+    if not path.is_file():
+        require(False, ".env.example must exist and list every substituted parameter variable")
+        return
+
+    declaration = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
+    documented: dict[str, str] = {}
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = declaration.match(stripped)
+        if match is None:
+            require(False, f".env.example line {number} is neither a comment nor a NAME= declaration")
+            continue
+        documented[match.group(1)] = match.group(2).strip()
+
+    missing = sorted(referenced - documented.keys())
+    require(not missing, f".env.example is missing parameter variables: {', '.join(missing)}")
+    unreferenced = sorted(documented.keys() - referenced)
+    require(
+        not unreferenced,
+        f".env.example declares variables no parameter substitutes: {', '.join(unreferenced)}",
+    )
+    populated = sorted(name for name, value in documented.items() if value)
+    require(not populated, f".env.example must carry no value: {', '.join(populated)}")
+
+
 def validate_no_sensitive_values() -> None:
     excluded = {ROOT / ".git"}
     secret_patterns = {
@@ -168,6 +200,7 @@ def main() -> int:
     validate_openapi()
     validate_priority_and_modes()
     validate_azure_interlock()
+    validate_env_example()
     validate_no_sensitive_values()
     if FAILURES:
         for failure in FAILURES:
