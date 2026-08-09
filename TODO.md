@@ -118,7 +118,11 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** AMPLS access-mode settings (`Open` versus `PrivateOnly`) apply to
   ingestion and query independently. Choose `PrivateOnly` for both to match the stated posture, but
-  be aware it affects every workspace in scope.
+  be aware it affects every workspace in scope. The Log Analytics workspace now sets
+  `features.disableLocalAuth: true`, which closed the shared-key ingestion path immediately, but its
+  own `publicNetworkAccessForIngestion` and `publicNetworkAccessForQuery` are deliberately still
+  unset: disabling them extends this same ingestion deadlock to the workspace. Set both to
+  `'Disabled'` as part of this item, once AMPLS exists — not before.
 
 ---
 
@@ -343,7 +347,10 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** The project sets `TreatWarningsAsErrors`, so the test project
   should too. `TryParseActivationState` returns `true` for a null value and `false` for an
-  unrecognized string — cover both.
+  unrecognized string — cover both. Also assert that a `FormPackage` with no forms derives
+  `UNAVAILABLE`: the guard exists in `CatalogModels.cs` but no test can reach it until this project
+  exists, and it is the branch that stops a form-less package deriving `PILOT`, the state that
+  permits case creation.
 
 ### 4.2 — Add repository governance files
 
