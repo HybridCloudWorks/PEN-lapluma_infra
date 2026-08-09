@@ -219,7 +219,10 @@ close that gap.
   it to tags for convenience. Trivy has no Bicep parser, which is why the infrastructure job
   compiles to ARM first and scans that; if the Bicep pin moves, the scanned artifact moves with it.
   The SARIF upload steps are skipped for pull requests from forks, which cannot be granted
-  `security-events: write`.
+  `security-events: write`. Trivy deliberately runs from a digest-pinned image rather than
+  `aquasecurity/trivy-action`: that action's setup step downloads a release binary through an
+  install script at run time, which is unpinned and was observed failing outright here. Scanning a
+  `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
 
 ---
 
