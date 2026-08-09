@@ -1,8 +1,8 @@
 """Tests for the secret scan's coverage and its exclusions.
 
-Narrowing the walk to skip generated output must not narrow what the scan catches in tracked
-source. Every pattern is assembled at runtime from fragments so that this file never contains a
-scanned pattern as a contiguous literal — otherwise the scan would report the test that guards it.
+Narrowing the walk to skip generated output must not narrow what the scan catches in source.
+Every pattern is assembled at runtime from fragments so that this file never contains a scanned
+pattern as a contiguous literal — otherwise the scan would report the test that guards it.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ class ScanForSecretsTests(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         return path
 
-    def test_every_pattern_is_detected_in_a_tracked_file(self) -> None:
+    def test_every_pattern_is_detected_in_a_scanned_file(self) -> None:
         for label, planted in PLANTED.items():
             with self.subTest(pattern=label):
                 self.write("infra/candidate.bicep", planted)
