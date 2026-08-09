@@ -15,9 +15,9 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | Phase | Theme | Items |
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.5 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.4 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -211,21 +211,6 @@ close that gap.
 - **Notes for future engineers:** The existing workflow's SHA pinning is deliberate. Do not relax it
   to tags for convenience.
 
-### 2.6 — Add Bicep linting configuration and enforce it
-
-- **Priority:** P2
-- **Description:** No `bicepconfig.json` exists, so `az bicep build` applies default linter rules
-  only and CI does not fail on warnings. Rules such as `no-hardcoded-location`,
-  `secure-parameter-default`, and `no-unused-params` should be errors in an infrastructure
-  repository handling sensitive PII.
-- **Dependencies:** None.
-- **Recommended action:** Add `bicepconfig.json` with the security-relevant linter rules set to
-  `error`, and change the CI step to fail on any diagnostic.
-- **Status:** Not started
-- **Notes for future engineers:** The modules currently default `location` to
-  `resourceGroup().location`, which the `no-hardcoded-location` rule accepts. Verify the whole tree
-  still compiles cleanly before making warnings fatal.
-
 ---
 
 ## Phase 3 — Stability improvements
@@ -398,28 +383,6 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
-
-### 4.5 — Exclude generated artifacts from the validator's secret scan
-
-- **Priority:** P3
-- **Description:** `validate_no_sensitive_values()` in `tools/validate_foundation.py` walks every
-  file under the repository root, excluding only `.git` and the validator's own source file. It does
-  not exclude `__pycache__`, so `python3 -m py_compile tools/validate_foundation.py` — a command the
-  `CHANGELOG.md` validation evidence table records as part of the check sequence — writes a `.pyc`
-  containing the scanner's own pattern literals, and the next validator run fails with
-  `Azure storage connection string found in tools/__pycache__/validate_foundation.cpython-3xx.pyc`.
-  CI is unaffected: it compiles only `src/`, and the validator step runs before the tests that would
-  create bytecode. The cost is a confusing local failure that looks like a real secret leak.
-- **Dependencies:** None.
-- **Recommended action:** Skip `__pycache__`, `bin`, and `obj` directories in the walk — the same
-  paths `.gitignore` already excludes — so the scan covers tracked source rather than build output.
-  Excluding the validator's source by path is then unnecessary and can go. Add a test or a fixture
-  asserting that a planted pattern in a tracked file is still caught, so narrowing the walk does not
-  quietly narrow the guarantee.
-- **Status:** Not started
-- **Notes for future engineers:** Reproduce with `python3 -m py_compile tools/validate_foundation.py
-  && python3 tools/validate_foundation.py`. Do not fix it by adding `.pyc` to the extension skip
-  list — that would also skip a real secret compiled into a shipped artifact. Narrow by directory.
 
 ---
 

@@ -12,6 +12,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FAILURES: list[str] = []
 
+# Generated output, not source. These mirror the directories .gitignore already excludes.
+SKIPPED_DIRECTORIES = frozenset({".git", "__pycache__", "bin", "obj", ".venv", "node_modules"})
+SKIPPED_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".gif", ".zip"})
+SECRET_PATTERNS = {
+    "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    "Azure storage connection string": re.compile(r"DefaultEndpointsProtocol=https;AccountName="),
+    "JWT-like token": re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b"),
+    "concrete subscription assignment": re.compile(r"AZURE_SUBSCRIPTION_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),
+    "concrete tenant assignment": re.compile(r"AZURE_TENANT_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),
+}
+
 
 def require(condition: bool, message: str) -> None:
     if not condition:
@@ -175,25 +186,36 @@ def validate_env_example() -> None:
     require(not populated, f".env.example must carry no value: {', '.join(populated)}")
 
 
-def validate_no_sensitive_values() -> None:
-    excluded = {ROOT / ".git"}
-    secret_patterns = {
-        "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-        "Azure storage connection string": re.compile(r"DefaultEndpointsProtocol=https;AccountName="),
-        "JWT-like token": re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b"),
-        "concrete subscription assignment": re.compile(r"AZURE_SUBSCRIPTION_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),
-        "concrete tenant assignment": re.compile(r"AZURE_TENANT_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),
-    }
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or any(parent in excluded for parent in path.parents):
+def scan_for_secrets(root: Path, ignored_files: frozenset[Path] = frozenset()) -> list[str]:
+    """Return one finding per secret pattern matched in a file under root.
+
+    Tracking is not consulted: every file under root is read whether or not git knows about it,
+    because an untracked `.env` holding a real credential is exactly what this should catch.
+    Generated directories are skipped so the scan covers source rather than build output —
+    compiled Python bytecode in particular embeds this module's own pattern literals, which
+    would otherwise be reported as a leaked connection string.
+    """
+    findings: list[str] = []
+    for path in root.rglob("*"):
+        if not path.is_file():
             continue
-        if path == Path(__file__).resolve():
+        if any(part in SKIPPED_DIRECTORIES for part in path.relative_to(root).parts[:-1]):
             continue
-        if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".zip"}:
+        if path.resolve() in ignored_files:
+            continue
+        if path.suffix.lower() in SKIPPED_SUFFIXES:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
-        for label, pattern in secret_patterns.items():
-            require(pattern.search(text) is None, f"{label} found in {path.relative_to(ROOT)}")
+        for label, pattern in SECRET_PATTERNS.items():
+            if pattern.search(text) is not None:
+                findings.append(f"{label} found in {path.relative_to(root)}")
+    return findings
+
+
+def validate_no_sensitive_values() -> None:
+    # This module defines the patterns as literals, so it matches itself and is always skipped.
+    for finding in scan_for_secrets(ROOT, frozenset({Path(__file__).resolve()})):
+        require(False, finding)
 
 
 def main() -> int:
