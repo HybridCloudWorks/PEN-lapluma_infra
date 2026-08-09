@@ -21,6 +21,25 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The catalog priority and fill-mode rules in `tools/validate_foundation.py` now bind each
+  classification to the form it is declared on. They previously asserted that a literal such as
+  `FormArtifactKind.ExternalWorkflow` appeared somewhere in `CatalogRepository.cs`, which passed
+  just as happily when the classifications were swapped between forms — the validator reported
+  success on a tree where FAFSA had become an automatically fillable official PDF. The
+  retired-form check now covers `src/functions/acquisition_contract.py` as well as the catalog
+  fixture; it previously read only the fixture, so restoring `N-400` or `I-765` to the acquisition
+  scope passed unnoticed.
+- A `FormPackage` with no forms now derives `UNAVAILABLE` rather than `PILOT`. The derivation is a
+  chain of `Any` calls expressing "a package is only as activated as its weakest form"; for an
+  empty list every one of them is false and the expression fell through to the most permissive
+  state, the one that permits case creation.
+- The Log Analytics workspace now sets `features.disableLocalAuth: true`. Application Insights
+  already disabled local auth, but the workspace that stores what it ingests did not, so the
+  telemetry and audit store still accepted the legacy workspace-key ingestion path.
+- Split `test_unanchored_or_unconfirmed_proposal_fails_closed`, which violated two invariants at
+  once and asserted only that some `ValueError` was raised. The polygon check short-circuited, so
+  the human-confirmation invariant it was named for could be deleted outright with the suite still
+  green. Each invariant now has its own test, matched on message.
 - The validator's secret scan no longer walks generated output. It previously read every file under
   the repository root except its own source, so compiling the validator wrote a `.pyc` containing its
   own pattern literals and the next run failed as though a storage connection string had leaked.

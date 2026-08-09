@@ -37,16 +37,29 @@ class ProcessingContractTests(unittest.TestCase):
                 }
             )
 
-    def test_unanchored_or_unconfirmed_proposal_fails_closed(self) -> None:
+    # One invariant per test. Violating two at once lets the earlier check short-circuit the
+    # later one, so the test passes even after the later invariant is deleted outright.
+    def test_unanchored_proposal_fails_closed(self) -> None:
         proposal = AnchoredValueProposal(
             field_name="person.name.given",
             value="Sample",
             page=1,
             polygon=(0.0, 0.0),
             engine_confidence=0.92,
+        )
+        with self.assertRaisesRegex(ValueError, "polygon"):
+            proposal.validate()
+
+    def test_unconfirmed_proposal_fails_closed(self) -> None:
+        proposal = AnchoredValueProposal(
+            field_name="person.name.given",
+            value="Sample",
+            page=1,
+            polygon=(0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0),
+            engine_confidence=0.92,
             requires_human_confirmation=False,
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "human confirmation"):
             proposal.validate()
 
 

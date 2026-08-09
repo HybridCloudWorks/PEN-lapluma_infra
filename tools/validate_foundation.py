@@ -100,6 +100,27 @@ def validate_openapi() -> None:
     require(required_models.issubset(schemas), "catalog model set is incomplete")
 
 
+FORM_DECLARATION = re.compile(
+    r'Form\(\s*"(?P<id>[^"]+)"\s*,\s*"[^"]*"\s*,\s*'
+    r"FormArtifactKind\.(?P<kind>\w+)\s*,\s*"
+    r"FormFillCapability\.(?P<capability>\w+)\s*,\s*"
+    r"FormActivationState\.(?P<state>\w+)\s*\)"
+)
+
+
+def parse_form_classifications(source: str) -> dict[str, tuple[str, str, str]]:
+    """Map each form number in the catalog fixture to its declared classification triple.
+
+    Returns (artifact kind, fill capability, activation state) per form. An empty result means
+    the fixture no longer matches the expected call shape, which the caller must treat as a
+    failure rather than as "no forms violate the rules".
+    """
+    return {
+        match.group("id"): (match.group("kind"), match.group("capability"), match.group("state"))
+        for match in FORM_DECLARATION.finditer(source)
+    }
+
+
 def validate_priority_and_modes() -> None:
     source = (ROOT / "src/core-api/CatalogRepository.cs").read_text(encoding="utf-8")
     function_contract = (ROOT / "src/functions/acquisition_contract.py").read_text(encoding="utf-8")
@@ -121,14 +142,43 @@ def validate_priority_and_modes() -> None:
     for form_id in ("I-130", "I-485", "DS-11", "FAFSA"):
         require(form_id in source, f"core catalog fixture is missing {form_id}")
         require(form_id in function_contract, f"acquisition contract is missing {form_id}")
-    require("N-400" not in source and "I-765" not in source, "older priority forms leaked into Alpha 0.2 fixture")
+    for retired in ("N-400", "I-765"):
+        require(retired not in source, f"older priority form {retired} leaked into the Alpha 0.2 fixture")
+        require(
+            retired not in function_contract,
+            f"older priority form {retired} leaked into the acquisition scope",
+        )
     require("FAMILY_I130" in source and '"I-130A"' in source, "I-130 package must match the app contract")
     require(
         "ADJUSTMENT_I485_I864" in source and '"I-864"' in source,
         "I-485 package must match the app contract",
     )
-    require("FormArtifactKind.ExternalWorkflow" in source, "FAFSA must remain an external workflow")
-    require("FormFillCapability.ReferenceOnly" in source, "FAFSA must remain reference-only")
+
+    # Bind each classification to the form it is declared on. Asserting that a literal appears
+    # somewhere in the file passes just as happily when the classifications are swapped between
+    # forms, which would silently make FAFSA an automatically fillable official PDF.
+    classifications = parse_form_classifications(source)
+    require(
+        set(classifications) == {"I-130", "I-130A", "I-485", "I-864", "DS-11", "FAFSA"},
+        f"catalog fixture form set drifted: {sorted(classifications)}",
+    )
+    require(
+        classifications.get("FAFSA")
+        == ("ExternalWorkflow", "ReferenceOnly", "Unavailable"),
+        f"FAFSA must remain an external workflow, reference-only, and unactivated; "
+        f"found {classifications.get('FAFSA')}",
+    )
+    for form_id, (kind, capability, _) in classifications.items():
+        if form_id == "FAFSA":
+            continue
+        require(
+            (kind, capability) == ("OfficialPdf", "AutomaticFill"),
+            f"{form_id} classification drifted: {kind}, {capability}",
+        )
+    activated = sorted(
+        form_id for form_id, (_, _, state) in classifications.items() if state == "Pilot"
+    )
+    require(not activated, f"placeholder catalog must not activate a pilot edition: {activated}")
     model_source = (ROOT / "src/core-api/CatalogModels.cs").read_text(encoding="utf-8")
     require("record FormEditionId(" in model_source and "string Authority" in model_source, "edition identity must include authority")
     require("FormActivationState.Pilot" not in source, "placeholder catalog must not activate a pilot edition")
