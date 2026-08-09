@@ -15,9 +15,9 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | Phase | Theme | Items |
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
-| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.4 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.9 |
+| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.8 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.9 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -164,6 +164,14 @@ close that gap.
 - **Notes for future engineers:** Container Apps environments need platform-level egress for image
   pulls and control-plane traffic. Use the ACR private endpoint plus the documented required FQDNs;
   do not widen the allowlist to "all Azure services".
+  Code review finding **F-04** is an explicit acceptance criterion for this item, and it is not
+  satisfied by internet-egress work alone. NSGs carry an implicit `AllowVnetOutBound`, and every
+  private endpoint lives inside the same VNet, so `DenyInternetEgress` does not stop a processing
+  replica reaching the SQL or Cosmos private endpoints. Add deny rules for the `Sql` and
+  `AzureCosmosDB` service tags and for the private-endpoint subnet prefix, and give the core, AI,
+  functions, and private-endpoint NSGs baseline deny rules rather than leaving them empty — the AI
+  zone currently has unrestricted outbound internet access. Rule addresses depend on **R-09**; rule
+  structure does not, and can be authored now.
 
 ### 2.3 — Add defense-in-depth authorization to the Core API
 
@@ -227,6 +235,96 @@ close that gap.
   `aquasecurity/trivy-action`: that action's setup step downloads a release binary through an
   install script at run time, which is unpinned and was observed failing outright here. Scanning a
   `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
+
+### 2.6 — Validate the processing-zone request contract at the trust boundary
+
+- **Priority:** P1
+- **Description:** Code review findings **F-06**, **F-07**, **F-19**, and **F-26**.
+  `src/document-processing/contracts.py` is the check that bounds which single scoped object the
+  isolated zone may touch, and it bounds only the URI scheme. `startswith("https://")` accepts
+  `https://` with no host, an arbitrary external host, a SAS token smuggled in the query string,
+  and two URIs differing only by a trailing slash — which defeats the distinct-staging guarantee.
+  The polygon check counts coordinates without looking at them, so a zero-area polygon and a tuple
+  of eight strings both pass a message promising "non-degenerate". `AnchoredValueProposal` has no
+  validating factory, unlike `ProcessingRequest`, so an invalid instance is constructable and its
+  `validate()` is a call a caller must remember. The `sha256` field is lowercased before a
+  lowercase-only check, so the error message states a rule the code does not apply.
+- **Dependencies:** None. 5.3 will build directly on this code, so it is cheaper before than after.
+- **Recommended action:** Parse the URIs with `urllib.parse` rather than prefix-matching: require
+  the `https` scheme, pin the host to the Azure Blob endpoint suffix, reject any query or fragment,
+  require a container and blob path, and compare normalised forms for distinctness. Validate polygon
+  coordinates for type, finiteness, non-negativity, and non-zero extent. Move validation into
+  `__post_init__` so an invalid proposal cannot be constructed. Align the `sha256` message with the
+  normalising behaviour, or drop the normalisation. Add the negative tests in **T-02**, one per
+  rejection branch.
+- **Status:** Not started
+- **Notes for future engineers:** Everything here is `urllib.parse` and `math`, both stdlib. The
+  processing image deliberately has no third-party dependencies — that is an architectural
+  guarantee, not an omission, so do not reach for a URL library.
+
+### 2.7 — Reject unknown keys in the acquisition contract
+
+- **Priority:** P2
+- **Description:** Code review finding **F-09**. `propose_acquisition_batch` in
+  `src/functions/acquisition_contract.py` reads two keys with `.get()` and ignores every other key
+  in the request. Its sibling, `ProcessingRequest.from_mapping`, computes an exact key-set
+  difference and rejects anything unknown — and a test exists specifically to prove an injected
+  `approve` key fails closed. The two contract modules take opposite positions on the same question
+  at the same kind of boundary. This dict is also the Durable Functions orchestrator input, and
+  orchestration inputs are persisted to the task hub and replayed, so any personal or case field
+  reaching this function is written to durable history. `host.json`'s `traceInputsAndOutputs: false`
+  suppresses tracing, not history.
+- **Dependencies:** None.
+- **Recommended action:** Compute the exact required key set and reject both unknown and missing
+  keys, mirroring `contracts.py`. Add the test in **T-06**, asserting an extra `approve` or
+  `personId` key raises.
+- **Notes for future engineers:** `tools/validate_foundation.py` requires each of the four approved
+  form IDs to appear in this file; `PRIORITY_FORM_IDS` and `PRIORITY_FORMS` are untouched by this
+  change. Today the only caller is the timer trigger, which builds its own input — this matters the
+  moment an externally-startable orchestration exists.
+- **Status:** Not started
+
+### 2.8 — Replace the Functions host shared-key auth default
+
+- **Priority:** P2
+- **Description:** Code review finding **F-17**. `src/functions/function_app.py` constructs
+  `df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)`, which authenticates callers with a function
+  key — a long-lived shared secret carried in a query string or header. Every Azure resource in
+  `infra/` implements the opposite posture: `disableLocalAuth` on Service Bus, Cosmos, and Log
+  Analytics, `allowSharedKeyAccess: false` on all four storage accounts, RBAC-only Key Vault, and
+  Entra-only SQL. No HTTP trigger exists yet, but this is the app-wide default that the next one
+  inherits, and the Durable extension's built-in orchestration management endpoints already carry
+  it.
+- **Dependencies:** 1.2 (APIM must front the app first); `REVIEW.md` **R-07** for the hostname.
+- **Recommended action:** Set `AuthLevel.ANONYMOUS` and terminate authentication at APIM with
+  Entra, which is the topology the trust-zone model already describes. Record the decision as an
+  ADR under 6.3, since it moves a security boundary. Decide separately whether the Durable HTTP
+  management API should be disabled outright through `extensions.durableTask` in `host.json`.
+- **Status:** Not started
+- **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
+  network restriction and APIM fronting are both in place — land it with 1.2, not before.
+
+### 2.9 — Extend secret-scan coverage and tighten the build context
+
+- **Priority:** P2
+- **Description:** Code review findings **F-30** and **F-25**. The scanner's Azure storage
+  connection-string pattern requires one specific key ordering, so an unordered variant is missed,
+  and there is no pattern for a bare storage account key, a SAS token, or an Entra client secret —
+  the shapes that matter most in a repository whose invariant is that no shared key exists.
+  Separately, `src/core-api/Dockerfile` does `COPY . ./` while `.dockerignore` excludes only
+  `bin/`, `obj/`, `*.user`, and `*.suo`, so a developer's local `appsettings.Development.json`,
+  `.env`, or certificate would land in a build layer. The processing image is the counter-example
+  done right: it copies two named files.
+- **Dependencies:** None.
+- **Recommended action:** Add order-independent connection-string, account-key, and SAS-token
+  patterns. Either copy explicit filenames in the Core API Dockerfile or extend `.dockerignore` to
+  cover `.env*`, `appsettings.*.json`, `*.pfx`, `*.p12`, and `.git`.
+- **Status:** Not started
+- **Notes for future engineers:** `tools/test_validate_foundation.py` asserts exactly one finding
+  per planted pattern, so an added rule that also matches the existing planted string will break
+  that test — replace the original pattern rather than adding alongside it. New patterns must be
+  planted from runtime fragments the same way the existing ones are, or the test file trips the
+  scanner it tests.
 
 ---
 
@@ -329,6 +427,51 @@ close that gap.
 - **Notes for future engineers:** The drill evidence itself must be content-free and pseudonymized —
   it lands in the audit account, which is subject to the immutability policy from item 2.4.
 
+### 3.7 — Instrument the Core API and make readiness mean something
+
+- **Priority:** P1
+- **Description:** Code review findings **F-13** and **F-14**. `src/core-api/Program.cs` performs
+  no logging at all — there is no `ILogger` anywhere in the service — and the `correlationId` in
+  every problem response is a fresh `Guid.NewGuid()` that is never written anywhere and is not
+  derived from `Activity.Current` or `HttpContext.TraceIdentifier`. The identifier a user reports
+  to support cannot be found in any log or trace. Separately, `/ready` returns a static literal and
+  never resolves `CatalogRepository`, so it cannot detect the one way the catalog can actually be
+  broken: `CatalogRepository.Form` throws on an unrecognised form number from a static initialiser,
+  which would make every `/v1/catalog/*` route return 500 forever while `/health` and `/ready` stay
+  green.
+- **Dependencies:** 1.4 for where the telemetry lands; 4.1 for the tests.
+- **Recommended action:** Register `AddProblemDetails`, derive the correlation ID from
+  `Activity.Current?.TraceId` falling back to `HttpContext.TraceIdentifier`, and log each problem
+  once at construction. Have `/ready` resolve the repository and return 503 when the catalog cannot
+  initialise, keeping `/health` as pure liveness. Consider moving the `Form` guard out of the static
+  initialiser so the failure is loud at startup rather than deferred to the first request.
+- **Status:** Not started
+- **Notes for future engineers:** Content-free telemetry applies to these logs: correlation IDs
+  only, never a path, query string, route value, or document identifier.
+  `src/document-processing/worker.py` already suppresses all request logging for exactly this
+  reason — follow that precedent. Note this is application telemetry, which 3.1 does not cover.
+
+### 3.8 — Make the acquisition orchestration singleton and resilient
+
+- **Priority:** P2
+- **Description:** Code review findings **F-10** and **F-31**. The timer trigger calls
+  `client.start_new(...)` with no instance ID, so Durable Functions generates a fresh GUID per
+  firing and every firing starts an independent sweep with no check that the previous one finished.
+  The orchestrator has no retry policy, so a transient activity failure fails the whole
+  orchestration, and it discards the publish activity's return value — a future publisher that
+  accepts three of four proposals would still report `proposalCount: 4` with no sign of the
+  shortfall.
+- **Dependencies:** 5.4 supplies the real publisher.
+- **Recommended action:** Use a deterministic instance ID and skip the start when a run is already
+  `Running`, `Pending`, or `ContinuedAsNew`. Add `call_activity_with_retry` for transient failures
+  and propagate `acceptedProposalCount` and `published` into the orchestration result.
+- **Status:** Not started
+- **Notes for future engineers:** Do not retry `propose_acquisition_batch`'s `ValueError` — a
+  scope-drift rejection is deterministic and must fail closed on the first attempt. The
+  `document-processing` queue has duplicate detection with a one-hour window, but it keys on
+  `MessageId`, which the not-yet-written publisher must set deliberately; record that requirement
+  on 5.4 rather than relying on it. `activatedEditionCount: 0` stays regardless.
+
 ---
 
 ## Phase 4 — Technical debt
@@ -347,10 +490,16 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** The project sets `TreatWarningsAsErrors`, so the test project
   should too. `TryParseActivationState` returns `true` for a null value and `false` for an
-  unrecognized string — cover both. Also assert that a `FormPackage` with no forms derives
+  unrecognized string — cover both. Code review recommendation **T-04**: assert that a
+  `FormPackage` with no forms derives
   `UNAVAILABLE`: the guard exists in `CatalogModels.cs` but no test can reach it until this project
   exists, and it is the branch that stops a form-less package deriving `PILOT`, the state that
   permits case creation.
+  Code review recommendations **T-05** and **T-07** extend this item's scope: assert the media type
+  and body shape of every error response against `contracts/catalog.openapi.json`, and assert that
+  the OpenAPI `FormActivationState` enum, the C# enum members, and the strings
+  `TryParseActivationState` accepts are the same set. Three independent copies of that enum exist
+  today and nothing detects divergence between them.
 
 ### 4.2 — Add repository governance files
 
@@ -403,6 +552,126 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
+
+### 4.5 — Bring the Core API into line with its published contract
+
+- **Priority:** P2
+- **Description:** Code review findings **F-11**, **F-12**, **F-27**, **F-28**, and **F-29**. Error
+  responses are served as `application/json` while `contracts/catalog.openapi.json` declares
+  `application/problem+json`, and a malformed `editionDate` fails route binding before user code
+  runs, producing an undeclared 400 with an empty body — no `type`, no `correlationId`, nothing a
+  client can report. The contract constrains every input with a pattern or length; the
+  implementation enforces one of them, so a malformed `categoryCode` returns a successful empty
+  catalog indistinguishable from a legitimately empty one, and `ListPackages` compares
+  case-insensitively while the contract declares uppercase-only. The version string `"0.2.0"` is
+  duplicated as a literal and tied to neither the assembly nor the OpenAPI `info.version`. A global
+  `JsonStringEnumConverter` is registered but has no effect, because every enum carries a type-level
+  attribute that takes precedence — a future enum added without those attributes would silently
+  serialise in PascalCase. `GetPackage` uses `SingleOrDefault` with a case-insensitive comparison,
+  which throws on duplicate codes rather than failing diagnosably.
+- **Dependencies:** 4.1 for the tests that verify any of it.
+- **Recommended action:** Set `application/problem+json` explicitly and register a problem-details
+  fallback so binding failures get a body; declare the 400 on the schema route. Validate the
+  declared patterns at the boundary and then drop `OrdinalIgnoreCase`. Introduce a single version
+  constant. Remove the redundant global converter so a missing attribute fails visibly. Assert
+  package-code uniqueness at startup instead of throwing per request. Add **T-05** and **T-07**.
+- **Status:** Not started
+- **Notes for future engineers:** Confirm with the Swift client owner that no caller sends lowercase
+  codes before tightening the comparison. The validator inspects the contract's path set and schema
+  names, not the per-operation response map, so adding a 400 does not break CI.
+
+### 4.6 — Harden the foundation validator
+
+- **Priority:** P2
+- **Description:** Code review findings **F-05** and **F-24**. The prohibited-input rule collects
+  parameter names only from operation objects, so a `parameters` list declared at path-item level —
+  a documented OpenAPI construct that applies to every operation — is invisible to it, and a
+  `$ref` parameter has no `name` key and crashes the validator with a `KeyError` instead of an
+  `ERROR:` line. Separately, `document["components"]["schemas"]` and similar direct indexing turn
+  structural drift into a traceback rather than a diagnosis, and the module-level `FAILURES` global
+  is why the four `validate_*` functions have no unit tests: they cannot run without contaminating
+  shared state.
+- **Dependencies:** None. Do this before **T-01** extends validator test coverage further.
+- **Recommended action:** Flatten path-item and operation parameters, and reject `$ref` parameters
+  outright — a fail-closed gate should require inline declarations it can actually read. Scan
+  `requestBody` schemas too. Replace direct indexing with guarded lookups. Have each `validate_*`
+  return its failures rather than appending to a global, so `main()` concatenates and the functions
+  become testable.
+- **Status:** Not started
+- **Notes for future engineers:** The prohibited-input rule is the one keeping person, case, and
+  eligibility parameters out of the catalog API. Widening what it can see is the point of this item.
+
+### 4.7 — Resolve Bicep parameter, naming, and API-version inconsistencies
+
+- **Priority:** P2
+- **Description:** Code review findings **F-15**, **F-16**, **F-20**, **F-21**, and **F-22**. Only
+  `resourceNamePrefix` carries length constraints; `environmentName` does not, yet it flows into
+  `sql-${name}-${suffix}`, and Azure SQL server names permit lowercase, digits, and hyphens only —
+  so `AZURE_ENV_NAME=Dev` fails after the resource group and network have already deployed. Every
+  parameter is environment-substituted, so an unset variable becomes `""`, which ARM treats as
+  supplied and which silently overrides the `location` default. `subnetPrefixes` is an untyped
+  `object`, so a misspelled key fails deep inside the network module. The Service Bus namespace is
+  the only globally-scoped resource named without a `uniqueString` suffix, making deployment depend
+  on whether anyone else has taken `sb-lapluma-dev`. Both queues set
+  `deadLetteringOnMessageExpiration` without a TTL, so the policy can never fire, while the topic
+  sets a TTL without dead-lettering, so expired messages vanish. `sqlDatabase` and the Cosmos
+  database and container carry no tags, though the SQL database holds the authoritative case data.
+  Service Bus and SQL pin preview API versions while everything else uses GA.
+- **Dependencies:** `REVIEW.md` **R-05** (naming convention and tag granularity), **R-11** (the TTL
+  values, not the structural fix).
+- **Recommended action:** Add length constraints and a user-defined type for `subnetPrefixes`, and
+  apply `toLower()` where `environmentName` composes a resource name. Give the Service Bus namespace
+  the stem-plus-suffix treatment its siblings use. Give the queues an explicit TTL and the topic
+  dead-lettering. Tag the SQL database and the Cosmos database and container. Move to GA API
+  versions unless a preview-only property is required, and comment the pin if one is.
+- **Status:** Not started
+- **Notes for future engineers:** `infra/main.bicep` names a symbolic resource `resourceGroup`,
+  shadowing the built-in function. It is legal at subscription scope and compiles, but reads as a
+  mistake — rename it while you are in the file. The linter runs at `error` for twenty rules, so
+  removing the last use of a parameter will fail the build under `no-unused-params`.
+
+### 4.8 — Inventory the runtime app settings the validator cannot see
+
+- **Priority:** P2
+- **Description:** Code review finding **F-18**. `ACQUISITION_SCHEDULE`, `DURABLE_TASK_HUB_NAME`,
+  and `PORT` are consumed by the reviewed code and appear in no machine-checked inventory.
+  `validate_env_example` enforces bidirectional parity between `.env.example` and
+  `infra/main.parameters.json`, which structurally covers only the Bicep parameter half of the
+  configuration contract. All three are documented on the Configuration Contract wiki page, which
+  is unpublished and unverified by any tool. Two of the three are required for the Functions host to
+  start at all. `worker.py` also parses `PORT` with no guard, so a non-numeric value crashes at
+  startup with a traceback.
+- **Dependencies:** `REVIEW.md` **R-16** for the `ACQUISITION_SCHEDULE` value, not for the
+  inventory or the validation.
+- **Recommended action:** Extend the validator to scan `%NAME%` references under `src/functions/`
+  and `os.environ` reads under `src/`, and require each to appear in a declared inventory. Guard the
+  `PORT` parse with an explicit range check.
+- **Status:** Not started
+- **Notes for future engineers:** Adding these three to `.env.example` as-is will trip the existing
+  parity check, which requires every declared name to be substituted by a Bicep parameter. Either
+  give app settings their own section the parity check skips, or introduce a separate inventory
+  file — the code review proposed `CHECKLIST.md`, which the Documentation Standards wiki page does
+  not currently permit, so that is a documentation-model decision before it is an engineering one.
+
+### 4.9 — Harden the processing worker health listener
+
+- **Priority:** P3
+- **Description:** Code review finding **F-23**. `BaseHTTPRequestHandler.timeout` defaults to
+  `None` and `ThreadingHTTPServer` spawns an uncapped thread per connection, so a client sending
+  partial request lines holds threads open indefinitely. `send_error` emits an HTML body and a
+  `Server: BaseHTTP/0.6 Python/3.12.x` header, disclosing the interpreter version and using a
+  different content type from the JSON success path. There is no SIGTERM handler or `server_close`,
+  so container stop is an abrupt teardown.
+- **Dependencies:** None.
+- **Recommended action:** Set `timeout`, override `server_version` and `sys_version` to suppress the
+  banner, return JSON for the 404 path, and add graceful shutdown. Setting
+  `protocol_version = "HTTP/1.1"` requires an accurate `Content-Length` on every response, which the
+  success path already sends.
+- **Status:** Not started
+- **Notes for future engineers:** Low impact — the processing zone has no public ingress and the
+  probe traffic is platform-generated. Worth doing because each is a one-liner in a file that is
+  otherwise carefully considered. Add no dependencies; the zero-third-party-dependency guarantee for
+  this image is architectural.
 
 ---
 
