@@ -198,18 +198,28 @@ close that gap.
 ### 2.5 — Add supply-chain and code scanning to CI
 
 - **Priority:** P2
-- **Description:** `.github/workflows/foundation-validation.yml` runs the custom validator, tests,
-  builds, and Bicep compilation, but there is no CodeQL analysis, no dependency review, no container
-  image scan, and no IaC security scan. The custom secret scan in `tools/validate_foundation.py`
-  covers five specific patterns and is not a substitute for GitHub secret scanning.
-- **Dependencies:** None.
-- **Recommended action:** Add CodeQL for C# and Python, dependency review on pull requests, a
-  container image scan for both built images, and an IaC scanner over `infra/`. Enable GitHub secret
-  scanning and push protection at the repository level. Keep every action pinned by commit SHA, as
-  the existing workflow already does.
-- **Status:** Not started
-- **Notes for future engineers:** The existing workflow's SHA pinning is deliberate. Do not relax it
-  to tags for convenience.
+- **Description:** `.github/workflows/security-scanning.yml` now runs CodeQL for C# and Python,
+  dependency review on pull requests, a Trivy image scan of both built images, and a Trivy scan of
+  the ARM template the Bicep compiles to. Two parts of the original item remain. First, both Trivy
+  scans run with `exit-code: '0'` — they publish findings to code scanning but cannot fail a build,
+  because no one has triaged the base-image and template baseline yet. Second, GitHub secret
+  scanning and push protection are repository settings, not workflow configuration, and are still
+  off. The custom secret scan in `tools/validate_foundation.py` covers five specific patterns and is
+  not a substitute for them.
+- **Dependencies:** None. The repository is public, so CodeQL, dependency review, secret scanning,
+  and code-scanning uploads are all available without an Advanced Security licence.
+- **Recommended action:** Triage the first full scan results, then set a severity threshold that
+  fails the build on both Trivy jobs — enforcing an untriaged baseline would only teach reviewers to
+  ignore a red pipeline. Enable secret scanning and push protection in the repository settings.
+  Consider whether the weekly schedule should also open an issue when a new advisory appears, since
+  a scheduled run that only writes to the Security tab is easy to miss.
+- **Status:** Partially complete — scanners run and report; enforcement and the settings toggles
+  remain.
+- **Notes for future engineers:** The SHA pinning across both workflows is deliberate. Do not relax
+  it to tags for convenience. Trivy has no Bicep parser, which is why the infrastructure job
+  compiles to ARM first and scans that; if the Bicep pin moves, the scanned artifact moves with it.
+  The SARIF upload steps are skipped for pull requests from forks, which cannot be granted
+  `security-events: write`.
 
 ---
 
