@@ -38,6 +38,11 @@ jobs:
       - name: Build .NET core API
         run: dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
 
+      - name: Pin the Bicep CLI version
+        run: |
+          az bicep install --version v0.46.1
+          az bicep version
+
       - name: Compile Bicep without provisioning and fail on any diagnostic
         run: |
           set -o pipefail

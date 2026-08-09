@@ -31,11 +31,14 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 - `bicepconfig.json`, setting twenty security-relevant linter rules to `error`, including
   `no-hardcoded-location`, `secure-parameter-default`, and `no-unused-params`. The Bicep CI step now
-  fails on any diagnostic, so a rule left at warning level cannot pass silently.
+  fails on any diagnostic, so a rule left at warning level cannot pass silently. CI pins the Bicep
+  CLI to `v0.46.1`, because `az bicep` otherwise installs whatever is current and an upstream release
+  could change the rule set or the diagnostic format under a step that now treats any diagnostic as a
+  build failure.
 - `tools/test_validate_foundation.py`, covering the secret scan: every pattern is still detected in
-  tracked source, generated directories and binary suffixes are skipped, a file merely named like a
-  skipped directory is still scanned, and the repository tree itself is clean. Wired into CI beside
-  the existing contract tests.
+  source, generated directories and binary suffixes are skipped, a file merely named like a skipped
+  directory is still scanned, and the repository tree itself is clean. Wired into CI beside the
+  existing contract tests.
 - `.env.example`, listing every environment variable `infra/main.parameters.json` substitutes, with
   no values and a short comment each. `tools/validate_foundation.py` now fails if the file drifts
   from the parameter file in either direction, or if any variable is committed carrying a value.

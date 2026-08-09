@@ -187,11 +187,13 @@ def validate_env_example() -> None:
 
 
 def scan_for_secrets(root: Path, ignored_files: frozenset[Path] = frozenset()) -> list[str]:
-    """Return one finding per secret pattern matched in a tracked file under root.
+    """Return one finding per secret pattern matched in a file under root.
 
-    Generated directories are skipped so the scan covers source rather than build output.
-    Compiled Python bytecode in particular embeds this module's own pattern literals, which
-    the scan would otherwise report as a leaked connection string.
+    Tracking is not consulted: every file under root is read whether or not git knows about it,
+    because an untracked `.env` holding a real credential is exactly what this should catch.
+    Generated directories are skipped so the scan covers source rather than build output —
+    compiled Python bytecode in particular embeds this module's own pattern literals, which
+    would otherwise be reported as a leaked connection string.
     """
     findings: list[str] = []
     for path in root.rglob("*"):
