@@ -77,16 +77,27 @@ jobs:
       - name: Build the image
         run: docker build --tag lapluma-${{ matrix.image.name }}:scan ${{ matrix.image.context }}
 
+      - name: Export the image for scanning
+        # Scanning a tarball keeps the Docker socket out of the scanner's reach.
+        run: docker save lapluma-${{ matrix.image.name }}:scan --output image.tar
+
       - name: Scan the image
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
-        with:
-          image-ref: lapluma-${{ matrix.image.name }}:scan
-          format: sarif
-          output: trivy-${{ matrix.image.name }}.sarif
-          ignore-unfixed: true
-          severity: CRITICAL,HIGH
-          # Reporting only until the base-image baseline is triaged; see TODO.md item 2.5.
-          exit-code: '0'
+        # Trivy runs from its own digest-pinned image rather than the marketplace action, whose
+        # setup step fetches a release binary through an install script at run time — unpinned, and
+        # observed failing outright on this repository.
+        run: |
+          # --exit-code 0 reports without failing, until the baseline is triaged. See TODO.md 2.5.
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            image \
+            --input image.tar \
+            --format sarif \
+            --output trivy-${{ matrix.image.name }}.sarif \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            --exit-code 0
 
       - name: Upload the image scan results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
@@ -113,18 +124,20 @@ jobs:
 
       - name: Compile Bicep to an ARM template
         # Trivy has no Bicep parser, so scan the ARM template Bicep already compiles to.
-        run: az bicep build --file infra/main.bicep --outfile "$RUNNER_TEMP/main.json"
+        run: az bicep build --file infra/main.bicep --outfile arm-template.json
 
       - name: Scan the ARM template
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
-        with:
-          scan-type: config
-          scan-ref: ${{ runner.temp }}/main.json
-          format: sarif
-          output: trivy-infrastructure.sarif
-          severity: CRITICAL,HIGH
-          # Reporting only until the baseline is triaged; see TODO.md item 2.5.
-          exit-code: '0'
+        run: |
+          # --exit-code 0 reports without failing, until the baseline is triaged. See TODO.md 2.5.
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            config arm-template.json \
+            --format sarif \
+            --output trivy-infrastructure.sarif \
+            --severity CRITICAL,HIGH \
+            --exit-code 0
 
       - name: Upload the infrastructure scan results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
