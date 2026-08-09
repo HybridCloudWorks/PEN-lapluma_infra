@@ -29,6 +29,12 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Added
 
+- `.github/workflows/security-scanning.yml`, running CodeQL for C# and Python, dependency review on
+  pull requests, a Trivy scan of both container images, and a Trivy scan of the ARM template the
+  Bicep compiles to, plus a weekly schedule so a newly published advisory surfaces without waiting
+  for the next commit. Every action is pinned by commit SHA. Both Trivy jobs report to code scanning
+  without failing the build until their baseline is triaged; that threshold, and the secret-scanning
+  and push-protection repository settings, remain open under `TODO.md` item **2.5**.
 - `bicepconfig.json`, setting twenty security-relevant linter rules to `error`, including
   `no-hardcoded-location`, `secure-parameter-default`, and `no-unused-params`. The Bicep CI step now
   fails on any diagnostic, so a rule left at warning level cannot pass silently. CI pins the Bicep
