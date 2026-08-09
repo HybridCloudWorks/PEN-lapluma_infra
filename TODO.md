@@ -416,7 +416,7 @@ close that gap.
   exist, and `azure.yaml` declares no such service. Without it, step 6 of the data flow — the entire
   output half of the product — has no implementation.
 - **Dependencies:** 1.2, 5.2; `REVIEW.md` **R-14** (verified artifacts and approved field maps).
-- **Recommended action:** Create `src/package-worker` as a .NET 9 queue-driven worker or Container
+- **Recommended action:** Create `src/package-worker` as a .NET 10 queue-driven worker or Container
   Apps Job. It fills an edition-pinned official form from a human-approved field ledger, round-trip
   verifies every mapped field (item 3.4), flattens the output where the artifact permits it, hashes
   it, writes it to the packages storage account, and emits a delivery event. Add it to `azure.yaml`,

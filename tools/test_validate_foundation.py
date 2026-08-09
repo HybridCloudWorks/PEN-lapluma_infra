@@ -164,6 +164,24 @@ class CatalogInvariantTests(unittest.TestCase):
         )
         self.assertEqual(classifications["I-130"], ("OfficialPdf", "AutomaticFill", "CatalogOnly"))
 
+    def test_a_form_declared_twice_is_rejected(self) -> None:
+        # A dict keyed by form number keeps only the last declaration, so a second one would
+        # otherwise hide whatever the first said.
+        tree = self.copy_tree()
+        fixture = tree / "src/core-api/CatalogRepository.cs"
+        self.rewrite(
+            fixture,
+            'Form("DS-11", "Application for a U.S. Passport", FormArtifactKind.OfficialPdf,\n'
+            "                FormFillCapability.AutomaticFill, FormActivationState.CatalogOnly)",
+            'Form("DS-11", "Application for a U.S. Passport", FormArtifactKind.OfficialPdf,\n'
+            "                FormFillCapability.AutomaticFill, FormActivationState.CatalogOnly),\n"
+            '            Form("DS-11", "Duplicate", FormArtifactKind.ExternalWorkflow,\n'
+            "                FormFillCapability.ReferenceOnly, FormActivationState.CatalogOnly)",
+        )
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("declares a form more than once", result.stderr)
+
     def test_an_unparseable_fixture_is_not_silently_accepted(self) -> None:
         # An empty parse must read as "the fixture drifted", never as "no form breaks a rule".
         self.assertEqual(validate_foundation.parse_form_classifications(""), {})

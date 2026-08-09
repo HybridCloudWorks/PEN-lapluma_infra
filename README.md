@@ -17,7 +17,7 @@ handshake shared with it is
 |------|----------|
 | `contracts/` | OpenAPI 3.1 catalog contract and the iOS package-compatibility handshake |
 | `infra/` | Subscription-scope Bicep entrypoint, modules, and the AZD parameter file |
-| `src/core-api/` | .NET 9 catalog and health API |
+| `src/core-api/` | .NET 10 catalog and health API |
 | `src/document-processing/` | Python 3.12 isolated processing worker |
 | `src/functions/` | Durable Functions catalog-acquisition skeleton |
 | `tools/` | `validate_foundation.py`, the dependency-free contract and interlock validator |
@@ -27,7 +27,7 @@ handshake shared with it is
 ## Requirements
 
 - Python 3.12
-- .NET 9 SDK
+- .NET 10 SDK
 - Azure CLI with the Bicep extension
 - Docker, to build the service images
 

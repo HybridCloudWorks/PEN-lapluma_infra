@@ -7,8 +7,14 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
-- Pinned all three container base images by digest: `mcr.microsoft.com/dotnet/sdk:9.0` and
-  `mcr.microsoft.com/dotnet/aspnet:9.0` in `src/core-api/Dockerfile`, and `python:3.12-slim` in
+- Moved the Core API from .NET 9 to **.NET 10**. `LaPluma.CoreApi.csproj` targets `net10.0`, the
+  Dockerfile builds on `dotnet/sdk:10.0` and runs on `dotnet/aspnet:10.0`, and CI installs the
+  10.0.x SDK. .NET 9 is a Standard Term Support release whose support window has closed; .NET 10 is
+  the current Long Term Support release, which suits a pilot that must stay patchable. The README,
+  `TODO.md` item 5.1, and the Architecture Overview and Azure Deployment Plan wiki pages were
+  updated to match, so the stated stack and the built stack agree.
+- Pinned all three container base images by digest: `mcr.microsoft.com/dotnet/sdk:10.0` and
+  `mcr.microsoft.com/dotnet/aspnet:10.0` in `src/core-api/Dockerfile`, and `python:3.12-slim` in
   `src/document-processing/Dockerfile`. Two builds of the same commit now resolve the same base
   layers. Each pin keeps its tag alongside the digest for readability; the digest is what resolves.
 - Removed the `main` and `codex/**` branch filter from the foundation validation workflow's `push`
@@ -21,6 +27,9 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The catalog fixture parser now rejects a form declared more than once. Classifications are keyed
+  by form number, so a second declaration of the same form silently replaced the first and hid
+  whatever it said.
 - The catalog priority and fill-mode rules in `tools/validate_foundation.py` now bind each
   classification to the form it is declared on. They previously asserted that a literal such as
   `FormArtifactKind.ExternalWorkflow` appeared somewhere in `CatalogRepository.cs`, which passed
