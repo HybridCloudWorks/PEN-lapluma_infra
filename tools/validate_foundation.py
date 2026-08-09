@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 
@@ -108,17 +109,26 @@ FORM_DECLARATION = re.compile(
 )
 
 
-def parse_form_classifications(source: str) -> dict[str, tuple[str, str, str]]:
-    """Map each form number in the catalog fixture to its declared classification triple.
+def parse_form_declarations(source: str) -> list[tuple[str, tuple[str, str, str]]]:
+    """Every form declaration in the catalog fixture, in file order, duplicates included.
 
-    Returns (artifact kind, fill capability, activation state) per form. An empty result means
-    the fixture no longer matches the expected call shape, which the caller must treat as a
-    failure rather than as "no forms violate the rules".
+    Each entry is (form number, (artifact kind, fill capability, activation state)). An empty
+    result means the fixture no longer matches the expected call shape, which callers must treat
+    as a failure rather than as "no form violates the rules".
     """
-    return {
-        match.group("id"): (match.group("kind"), match.group("capability"), match.group("state"))
+    return [
+        (match.group("id"), (match.group("kind"), match.group("capability"), match.group("state")))
         for match in FORM_DECLARATION.finditer(source)
-    }
+    ]
+
+
+def parse_form_classifications(source: str) -> dict[str, tuple[str, str, str]]:
+    """Map each form number to its classification triple.
+
+    Collapses duplicate declarations — the last one wins. Callers that must detect a form
+    declared twice have to read `parse_form_declarations` instead.
+    """
+    return dict(parse_form_declarations(source))
 
 
 def validate_priority_and_modes() -> None:
@@ -157,7 +167,13 @@ def validate_priority_and_modes() -> None:
     # Bind each classification to the form it is declared on. Asserting that a literal appears
     # somewhere in the file passes just as happily when the classifications are swapped between
     # forms, which would silently make FAFSA an automatically fillable official PDF.
-    classifications = parse_form_classifications(source)
+    declarations = parse_form_declarations(source)
+    # Detect duplicates before collapsing to a dict: two declarations of one form would otherwise
+    # leave only the last, hiding whatever the first one said.
+    counts = Counter(form_id for form_id, _ in declarations)
+    duplicated = sorted(form_id for form_id, count in counts.items() if count > 1)
+    require(not duplicated, f"catalog fixture declares a form more than once: {duplicated}")
+    classifications = dict(declarations)
     require(
         set(classifications) == {"I-130", "I-130A", "I-485", "I-864", "DS-11", "FAFSA"},
         f"catalog fixture form set drifted: {sorted(classifications)}",
