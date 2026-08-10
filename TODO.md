@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.6 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -421,28 +421,7 @@ close that gap.
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
 
-### 4.4 — Harden the foundation validator
-
-- **Priority:** P2
-- **Description:** Code review findings **F-05** and **F-24**. The prohibited-input rule collects
-  parameter names only from operation objects, so a `parameters` list declared at path-item level —
-  a documented OpenAPI construct that applies to every operation — is invisible to it, and a
-  `$ref` parameter has no `name` key and crashes the validator with a `KeyError` instead of an
-  `ERROR:` line. Separately, `document["components"]["schemas"]` and similar direct indexing turn
-  structural drift into a traceback rather than a diagnosis, and the module-level `FAILURES` global
-  is why the four `validate_*` functions have no unit tests: they cannot run without contaminating
-  shared state.
-- **Dependencies:** None. Do this before **T-01** extends validator test coverage further.
-- **Recommended action:** Flatten path-item and operation parameters, and reject `$ref` parameters
-  outright — a fail-closed gate should require inline declarations it can actually read. Scan
-  `requestBody` schemas too. Replace direct indexing with guarded lookups. Have each `validate_*`
-  return its failures rather than appending to a global, so `main()` concatenates and the functions
-  become testable.
-- **Status:** Not started
-- **Notes for future engineers:** The prohibited-input rule is the one keeping person, case, and
-  eligibility parameters out of the catalog API. Widening what it can see is the point of this item.
-
-### 4.5 — Resolve Bicep parameter, naming, and API-version inconsistencies
+### 4.4 — Resolve Bicep parameter, naming, and API-version inconsistencies
 
 - **Priority:** P2
 - **Description:** Code review findings **F-15**, **F-16**, **F-20**, **F-21**, and **F-22**. Only
@@ -471,7 +450,7 @@ close that gap.
   mistake — rename it while you are in the file. The linter runs at `error` for twenty rules, so
   removing the last use of a parameter will fail the build under `no-unused-params`.
 
-### 4.6 — Inventory the runtime app settings the validator cannot see
+### 4.5 — Inventory the runtime app settings the validator cannot see
 
 - **Priority:** P2
 - **Description:** Code review finding **F-18**. `ACQUISITION_SCHEDULE`, `DURABLE_TASK_HUB_NAME`,
@@ -494,7 +473,7 @@ close that gap.
   file — the code review proposed `CHECKLIST.md`, which the Documentation Standards wiki page does
   not currently permit, so that is a documentation-model decision before it is an engineering one.
 
-### 4.7 — Harden the processing worker health listener
+### 4.6 — Harden the processing worker health listener
 
 - **Priority:** P3
 - **Description:** Code review finding **F-23**. `BaseHTTPRequestHandler.timeout` defaults to
