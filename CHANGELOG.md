@@ -27,6 +27,13 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The processing worker's health listener no longer holds threads open indefinitely, disclose the
+  interpreter version, or answer one endpoint in two content types. Requests now time out,
+  `ThreadingHTTPServer` shuts down on SIGTERM so container stop lets in-flight probes finish, the
+  `Server` header is the service name rather than `BaseHTTP/0.6 Python/3.12.x`, and an unknown path
+  returns an empty JSON-typed 404 instead of an HTML error page. `PORT` is validated rather than
+  passed straight to `int()`, which previously crashed at startup with an unhandled `ValueError` on
+  a non-numeric value.
 - The prohibited-input rule now sees every parameter declaration. It collected names from operation
   objects only, so a `parameters` list declared at path-item level — a documented OpenAPI construct
   that applies to every operation beneath it — was invisible, and a `caseId` declared that way

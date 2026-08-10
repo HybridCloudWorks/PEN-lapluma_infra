@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.6 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.5 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -472,26 +472,6 @@ close that gap.
   give app settings their own section the parity check skips, or introduce a separate inventory
   file — the code review proposed `CHECKLIST.md`, which the Documentation Standards wiki page does
   not currently permit, so that is a documentation-model decision before it is an engineering one.
-
-### 4.6 — Harden the processing worker health listener
-
-- **Priority:** P3
-- **Description:** Code review finding **F-23**. `BaseHTTPRequestHandler.timeout` defaults to
-  `None` and `ThreadingHTTPServer` spawns an uncapped thread per connection, so a client sending
-  partial request lines holds threads open indefinitely. `send_error` emits an HTML body and a
-  `Server: BaseHTTP/0.6 Python/3.12.x` header, disclosing the interpreter version and using a
-  different content type from the JSON success path. There is no SIGTERM handler or `server_close`,
-  so container stop is an abrupt teardown.
-- **Dependencies:** None.
-- **Recommended action:** Set `timeout`, override `server_version` and `sys_version` to suppress the
-  banner, return JSON for the 404 path, and add graceful shutdown. Setting
-  `protocol_version = "HTTP/1.1"` requires an accurate `Content-Length` on every response, which the
-  success path already sends.
-- **Status:** Not started
-- **Notes for future engineers:** Low impact — the processing zone has no public ingress and the
-  probe traffic is platform-generated. Worth doing because each is a one-liner in a file that is
-  otherwise carefully considered. Add no dependencies; the zero-third-party-dependency guarantee for
-  this image is architectural.
 
 ---
 
