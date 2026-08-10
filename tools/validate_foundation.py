@@ -616,6 +616,54 @@ def validate_ai_zone_has_no_data_plane_role() -> Failures:
     return failures
 
 
+# Resource types that emit diagnostics and therefore must route them to the workspace. A resource
+# added without a diagnostic setting is one whose audit trail simply does not exist, and nothing
+# about the deployment says so — the failure is silence.
+DIAGNOSABLE_TYPES = frozenset({
+    "Microsoft.Sql/servers/databases",
+    "Microsoft.DocumentDB/databaseAccounts",
+    "Microsoft.Storage/storageAccounts",
+    "Microsoft.Storage/storageAccounts/blobServices",
+    "Microsoft.ServiceBus/namespaces",
+    "Microsoft.KeyVault/vaults",
+    "Microsoft.KeyVault/managedHSMs",
+    "Microsoft.Network/networkSecurityGroups",
+    "Microsoft.Network/virtualNetworks",
+    "Microsoft.App/managedEnvironments",
+    "Microsoft.ContainerRegistry/registries",
+    "Microsoft.Web/sites",
+})
+
+DECLARATION = re.compile(r"^resource (\w+) '([^'@]+)@[^']+'(\s+existing)?\s*=", re.MULTILINE)
+DIAGNOSTIC_SCOPE = re.compile(r"^\s*scope: (\w+)(?:\[[^\]]*\])?\s*$", re.MULTILINE)
+
+
+def validate_diagnostic_coverage() -> Failures:
+    """Every resource that can emit diagnostics routes them to the workspace."""
+    failures = Failures()
+    for module in sorted((ROOT / "infra/modules").glob("*.bicep")):
+        text = module.read_text(encoding="utf-8")
+
+        # Only scopes inside a diagnosticSettings declaration count. A `scope:` elsewhere — a role
+        # assignment, for instance — is not a diagnostic setting and must not satisfy this.
+        scoped: set[str] = set()
+        for block in text.split("resource ")[1:]:
+            if block.lstrip().startswith("_") or "'Microsoft.Insights/diagnosticSettings@" not in block.split("\n")[0]:
+                continue
+            body = block.split("\n}", 1)[0]
+            scoped.update(DIAGNOSTIC_SCOPE.findall(body))
+
+        for symbol, resource_type, is_existing in DECLARATION.findall(text):
+            if is_existing or resource_type not in DIAGNOSABLE_TYPES:
+                continue
+            failures.require(
+                symbol in scoped,
+                f"{module.name} declares {resource_type} '{symbol}' with no diagnostic setting "
+                "routing it to the workspace",
+            )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -626,6 +674,7 @@ def main() -> int:
         *validate_python_version_agreement(),
         *validate_private_endpoint_coverage(),
         *validate_ai_zone_has_no_data_plane_role(),
+        *validate_diagnostic_coverage(),
         *validate_no_sensitive_values(),
     ]
     if failures:

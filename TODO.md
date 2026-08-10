@@ -16,7 +16,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the edge zone is not modelled | 1.1 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
-| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
+| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.5 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
@@ -177,26 +177,7 @@ place. What remains is the edge, which cannot be modelled until an address range
 
 ## Phase 3 — Stability improvements
 
-### 3.1 — Add diagnostic settings to every resource
-
-- **Priority:** P1
-- **Description:** `infra/modules/observability.bicep` creates a Log Analytics workspace and an
-  Application Insights component, but not one resource in the network, security, messaging, or data
-  modules has a `Microsoft.Insights/diagnosticSettings` child. No audit log, no SQL security log, no
-  Key Vault access log, and no Service Bus operational log reaches the workspace.
-- **Dependencies:** None. The Azure Monitor Private Link Scope this waited on now exists.
-- **Recommended action:** Add diagnostic settings to SQL, Cosmos, all four storage accounts and
-  their blob services, Service Bus, Key Vault, Managed HSM, the NSGs, the three Container Apps
-  environments, the function app, and ACR — all of which now exist — plus APIM once 1.1 lands.
-  Route them all to the workspace.
-  Verify the emitted categories contain no case content, as the content-free telemetry constraint
-  requires.
-- **Status:** Not started
-- **Notes for future engineers:** Log Analytics retention is currently hard-coded to 365 days; see
-  item 4.2. Add the diagnostic settings before parameterizing retention, so the retention change can
-  be validated against real ingested categories.
-
-### 3.2 — Decide and implement resilience settings
+### 3.1 — Decide and implement resilience settings
 
 - **Priority:** P1
 - **Description:** SQL sets `zoneRedundant: false`, Cosmos sets `isZoneRedundant: false`, three of
@@ -214,11 +195,16 @@ place. What remains is the edge, which cannot be modelled until an address range
   `sqlAutoPauseMinutes` are all supplied per environment through `.env.example`, so this item is
   now a decision about values rather than a code change.
 - **Status:** Not started
-- **Notes for future engineers:** `GP_S_Gen5` with `minCapacity: 0.5` and `autoPauseDelay: 60` means
+- **Notes for future engineers:** Log Analytics retention was parameterized before any diagnostic
+  setting existed, so the 365-day default has never been weighed against real ingested volume. Now
+  that every resource routes logs and metrics to the workspace, that number is measurable — take a
+  reading before ratifying it, because retention on an empty workspace costs nothing and retention
+  on a populated one is most of the observability bill.
+  `GP_S_Gen5` with `minCapacity: 0.5` and `autoPauseDelay: 60` means
   the first request after an idle hour pays a resume penalty. For a ~40-case supervised pilot that
   may well be fine — but it should be a recorded decision, not an accident.
 
-### 3.3 — Implement the invariant test suite
+### 3.2 — Implement the invariant test suite
 
 - **Priority:** P1
 - **Description:** Cross-tenant, cross-folder, person-boundary, and agent-no-write invariant tests
@@ -234,7 +220,7 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Notes for future engineers:** These are the tests that justify the trust-zone architecture. If
   they cannot be written against the implementation, the implementation has drifted from the design.
 
-### 3.4 — Implement package round-trip fidelity verification
+### 3.3 — Implement package round-trip fidelity verification
 
 - **Priority:** P1
 - **Description:** The design requires the package worker to round-trip verify every mapped field
@@ -250,7 +236,7 @@ place. What remains is the edge, which cannot be modelled until an address range
   activation and permits no electronic signature. Check the artifact's encoding — the contract
   distinguishes `ACROFORM`, `XFA`, and `FLAT`, and XFA round-tripping behaves very differently.
 
-### 3.5 — Implement erasure and retention sweep integration tests
+### 3.4 — Implement erasure and retention sweep integration tests
 
 - **Priority:** P1
 - **Description:** Account erasure and case-retention sweeps must be integration-tested across SQL,
@@ -266,12 +252,12 @@ place. What remains is the edge, which cannot be modelled until an address range
   naive delete leaves recoverable versions behind. The test must assert on versions, not just on
   current blobs.
 
-### 3.6 — Automate restore and deletion drills
+### 3.5 — Automate restore and deletion drills
 
 - **Priority:** P2
 - **Description:** Restore and deletion drill evidence is a real-user pilot prerequisite, and no
   drill procedure or automation exists.
-- **Dependencies:** 3.5.
+- **Dependencies:** 3.4.
 - **Recommended action:** Script a periodic drill against `staging` that restores SQL and Cosmos to
   a point in time, verifies data integrity, executes a deletion sweep, and writes content-free
   evidence to the audit account. Document the procedure as a runbook (item 6.2).
@@ -340,7 +326,7 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Dependencies:** 5.2; `REVIEW.md` **R-14** (verified artifacts and approved field maps).
 - **Recommended action:** Create `src/package-worker` as a .NET 10 queue-driven worker or Container
   Apps Job. It fills an edition-pinned official form from a human-approved field ledger, round-trip
-  verifies every mapped field (item 3.4), flattens the output where the artifact permits it, hashes
+  verifies every mapped field (item 3.3), flattens the output where the artifact permits it, hashes
   it, writes it to the packages storage account, and emits a delivery event. Add it to `azure.yaml`,
   give it its own Dockerfile with a non-root user, and extend `tools/validate_foundation.py` to
   cover it.
@@ -442,7 +428,7 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Recommended action:** Add a Durable Functions orchestration that sweeps SQL, Cosmos projections,
   blob current versions and prior versions, temporary stores, delivery links, and search indexes,
   verifies each deletion, writes content-free evidence to the audit account, and only then issues
-  the receipt. Pair it with the tests in item 3.5.
+  the receipt. Pair it with the tests in item 3.4.
 - **Status:** Not started
 - **Notes for future engineers:** "Applicable key material" matters when per-case keys are used —
   coordinate with the CMK design in item 2.1 before deciding whether crypto-shredding is part of the
@@ -492,7 +478,7 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Priority:** P2
 - **Description:** Incident response, on-call procedure, restore drill, and deletion drill runbooks
   are real-user pilot prerequisites. None exist.
-- **Dependencies:** 3.6, 6.1; `REVIEW.md` **R-04** (operations and on-call owner).
+- **Dependencies:** 3.5, 6.1; `REVIEW.md` **R-04** (operations and on-call owner).
 - **Recommended action:** Write the runbooks as wiki pages once the operations owner is named and
   `staging` exists to validate them against. Link them from the wiki Home page.
 - **Status:** Not started

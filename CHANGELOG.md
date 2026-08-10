@@ -50,6 +50,28 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Every resource that can emit diagnostics now routes them to the Log Analytics workspace. Not one
+  resource in the network, security, messaging, data, or compute modules had a `diagnosticSettings`
+  child: no SQL security log, no Key Vault access log, no Managed HSM audit trail, no Service Bus
+  operational log, and no NSG rule evaluation reached the workspace that was built to receive them.
+  Nineteen declarations, expanding to twenty-five settings once the storage loops unroll.
+
+  `allLogs` rather than an enumerated category list, deliberately. A list has to be revised whenever
+  Azure adds a category, and the failure mode of a stale list is silence — the category never
+  arrives and nothing says so. Where a type genuinely differs, it is stated: storage accounts emit
+  metrics only and their blob services carry the access logs, and network security groups emit no
+  metrics at all.
+
+  The settings are written out per resource rather than looped over an array of symbols, because a
+  diagnostic setting's scope has to be resolvable at the start of the deployment and a resource
+  symbol is not. That is a Bicep constraint, not a stylistic choice, and the comment says so.
+- A check that a resource which can emit diagnostics has somewhere to emit them. Adding a storage
+  account, a vault, an environment, or a namespace without a diagnostic setting now fails, which is
+  how the gap it found on its first run was caught: the function host's storage account had metrics
+  wired but its blob service — where access to the deployment container actually shows up — had
+  nothing. The rule only counts a `scope:` inside a `diagnosticSettings` declaration, so a role
+  assignment scoped to the same resource does not satisfy it; that case is mutation-tested, because
+  it is the way the rule would otherwise have passed while checking nothing.
 - The Core API is no longer anonymous. Every catalog endpoint accepted every request; the design
   terminates JWT validation at the API Management edge, and a service whose only protection is an
   upstream gateway fails open the moment anything reaches it directly — which, inside the core

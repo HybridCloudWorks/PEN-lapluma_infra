@@ -64,6 +64,12 @@ param placeholderImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 @minLength(1)
 param functionsPythonVersion string = '3.13'
 
+@description('''
+Log Analytics workspace every diagnostic setting routes to. Empty disables them, which is what keeps
+each module compilable on its own; main.bicep always supplies it.
+''')
+param diagnosticsWorkspaceId string = ''
+
 var suffix = take(uniqueString(subscription().id, resourceGroup().id, name), 6)
 var compactName = 'lapluma'
 
@@ -378,3 +384,84 @@ output functionsStorageName string = functionsStorage.name
 output functionAppName string = functionApp.name
 output coreApiName string = coreApi.name
 output processingWorkerName string = processingWorker.name
+
+// ---------------------------------------------------------------------------------------------
+// Diagnostics. The managed environments already ship console and system logs to the workspace
+// through appLogsConfiguration; these settings cover the control-plane categories that path does
+// not — scaling decisions, revision changes, and registry pulls.
+// ---------------------------------------------------------------------------------------------
+
+// Scopes are written out rather than looped, for the same reason as the network module: a
+// diagnostic setting's scope must be resolvable at the start of the deployment.
+
+resource coreEnvironmentDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: coreEnvironment
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
+
+resource processingEnvironmentDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: processingEnvironment
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
+
+resource aiEnvironmentDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: aiEnvironment
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
+
+resource registryDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  // Image pulls and pushes. The record of which image a replica actually ran starts here.
+  scope: registry
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
+
+resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: functionApp
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
+
+resource functionsStorageDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: functionsStorage
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    metrics: [{ category: 'Transaction', enabled: true }]
+  }
+}
+
+resource functionsStorageBlobDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  // The deployment container lives here, so this is the record of what was published to the
+  // function host and when. The account-level setting above carries metrics only.
+  scope: functionsStorageBlob
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'Transaction', enabled: true }]
+  }
+}

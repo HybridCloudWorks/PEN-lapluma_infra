@@ -119,15 +119,15 @@ and allowed-value constraints. Leaving a variable unset substitutes an empty str
 | `LAPLUMA_SQL_SKU_NAME` | `GP_S_Gen5` | any SKU name | R-03 |
 | `LAPLUMA_SQL_SKU_CAPACITY` | `2` | ≥ 1 vCores | R-03 |
 | `LAPLUMA_SQL_MIN_CAPACITY` | `0.5` | decimal vCores | R-03 |
-| `LAPLUMA_SQL_AUTO_PAUSE_MINUTES` | `60` | ≥ -1; -1 disables | TODO 3.2 |
+| `LAPLUMA_SQL_AUTO_PAUSE_MINUTES` | `60` | ≥ -1; -1 disables | TODO 3.1 |
 | `LAPLUMA_COSMOS_MAX_THROUGHPUT` | `1000` | 1000–1000000 RU/s | R-03 |
 | `LAPLUMA_SERVICE_BUS_CAPACITY` | `1` | 1, 2, 4, 8, 16 | R-03 |
 | `LAPLUMA_SERVICE_BUS_PARTITIONS` | `1` | 1–4 | R-03 |
 | `LAPLUMA_HSM_SKU_NAME` | `Standard_B1` | `Standard_B1`, `Custom_B32` | R-03 |
-| `LAPLUMA_SQL_ZONE_REDUNDANT` | `false` | `true`, `false` | TODO 3.2 |
-| `LAPLUMA_COSMOS_ZONE_REDUNDANT` | `false` | `true`, `false` | TODO 3.2 |
-| `LAPLUMA_AUDIT_STORAGE_SKU` | `Standard_ZRS` | LRS, ZRS, GRS, GZRS | TODO 3.2 |
-| `LAPLUMA_DEFAULT_STORAGE_SKU` | `Standard_LRS` | LRS, ZRS, GRS, GZRS | TODO 3.2 |
+| `LAPLUMA_SQL_ZONE_REDUNDANT` | `false` | `true`, `false` | TODO 3.1 |
+| `LAPLUMA_COSMOS_ZONE_REDUNDANT` | `false` | `true`, `false` | TODO 3.1 |
+| `LAPLUMA_AUDIT_STORAGE_SKU` | `Standard_ZRS` | LRS, ZRS, GRS, GZRS | TODO 3.1 |
+| `LAPLUMA_DEFAULT_STORAGE_SKU` | `Standard_LRS` | LRS, ZRS, GRS, GZRS | TODO 3.1 |
 | `LAPLUMA_DUPLICATE_DETECTION_WINDOW` | `PT1H` | ISO 8601 duration | — |
 | `LAPLUMA_QUEUE_MESSAGE_TTL` | `P7D` | ISO 8601 duration | R-11 |
 | `LAPLUMA_QUEUE_LOCK_DURATION` | `PT5M` | ISO 8601 duration, max `PT5M` | — |

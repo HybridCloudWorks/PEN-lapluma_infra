@@ -6,6 +6,12 @@ param tags object = {}
 param vnetAddressPrefix string
 param subnetPrefixes object
 
+@description('''
+Log Analytics workspace every diagnostic setting routes to. Empty disables them, which is what keeps
+each module compilable on its own; main.bicep always supplies it.
+''')
+param diagnosticsWorkspaceId string = ''
+
 // An NSG carries an implicit AllowVnetOutBound at priority 65000, and every private endpoint sits
 // inside this VNet. DenyInternetEgress on the processing subnet therefore never stopped a
 // processing replica reaching the SQL or Cosmos private endpoints — the traffic is intra-VNet, so
@@ -203,3 +209,65 @@ output processingSubnetId string = resourceId('Microsoft.Network/virtualNetworks
 output aiSubnetId string = resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, 'snet-ai')
 output functionsSubnetId string = resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, 'snet-functions')
 output privateEndpointsSubnetId string = resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, 'snet-private-endpoints')
+
+// Every NSG, not only the processing one. A deny that never appears in a log is indistinguishable
+// from a rule that was never evaluated, and four of these carried no rules at all until recently.
+//
+// Written out rather than looped: a diagnostic setting's scope has to be resolvable at the start of
+// the deployment, and an array of resource symbols is not.
+// Network security groups emit no metrics, so these carry logs only.
+
+resource coreNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: coreNsg
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+  }
+}
+
+resource processingNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: processingNsg
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+  }
+}
+
+resource aiNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: aiNsg
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+  }
+}
+
+resource functionsNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: functionsNsg
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+  }
+}
+
+resource privateEndpointsNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: privateEndpointsNsg
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+  }
+}
+
+resource vnetDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: vnet
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
