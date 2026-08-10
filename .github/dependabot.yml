@@ -37,6 +37,16 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # The interpreter version is a repository-wide decision, not a dependency bump: it has to move
+      # in step with the README, two wiki pages, the CI setup-python step, the worker docstring, and
+      # src/functions/requirements.txt, whose azure-functions floor is tied to it. Digest and patch
+      # refreshes still come through, which is the security-relevant half; a minor or major jump is
+      # proposed here as a single-file change that cannot be correct on its own.
+      - dependency-name: python
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
 
   # Covers .github/workflows and the composite action under .github/actions alike; the directory is
   # always the repository root for this ecosystem.

@@ -429,12 +429,96 @@ def validate_no_sensitive_values() -> Failures:
     return failures
 
 
+CODEQL_REFERENCE = re.compile(r"uses:\s*(github/codeql-action/[A-Za-z-]+)@([0-9a-f]{40})")
+UNPINNED_ACTION = re.compile(r"uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+)@(?!\s*[0-9a-f]{40}\b)(\S+)")
+
+
+def validate_workflow_action_pins() -> Failures:
+    """Third-party actions are pinned by commit SHA, and CodeQL's are pinned to one SHA.
+
+    The sub-actions of github/codeql-action are one product released as a set. Bumping init without
+    analyze produces `CodeQL job status was configuration error` rather than a version warning, and
+    an upload-sarif left behind on the previous major is the same mismatch with no obvious symptom.
+    Dependabot raises one pull request per sub-action, so this arrangement is what it proposes by
+    default and would recur on every release.
+    """
+    failures = Failures()
+    workflows = sorted((ROOT / ".github").rglob("*.yml"))
+
+    codeql: dict[str, set[str]] = {}
+    for path in workflows:
+        text = path.read_text(encoding="utf-8")
+        for action, sha in CODEQL_REFERENCE.findall(text):
+            codeql.setdefault(sha, set()).add(action)
+        for action, ref in UNPINNED_ACTION.findall(text):
+            # Repository-local composite actions are read from the checked-out tree, not resolved
+            # from a remote ref, so there is nothing to pin.
+            if action.startswith("./"):
+                continue
+            failures.require(
+                False,
+                f"{path.relative_to(ROOT)} pins {action} to {ref!r}; use a full commit SHA",
+            )
+
+    failures.require(
+        len(codeql) <= 1,
+        "github/codeql-action sub-actions must share one commit SHA, found "
+        + "; ".join(f"{sha[:12]} -> {', '.join(sorted(names))}" for sha, names in sorted(codeql.items())),
+    )
+    return failures
+
+
+# Where the interpreter version is stated. These have to agree, and the set is explicit rather than
+# a repository-wide scan so that prose discussing a past or proposed version does not fail the rule.
+PYTHON_VERSION_SOURCES = (
+    ("src/document-processing/Dockerfile", re.compile(r"FROM python:(\d+\.\d+)-slim")),
+    (".github/workflows/foundation-validation.yml", re.compile(r"python-version:\s*'(\d+\.\d+)'")),
+    ("src/document-processing/worker.py", re.compile(r"Python (\d+\.\d+)")),
+    ("README.md", re.compile(r"Python (\d+\.\d+)")),
+    ("wiki/Architecture-Overview.md", re.compile(r"Python (\d+\.\d+)")),
+    ("wiki/Azure-Deployment-Plan.md", re.compile(r"Python (\d+\.\d+)")),
+)
+
+
+def validate_python_version_agreement() -> Failures:
+    """One interpreter version, stated the same way everywhere.
+
+    The version is not a per-component choice. `src/functions/requirements.txt` is bound to it —
+    azure-functions 2.x requires >=3.13 and the 1.x line caps at <3.13 — so a bump applied to one
+    file is wrong wherever it is applied alone. The image, CI, and the documentation drifting apart
+    is the failure this prevents: CI would keep testing on one interpreter while the container
+    shipped another, and nothing would say so.
+    """
+    failures = Failures()
+    found: dict[str, list[str]] = {}
+    for relative, pattern in PYTHON_VERSION_SOURCES:
+        path = ROOT / relative
+        if not path.is_file():
+            failures.require(False, f"python version source is missing: {relative}")
+            continue
+        versions = pattern.findall(path.read_text(encoding="utf-8"))
+        if not versions:
+            failures.require(False, f"{relative} states no Python version; the rule cannot check it")
+            continue
+        for version in versions:
+            found.setdefault(version, []).append(relative)
+
+    failures.require(
+        len(found) <= 1,
+        "the Python version must be the same everywhere, found "
+        + "; ".join(f"{v} in {', '.join(sorted(set(f)))}" for v, f in sorted(found.items())),
+    )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
         *validate_priority_and_modes(),
         *validate_azure_interlock(),
         *validate_env_example(),
+        *validate_workflow_action_pins(),
+        *validate_python_version_agreement(),
         *validate_no_sensitive_values(),
     ]
     if failures:

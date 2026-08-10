@@ -50,6 +50,45 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Moved the repository to **Python 3.13** and took the two `azure-functions` bumps that depended on
+  it: `azure-functions` to `>=2.2.0,<3` and `azure-functions-durable` to `>=1.7.0,<2`. The 2.x line
+  requires Python `>=3.13` and the 1.x line caps at `<3.13` — the ranges are disjoint, so the pin
+  could not move without the interpreter. The version now reads 3.13 in the worker image, the CI
+  `setup-python` step, the worker docstring, the README, and both wiki pages, which is every place
+  that states it. 3.13 rather than 3.14 because it is the minimum that unblocks the SDK; whether the
+  Azure Functions runtime offers 3.13 on the chosen plan and region could not be confirmed from here
+  and is recorded against `TODO.md` item 1.2, which pins `linuxFxVersion`.
+- Three guardrails so those failures cannot return, each verified by reproducing the failure it
+  prevents:
+  - CI resolves `src/functions/requirements.txt` against the interpreter it tests on. Nothing
+    installed that file before — not a test, not a build — so an unsatisfiable pin was invisible.
+    That is not hypothetical: the incompatibility above arrived as an automated update whose checks
+    all passed, and was found by reading package metadata by hand. The step fails on 3.12 and passes
+    on 3.13, which is the check doing its job.
+  - The validator requires one Python version across all six places that state it. Bumping only the
+    image — the exact single-file change that was proposed — is now rejected, naming both sides of
+    the disagreement, as is bumping only CI or only the documentation.
+  - Dependabot no longer proposes interpreter minor or major bumps for the worker image. Digest and
+    patch refreshes still come through, which is the security-relevant half; a version jump is a
+    repository-wide decision that cannot be correct as a one-file change.
+- Every third-party GitHub Action moved to its current major, in one change rather than five:
+  `actions/checkout` to 7.0.1, `actions/setup-python` to 7.0.0, `actions/setup-dotnet` to 6.0.0, and
+  all four `github/codeql-action` references to 4.37.6. The runner had begun forcing the previous
+  `checkout` and `codeql-action` pins onto Node 24 with a deprecation warning, so these were already
+  running on a runtime they do not target.
+
+  Combining them was not tidiness. Dependabot raises one pull request per action, and for
+  `github/codeql-action` that is one per sub-action — so its `init` and `analyze` proposals each
+  moved half of a set that has to move together, and neither touched the two `upload-sarif`
+  references at all. Both failed CI with `CodeQL job status was configuration error`, which names
+  neither the cause nor the fix.
+- The foundation validator now checks how workflow actions are pinned, so that failure cannot
+  recur. Every third-party action must be pinned to a full commit SHA, and every
+  `github/codeql-action` sub-action must be pinned to the *same* SHA. Repository-local composite
+  actions are exempt: they are read from the checked-out tree, so there is no ref to pin. Both rules
+  were verified by reproducing the failures — Dependabot's `init`-only change, an `upload-sarif` left
+  on the previous SHA, and a tag pin in place of a SHA are each rejected, naming the offending
+  action, while the unmutated tree passes.
 - Policy-bearing baselines are parameters instead of literals, so `dev` and `pilot` can differ
   without editing Bicep. Twenty-two values moved: Log Analytics retention, blob and container soft
   delete, Key Vault and Managed HSM soft delete, the SQL SKU with its capacity, minimum capacity and

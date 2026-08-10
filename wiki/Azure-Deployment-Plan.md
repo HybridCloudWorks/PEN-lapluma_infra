@@ -38,7 +38,7 @@ shared with the iOS repository is `contracts/catalog-package-compatibility.json`
 | Subscription | Not confirmed — mandatory confirmation by display name and ID before an AZD environment or deployment |
 | Location | East US 2 (`eastus2`), approved in principle; service and quota availability must be verified before deployment |
 | Delivery recipe | Azure Developer CLI (AZD) with Bicep |
-| Application stack | .NET 10 core services; Python 3.12 document-processing workers; Azure Functions and Durable Functions for event and scheduled orchestration |
+| Application stack | .NET 10 core services; Python 3.13 document-processing workers; Azure Functions and Durable Functions for event and scheduled orchestration |
 
 The governing constraints that shape every one of these choices are documented in
 [Security and Data Protection](Security-and-Data-Protection).
@@ -139,7 +139,7 @@ The `lapluma-infra-0.0` foundation generated on 2026-08-02 consists of:
 | `contracts/catalog.openapi.json` | OpenAPI 3.1.0 catalog hierarchy, package, edition, and extracted-schema contract |
 | `contracts/catalog-package-compatibility.json` | Package identity and composition handshake shared with the iOS repository |
 | `src/core-api` | Minimal .NET 10 catalog and health API |
-| `src/document-processing` | Python 3.12 isolated worker health surface |
+| `src/document-processing` | Python 3.13 isolated worker health surface |
 | `src/functions` | Durable Functions catalog-acquisition proposal skeleton |
 | `tools/validate_foundation.py` | Dependency-free contract, interlock, and secret-absence validation |
 | `.github/workflows/foundation-validation.yml` | Build, contract, Bicep, and container validation |

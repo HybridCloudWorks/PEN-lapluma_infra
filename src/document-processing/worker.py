@@ -1,4 +1,4 @@
-"""Health surface for the isolated Python 3.12 processing worker.
+"""Health surface for the isolated Python 3.13 processing worker.
 
 Queue and Document Intelligence adapters are intentionally absent from this Sprint 2 skeleton.
 Adding them requires managed-identity endpoints and private-network infrastructure approval.
