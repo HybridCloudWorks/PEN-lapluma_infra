@@ -27,6 +27,25 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- A push to a branch with an open pull request no longer runs every workflow twice. Both workflows
+  trigger on an unfiltered `pull_request` and an unfiltered `push`, so one commit produced four
+  workflow runs and sixteen check runs where eight carry the same signal — double the CodeQL and
+  Trivy minutes on every push. A `guard` job now asks whether the pushed commit already has an
+  **open** pull request and, if so, skips the rest of the workflow; the `pull_request` run covers
+  that commit. The shared decision lives in `.github/actions/duplicate-run-guard`, because its
+  correctness rests on two details that are easy to get wrong when copied. Filtering on the open
+  state is what keeps a push to the default branch running: after a merge, GitHub still associates
+  the commit with the pull request that introduced it, now closed, and treating that as coverage
+  would stop refreshing the CodeQL baseline the security tab reads from. Failing open is what keeps
+  a transient API error costing a duplicate run rather than a commit that silently went
+  unvalidated. `dependency-review` is deliberately not gated on the guard — it runs only on
+  `pull_request`, which is never the duplicate, and depending on the guard would let a guard failure
+  suppress it.
+
+  A `concurrency` group keyed on the commit SHA is the more obvious answer and is the wrong one: it
+  puts both runs in one group, so the second to start cancels the first, and which one starts first
+  is a race. Roughly half the time the push run would cancel the `pull_request` run, taking
+  `dependency-review` with it and reporting "cancelled" on the pull request's checks.
 - Bicep parameters, naming, and API versions are consistent, and the failures they permitted now
   fail at parameter validation instead of mid-deployment. Every parameter is environment-substituted
   by AZD, and an unset variable substitutes to the empty string, which ARM treats as supplied — so

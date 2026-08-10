@@ -1,0 +1,57 @@
+name: Duplicate run guard
+description: >
+  Reports whether a workflow run should proceed, or whether it merely duplicates the pull_request
+  run for the same commit. Both workflows here trigger on an unfiltered pull_request and an
+  unfiltered push, so a branch with an open pull request otherwise runs every job twice against one
+  commit.
+
+inputs:
+  token:
+    description: Token used to ask whether the commit already has an open pull request.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  proceed:
+    description: The string 'true' when the run should proceed, 'false' when it is a duplicate.
+    value: ${{ steps.decide.outputs.proceed }}
+
+runs:
+  using: composite
+  steps:
+    - id: decide
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        EVENT_NAME: ${{ github.event_name }}
+        REPOSITORY: ${{ github.repository }}
+        COMMIT_SHA: ${{ github.sha }}
+      run: |
+        set -uo pipefail
+
+        # Only a push can be the duplicate. A pull_request run is the one that carries
+        # dependency-review and is the only one that sees a fork, and a scheduled run has no
+        # counterpart at all, so neither is ever suppressed.
+        if [ "$EVENT_NAME" != 'push' ]; then
+          echo 'proceed=true' >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Open, specifically. After a merge this endpoint still returns the pull request that
+        # introduced the commit, now closed — filtering on state keeps a push to the default branch
+        # running, which is what refreshes the CodeQL baseline the security tab reads from.
+        open_pulls=$(gh api "repos/$REPOSITORY/commits/$COMMIT_SHA/pulls" \
+          --jq '[.[] | select(.state == "open")] | length')
+
+        # Fail open. A transient API failure should cost a duplicate run, never a commit that
+        # silently went unvalidated, so anything other than a confident "yes, a pull request already
+        # covers this" proceeds.
+        if [ -z "$open_pulls" ] || ! [ "$open_pulls" -eq "$open_pulls" ] 2>/dev/null; then
+          echo "::warning::Could not determine whether this commit has an open pull request; running anyway."
+          echo 'proceed=true' >> "$GITHUB_OUTPUT"
+        elif [ "$open_pulls" -eq 0 ]; then
+          echo 'proceed=true' >> "$GITHUB_OUTPUT"
+        else
+          echo "::notice::Skipped as a duplicate; the pull_request run for this commit covers it."
+          echo 'proceed=false' >> "$GITHUB_OUTPUT"
+        fi
