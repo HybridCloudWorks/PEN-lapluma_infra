@@ -72,7 +72,15 @@ close that gap.
   Add an `apim` module for the Edge zone. Tag each app with `azd-service-name` matching the
   corresponding `azure.yaml` service so AZD can bind them.
 - **Status:** Not started
-- **Notes for future engineers:** `src/core-api/Dockerfile` listens on `8080` via `ASPNETCORE_URLS`,
+- **Notes for future engineers:** The function app must pin **Python 3.13** in its
+  `linuxFxVersion`, matching the rest of the repository — `src/functions/requirements.txt`
+  requires it, since `azure-functions` 2.x needs `>=3.13` and the 1.x line caps at `<3.13`.
+  Confirm the Azure Functions runtime offers 3.13 on the chosen plan and region before
+  provisioning: that was not verifiable when the version was chosen, and it is the one
+  assumption behind it. `tools/validate_foundation.py` enforces agreement across the image, CI,
+  and the documentation, but it cannot see the hosting configuration until this item adds it —
+  extend `PYTHON_VERSION_SOURCES` to cover the Bicep once it exists.
+  `src/core-api/Dockerfile` listens on `8080` via `ASPNETCORE_URLS`,
   and `src/document-processing/worker.py` reads `PORT` with a default of `8080`. Both images already
   run as non-root, so no `runAsUser` override is needed. The processing environment must have no
   route to SQL or Cosmos — that is a trust-zone invariant, not a configuration preference.

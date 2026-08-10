@@ -19,7 +19,7 @@ handshake shared with it is
 | `infra/` | Subscription-scope Bicep entrypoint, modules, and the AZD parameter file |
 | `src/core-api/` | .NET 10 catalog and health API |
 | `src/core-api.tests/` | xUnit tests for the catalog API, over the real request pipeline |
-| `src/document-processing/` | Python 3.12 isolated processing worker |
+| `src/document-processing/` | Python 3.13 isolated processing worker |
 | `src/functions/` | Durable Functions catalog-acquisition skeleton |
 | `tools/` | `validate_foundation.py`, the dependency-free contract and interlock validator |
 | `azure.yaml` | AZD service definitions |
@@ -27,7 +27,7 @@ handshake shared with it is
 
 ## Requirements
 
-- Python 3.12
+- Python 3.13
 - .NET 10 SDK
 - Azure CLI with the Bicep extension
 - Docker, to build the service images
