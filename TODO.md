@@ -15,7 +15,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | Phase | Theme | Items |
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.9 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.8 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.8 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
@@ -236,33 +236,7 @@ close that gap.
   install script at run time, which is unpinned and was observed failing outright here. Scanning a
   `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
 
-### 2.6 — Validate the processing-zone request contract at the trust boundary
-
-- **Priority:** P1
-- **Description:** Code review findings **F-06**, **F-07**, **F-19**, and **F-26**.
-  `src/document-processing/contracts.py` is the check that bounds which single scoped object the
-  isolated zone may touch, and it bounds only the URI scheme. `startswith("https://")` accepts
-  `https://` with no host, an arbitrary external host, a SAS token smuggled in the query string,
-  and two URIs differing only by a trailing slash — which defeats the distinct-staging guarantee.
-  The polygon check counts coordinates without looking at them, so a zero-area polygon and a tuple
-  of eight strings both pass a message promising "non-degenerate". `AnchoredValueProposal` has no
-  validating factory, unlike `ProcessingRequest`, so an invalid instance is constructable and its
-  `validate()` is a call a caller must remember. The `sha256` field is lowercased before a
-  lowercase-only check, so the error message states a rule the code does not apply.
-- **Dependencies:** None. 5.3 will build directly on this code, so it is cheaper before than after.
-- **Recommended action:** Parse the URIs with `urllib.parse` rather than prefix-matching: require
-  the `https` scheme, pin the host to the Azure Blob endpoint suffix, reject any query or fragment,
-  require a container and blob path, and compare normalised forms for distinctness. Validate polygon
-  coordinates for type, finiteness, non-negativity, and non-zero extent. Move validation into
-  `__post_init__` so an invalid proposal cannot be constructed. Align the `sha256` message with the
-  normalising behaviour, or drop the normalisation. Add the negative tests in **T-02**, one per
-  rejection branch.
-- **Status:** Not started
-- **Notes for future engineers:** Everything here is `urllib.parse` and `math`, both stdlib. The
-  processing image deliberately has no third-party dependencies — that is an architectural
-  guarantee, not an omission, so do not reach for a URL library.
-
-### 2.7 — Reject unknown keys in the acquisition contract
+### 2.6 — Reject unknown keys in the acquisition contract
 
 - **Priority:** P2
 - **Description:** Code review finding **F-09**. `propose_acquisition_batch` in
@@ -284,7 +258,7 @@ close that gap.
   moment an externally-startable orchestration exists.
 - **Status:** Not started
 
-### 2.8 — Replace the Functions host shared-key auth default
+### 2.7 — Replace the Functions host shared-key auth default
 
 - **Priority:** P2
 - **Description:** Code review finding **F-17**. `src/functions/function_app.py` constructs
@@ -304,7 +278,7 @@ close that gap.
 - **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
   network restriction and APIM fronting are both in place — land it with 1.2, not before.
 
-### 2.9 — Extend secret-scan coverage and tighten the build context
+### 2.8 — Extend secret-scan coverage and tighten the build context
 
 - **Priority:** P2
 - **Description:** Code review findings **F-30** and **F-25**. The scanner's Azure storage
@@ -677,7 +651,12 @@ close that gap.
   endpoint with no key fallback, and a create-only staging writer. The worker must retain no state
   between messages and must never hold a route to SQL or Cosmos.
 - **Status:** Not started
-- **Notes for future engineers:** The health handler deliberately suppresses all request logging so
+- **Notes for future engineers:** `contracts.ProcessingRequest` already validates the blob URIs this
+  zone may touch: HTTPS only, the Azure Blob host suffix, no credentials, no query string or
+  fragment, and a container-and-blob path, with the normalised forms compared so input and output
+  cannot be the same object spelled two ways. Read the object named by the validated URI — do not
+  re-derive a URI from message fields, and do not relax the host pin to reach a non-Azure endpoint.
+  The health handler deliberately suppresses all request logging so
   no path, query string, or document ID is emitted. Extend that discipline to the processing path —
   log correlation IDs, never content.
 

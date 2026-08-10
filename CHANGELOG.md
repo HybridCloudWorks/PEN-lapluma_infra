@@ -27,6 +27,21 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The processing zone's request contract is validated rather than prefix-matched. The blob URIs
+  that bound which single object the isolated worker may touch were checked only for an `https://`
+  prefix, which accepted a URI with no host at all, an arbitrary external host, a shared-access
+  signature smuggled through the query string, and two spellings of one object differing by a
+  trailing slash — defeating the create-only staging guarantee. They are now parsed: HTTPS only,
+  pinned to the Azure Blob host suffix, no embedded credentials, no query or fragment, a
+  container-and-blob path, and the normalised forms compared for distinctness.
+- Anchored value proposals validate their polygon rather than counting it. The previous check
+  counted coordinates while its message promised a "non-degenerate polygon", so a zero-area polygon
+  and a tuple of eight strings both passed. Coordinates must now be finite, non-negative numbers
+  enclosing a non-zero extent, and `AnchoredValueProposal` validates in `__post_init__`, so an
+  invalid proposal cannot be constructed at all — previously the "all proposals require human
+  confirmation" invariant depended on every caller remembering to call `validate()`.
+- The `sha256` error message no longer states a rule the code does not apply: the value is
+  normalised to lowercase on ingest, so the message says so instead of demanding lowercase input.
 - Core API error responses now conform to the published contract. Every problem document is served
   as `application/problem+json` rather than `application/json`, and its `status` is derived from the
   same value as the HTTP status so the two cannot disagree. A malformed `editionDate` previously
