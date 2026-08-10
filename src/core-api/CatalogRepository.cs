@@ -54,24 +54,43 @@ public sealed class CatalogRepository
         new(Education, [FinancialAid])
     ];
 
+    static CatalogRepository()
+    {
+        // Codes are compared ordinally, so two codes differing only by case would both be
+        // reachable and the lookup would be ambiguous. Fail at startup rather than on a request.
+        var duplicates = Packages
+            .GroupBy(package => package.PackageCode, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+        if (duplicates.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Duplicate catalog package codes: {string.Join(", ", duplicates)}");
+        }
+    }
+
     public IReadOnlyList<FormPackage> ListPackages(
         string? categoryCode,
         string? subcategoryCode,
         FormActivationState? activationState) =>
         Packages
             .Where(package => categoryCode is null ||
-                package.Category.Code.Equals(categoryCode, StringComparison.OrdinalIgnoreCase))
+                package.Category.Code.Equals(categoryCode, StringComparison.Ordinal))
             .Where(package => subcategoryCode is null ||
-                package.Subcategory.Code.Equals(subcategoryCode, StringComparison.OrdinalIgnoreCase))
+                package.Subcategory.Code.Equals(subcategoryCode, StringComparison.Ordinal))
             .Where(package => activationState is null || package.ActivationState == activationState)
             .OrderBy(package => package.Category.SortOrder)
             .ThenBy(package => package.Subcategory.SortOrder)
             .ThenBy(package => package.PackageCode, StringComparer.Ordinal)
             .ToArray();
 
+    // Codes are validated against the contract's pattern before reaching here, so the comparison is
+    // ordinal. FirstOrDefault rather than SingleOrDefault: uniqueness is asserted at startup, and a
+    // lookup should not be the thing that throws.
     public FormPackage? GetPackage(string packageCode) =>
-        Packages.SingleOrDefault(package =>
-            package.PackageCode.Equals(packageCode, StringComparison.OrdinalIgnoreCase));
+        Packages.FirstOrDefault(package =>
+            package.PackageCode.Equals(packageCode, StringComparison.Ordinal));
 
     public ExtractedFormSchema? GetSchema(
         string authority,

@@ -6,12 +6,19 @@ approve a value, generate a package, or access a case database.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 
 CONTRACT_VERSION = "0.2.0"
 ALLOWED_ARTIFACT_KINDS = {"SOURCE_DOCUMENT"}
+
+# Every object this zone may touch lives behind an Azure Blob private endpoint. Pinning the host
+# suffix is what stops a request naming an arbitrary external host. A sovereign-cloud move is one
+# edit here.
+BLOB_HOST_SUFFIX = ".blob.core.windows.net"
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,10 +71,14 @@ class ProcessingRequest:
         if self.artifact_kind not in ALLOWED_ARTIFACT_KINDS:
             raise ValueError("processing accepts source documents only")
         if len(self.sha256) != 64 or any(character not in "0123456789abcdef" for character in self.sha256):
-            raise ValueError("sha256 must contain exactly 64 lowercase hexadecimal characters")
-        if not self.input_blob_uri.startswith("https://") or not self.output_blob_uri.startswith("https://"):
-            raise ValueError("blob URIs must use HTTPS")
-        if self.input_blob_uri == self.output_blob_uri:
+            raise ValueError(
+                "sha256 must be 64 hexadecimal characters; case is normalised on ingest"
+            )
+        # Compare the normalised forms: two URIs differing only by a trailing slash name the same
+        # object, and treating them as distinct would defeat the create-only staging guarantee.
+        input_uri = _validate_blob_uri(self.input_blob_uri, "inputBlobUri")
+        output_uri = _validate_blob_uri(self.output_blob_uri, "outputBlobUri")
+        if input_uri == output_uri:
             raise ValueError("processing output must use a distinct create-only staging URI")
 
 
@@ -80,15 +91,68 @@ class AnchoredValueProposal:
     engine_confidence: float
     requires_human_confirmation: bool = True
 
+    def __post_init__(self) -> None:
+        # Validate on construction, as ProcessingRequest.from_mapping does for its own type. An
+        # invalid proposal should be unrepresentable rather than depend on every caller remembering
+        # to call validate().
+        self.validate()
+
     def validate(self) -> None:
         if not self.field_name or not self.value:
             raise ValueError("anchored proposals require a field name and source value")
-        if self.page < 1 or len(self.polygon) < 8 or len(self.polygon) % 2 != 0:
-            raise ValueError("anchored proposals require a page and non-degenerate polygon")
+        if self.page < 1:
+            raise ValueError("anchored proposals require a 1-based page number")
+        if len(self.polygon) < 8 or len(self.polygon) % 2 != 0:
+            raise ValueError("anchored proposals require at least four (x, y) polygon vertices")
+        if any(not _is_finite_measurement(coordinate) for coordinate in self.polygon):
+            raise ValueError("polygon coordinates must be finite non-negative numbers")
+        # Counting coordinates does not make a polygon: four identical points are eight valid
+        # coordinates enclosing nothing, and a proposal anchored to nothing cannot be confirmed
+        # against the page it came from.
+        xs = self.polygon[0::2]
+        ys = self.polygon[1::2]
+        if max(xs) == min(xs) or max(ys) == min(ys):
+            raise ValueError("anchored proposals require a non-degenerate polygon")
         if not 0 <= self.engine_confidence <= 1:
             raise ValueError("engine confidence must be between 0 and 1")
         if not self.requires_human_confirmation:
             raise ValueError("all processing proposals require human confirmation")
+
+
+def _is_finite_measurement(value: Any) -> bool:
+    # bool is a subclass of int; True would otherwise pass as the coordinate 1.
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(value) and value >= 0
+
+
+def _validate_blob_uri(raw: str, label: str) -> str:
+    """Return the normalised form of a blob URI this zone is allowed to touch.
+
+    Prefix-matching `https://` bounds the scheme and nothing else: it accepts a URI with no host at
+    all, an arbitrary external host, and a shared-access signature smuggled through the query
+    string. This parses instead, and returns a normalised form so two spellings of one object
+    cannot be mistaken for two objects.
+    """
+    parts = urlsplit(raw)
+    if parts.scheme != "https":
+        raise ValueError(f"{label} must use HTTPS")
+    if parts.username or parts.password:
+        raise ValueError(f"{label} must carry no credentials; access is managed-identity only")
+    host = parts.hostname
+    if not host or not host.endswith(BLOB_HOST_SUFFIX):
+        raise ValueError(f"{label} must address an Azure Blob endpoint")
+    if parts.port is not None:
+        raise ValueError(f"{label} must use the default HTTPS port")
+    if parts.query or parts.fragment:
+        raise ValueError(
+            f"{label} must carry no query string or fragment; a shared-access signature is not a "
+            "permitted credential here"
+        )
+    segments = [segment for segment in parts.path.split("/") if segment]
+    if len(segments) < 2:
+        raise ValueError(f"{label} must name a container and a blob")
+    return f"https://{host}/{'/'.join(segments)}"
 
 
 def _required_text(value: dict[str, Any], key: str) -> str:
