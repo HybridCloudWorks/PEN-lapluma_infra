@@ -363,6 +363,9 @@ module compute './modules/compute.bicep' = if (enableProvisioning) {
     registrySku: capacity.registrySku
     functionsPythonVersion: functionsPythonVersion
     serviceBusFullyQualifiedNamespace: messaging!.outputs.namespaceFullyQualified
+    sqlServerFullyQualifiedName: data!.outputs.sqlServerFullyQualifiedName
+    sqlDatabaseName: data!.outputs.sqlDatabaseName
+    cosmosEndpoint: data!.outputs.cosmosEndpoint
     diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }

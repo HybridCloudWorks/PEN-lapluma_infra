@@ -21,7 +21,7 @@ public sealed class CatalogAuthorizationTests
     private sealed class ConfiguredFactory : WebApplicationFactory<global::Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-            builder.WithAuthenticationConfigured();
+            builder.WithFixtureCatalog().WithAuthenticationConfigured();
     }
 
     // Authenticated, but with no audience or issuer configured. Nothing can validate a token, so
@@ -29,7 +29,14 @@ public sealed class CatalogAuthorizationTests
     private sealed class UnconfiguredButAuthenticatedFactory : WebApplicationFactory<global::Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-            builder.WithTestAuthentication();
+            builder.WithFixtureCatalog().WithTestAuthentication();
+    }
+
+    // No authentication configured and no scheme substituted, but the fixture selected so the host
+    // starts: this isolates token validation from catalog wiring.
+    private sealed class FixtureOnlyFactory : WebApplicationFactory<global::Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.WithFixtureCatalog();
     }
 
     public static TheoryData<string> CatalogRoutes() =>
@@ -57,7 +64,7 @@ public sealed class CatalogAuthorizationTests
         // Asserts the token is actually validated rather than merely present. The factory here is
         // unconfigured on purpose, so the handler has no authority to fetch signing keys from and
         // the test makes no network call.
-        using var factory = new WebApplicationFactory<global::Program>();
+        using var factory = new FixtureOnlyFactory();
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", "not.a.real.token");

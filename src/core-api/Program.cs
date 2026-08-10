@@ -15,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
 
-builder.Services.AddSingleton<CatalogRepository>();
+builder.Services.AddCatalogSource(builder.Configuration);
 builder.Services.AddCatalogAuthentication(builder.Configuration);
 
 var app = builder.Build();
@@ -50,11 +50,13 @@ app.MapGet("/health", () =>
 // Readiness resolves the repository rather than answering from a literal. CatalogRepository
 // initialises its fixture in a static constructor that throws on an unrecognised form number; if
 // that happens, every catalog route returns 500 forever while a literal probe stays green.
-app.MapGet("/ready", (IServiceProvider services, ILoggerFactory loggerFactory) =>
+app.MapGet("/ready", async (
+    IServiceProvider services, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
 {
     try
     {
-        if (services.GetRequiredService<CatalogRepository>().GetHierarchy().Count > 0)
+        var source = services.GetRequiredService<ICatalogSource>();
+        if ((await source.GetHierarchyAsync(cancellationToken)).Count > 0)
         {
             return Results.Ok(
                 new HealthResponse("ready", ServiceMetadata.Name, ServiceMetadata.Version));
@@ -76,15 +78,16 @@ app.MapGet("/ready", (IServiceProvider services, ILoggerFactory loggerFactory) =
 // probe that needs one reports the identity provider's health, not this service's.
 var catalog = app.MapGroup("/v1/catalog").RequireAuthorization(CatalogAuthentication.PolicyName);
 
-catalog.MapGet("/categories", (CatalogRepository repository) =>
-    Results.Ok(new CatalogHierarchyResponse(repository.GetHierarchy())));
+catalog.MapGet("/categories", async (ICatalogSource catalogSource, CancellationToken cancellationToken) =>
+    Results.Ok(new CatalogHierarchyResponse(await catalogSource.GetHierarchyAsync(cancellationToken))));
 
-catalog.MapGet("/packages", IResult (
+catalog.MapGet("/packages", async Task<IResult> (
     HttpContext context,
     string? categoryCode,
     string? subcategoryCode,
     string? activationState,
-    CatalogRepository repository) =>
+    ICatalogSource catalogSource,
+    CancellationToken cancellationToken) =>
 {
     // The contract constrains these; enforcing it here is what makes a typo a diagnosable 400
     // rather than a successful empty catalog indistinguishable from a legitimately empty one.
@@ -104,21 +107,23 @@ catalog.MapGet("/packages", IResult (
             context, "catalog-activation-invalid", "Activation state is invalid", 400);
     }
 
-    var packages = repository.ListPackages(categoryCode, subcategoryCode, parsedActivationState);
+    var packages = await catalogSource.ListPackagesAsync(
+        categoryCode, subcategoryCode, parsedActivationState, cancellationToken);
     return Results.Ok(new FormPackageListResponse(packages));
 });
 
-catalog.MapGet("/packages/{packageCode}", IResult (
+catalog.MapGet("/packages/{packageCode}", async Task<IResult> (
     HttpContext context,
     string packageCode,
-    CatalogRepository repository) =>
+    ICatalogSource catalogSource,
+    CancellationToken cancellationToken) =>
 {
     if (!CatalogPatterns.CatalogCode().IsMatch(packageCode))
     {
         return CatalogProblem.Result(context, "catalog-code-invalid", "packageCode is invalid", 400);
     }
 
-    return repository.GetPackage(packageCode) is { } package
+    return await catalogSource.GetPackageAsync(packageCode, cancellationToken) is { } package
         ? Results.Ok(package)
         : CatalogProblem.Result(context, "catalog-package-not-found", "Catalog package not found", 404);
 });
@@ -128,13 +133,14 @@ catalog.MapGet(
     // editionDate binds as a string and is parsed here rather than as a DateOnly route value.
     // Framework binding failures produce a text/plain diagnostic in Development and a bare empty
     // 400 in Production, so the error a client sees would depend on the environment.
-    IResult (
+    async Task<IResult> (
         HttpContext context,
         string authority,
         string formId,
         string editionDate,
         string schemaVersion,
-        CatalogRepository repository) =>
+        ICatalogSource catalogSource,
+        CancellationToken cancellationToken) =>
 {
     if (authority.Length is 0 or > 160)
     {
@@ -160,7 +166,8 @@ catalog.MapGet(
             context, "catalog-edition-date-invalid", "editionDate must be an ISO 8601 date", 400);
     }
 
-    return repository.GetSchema(authority, formId, parsedEditionDate, schemaVersion) is { } schema
+    return await catalogSource.GetSchemaAsync(
+            authority, formId, parsedEditionDate, schemaVersion, cancellationToken) is { } schema
         ? Results.Ok(schema)
         : CatalogProblem.Result(context, "catalog-schema-not-found", "Catalog schema not found", 404);
 });

@@ -218,6 +218,9 @@ resource auditImmutability 'Microsoft.Storage/storageAccounts/blobServices/conta
 }
 
 output auditImmutabilityDays int = auditImmutabilityDays
+// Written out rather than composed from environment(): sqlServerHostname carries a leading dot,
+// so this is '<name>' + '.database.windows.net' by way of the suffix function.
+output sqlServerFullyQualifiedName string = '${sqlServer.name}${environment().suffixes.sqlServerHostname}'
 output sqlServerName string = sqlServer.name
 output sqlDatabaseName string = sqlDatabase.name
 output cosmosEndpoint string = cosmos.properties.documentEndpoint

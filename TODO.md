@@ -335,24 +335,28 @@ place. What remains is the edge, which cannot be modelled until an address range
   authority to approve a value, and it must fail closed rather than deliver on a verification
   mismatch.
 
-### 5.2 — Replace the in-memory catalog with the authoritative store
+### 5.2 — Exercise the SQL catalog against a real database
 
 - **Priority:** P1
-- **Description:** `src/core-api/CatalogRepository.cs` is an in-memory fixture registered as a
-  singleton. Azure SQL is the authoritative relational store in the design, and nothing in the Core
-  API connects to it.
-- **Dependencies:** None. The hosting layer and role assignments are in place.
-- **Recommended action:** Add the SQL-backed catalog and case schema, connect using the
-  managed-identity `AZURE_CLIENT_ID` credential with no connection string, keep the in-memory
-  fixture behind a `dev`-only flag for contract tests, and add the Cosmos projection writer for
-  rebuildable derived views. Preserve the existing contract exactly —
-  `tools/validate_foundation.py` asserts the Alpha 0.2 priority forms, package composition, and the
-  FAFSA external-workflow and reference-only modes against this file.
+- **Description:** `ICatalogSource` has two implementations. `CatalogRepository` is the in-memory
+  fixture, now opt-in; `SqlCatalogSource` reads the authoritative store and is the default. The
+  schema is in `src/core-api/Sql/001_catalog_schema.sql`, and `CatalogProjectionWriter` writes the
+  rebuildable Cosmos views. **None of the SQL or Cosmos code has ever executed.** No environment has
+  been provisioned, so the queries compile and are reviewed and that is the entire assurance behind
+  them. There is also no migration runner: nothing applies the schema file.
+- **Dependencies:** A provisioned `dev` environment, which is gated on the approvals in `REVIEW.md`.
+- **Recommended action:** Apply the schema, seed it from the fixture, and write integration tests
+  that run the four `ICatalogSource` methods against a real database and compare their output to
+  the fixture's — the contract is identical, so any difference is a defect in the SQL path. Add a
+  migration runner, and wire the projection writer to a rebuild command. Then run the same tests
+  against Cosmos.
 - **Status:** Not started
-- **Notes for future engineers:** The validator reads `CatalogRepository.cs` as text and checks for
-  literal strings such as `FAMILY_I130`, `"I-130A"`, and `FormArtifactKind.ExternalWorkflow`. If the
-  fixture moves, update `validate_priority_and_modes()` in the same change or CI will fail
-  misleadingly.
+- **Notes for future engineers:** The first thing to check is the reader's column ordinals in
+  `LoadPackagesAsync`: they are positional, and a column added to the `SELECT` in the wrong place
+  shifts every one after it without any compile error. The wire-name mapping is derived from the
+  enums' own `JsonStringEnumMemberName` attributes rather than restated, so the database, the JSON
+  contract, and C# cannot disagree — keep it that way. `tools/validate_foundation.py` still reads
+  `CatalogRepository.cs` as text for the Alpha 0.2 priority forms, so the fixture stays where it is.
 
 ### 5.3 — Implement the processing worker adapters
 
