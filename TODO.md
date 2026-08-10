@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.3 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.4 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -420,6 +420,28 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
+
+---
+
+### 4.4 — Stop every push to a pull-request branch from running CI twice
+
+- **Priority:** P3
+- **Description:** `foundation-validation.yml` and `security-scanning.yml` both trigger on an
+  unfiltered `pull_request` and an unfiltered `push`. A branch with an open pull request therefore
+  runs each workflow twice per push against the same commit — observed on `e59b787`: four workflow
+  runs, two of each, three seconds apart, sixteen check runs where eight would do. That is double
+  the CodeQL and Trivy minutes on every push for no additional signal.
+- **Dependencies:** None.
+- **Recommended action:** Decide which trigger owns which case and encode it, rather than deleting
+  one of them reflexively. `pull_request` is required for `dependency-review` (the action reads the
+  pull-request diff and skips on `push`) and is what covers a fork. `push` is what validates a
+  branch that has no pull request yet — restoring a branch filter would undo the reason the filter
+  was removed in the first place. A `concurrency` group keyed on the commit SHA rather than on the
+  event is the usual way to collapse the pair without losing either case.
+- **Status:** Not started
+- **Notes for future engineers:** The `Dependency review` check reported `skipped` on the
+  push-triggered run and `success` on the pull-request one. That is the trigger split working as
+  intended, not a fault — whatever collapses the duplication has to keep it.
 
 ---
 
