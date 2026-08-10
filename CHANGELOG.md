@@ -57,6 +57,16 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Added
 
+- `src/core-api.tests`, a xUnit project holding the Core API to its published contract. Twenty-nine
+  tests run against the real request pipeline through `WebApplicationFactory<Program>`, so routing,
+  parameter binding, serialization, and status codes are exercised rather than handler bodies:
+  the catalog hierarchy, package list with taxonomy and activation-state filters, package detail,
+  the fail-closed schema lookup, both 404 problem documents, and every branch of the
+  `activationState` parse. Alongside them, unit tests pin the package activation derivation —
+  including that a package with no forms is `UNAVAILABLE` — and assert that the C# enum wire names
+  match the enum values published in `contracts/catalog.openapi.json`, so the two copies of each
+  enum in this repository cannot drift apart unnoticed. The project sets `TreatWarningsAsErrors`,
+  matching the project under test, and CI runs `dotnet test`.
 - `.github/workflows/security-scanning.yml`, running CodeQL for C# and Python, dependency review on
   pull requests, a Trivy scan of both container images, and a Trivy scan of the ARM template the
   Bicep compiles to, plus a weekly schedule so a newly published advisory surfaces without waiting

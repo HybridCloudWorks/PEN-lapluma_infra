@@ -326,7 +326,7 @@ against unratified numbers would have to be redone and could make the participan
 
 **References.** Retention and erasure targets on the Pilot Policy and Compliance Gates wiki page;
 hard-coded baselines on the Configuration Contract wiki page. Blocks `TODO.md` items **3.5** and
-**4.3**.
+**4.2**.
 
 **Recommended next step.** Privacy owner and data owner reconcile the proposed values into one
 table, then confirm the drafted participant notice states the same numbers.
