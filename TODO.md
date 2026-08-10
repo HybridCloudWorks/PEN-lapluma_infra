@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.3 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -297,9 +297,12 @@ close that gap.
 - **Dependencies:** `REVIEW.md` **R-03** (cost approval), **R-10** (SQL floor, maximum, zone
   redundancy, backup policy).
 - **Recommended action:** Derive the resilience settings from an agreed SLO rather than from
-  defaults, parameterize them per environment so `pilot` can differ from `dev`, and document the
-  resulting RTO and RPO on the Environments and Release Path wiki page. Confirm whether auto-pause
-  is acceptable for a user-facing authoritative store.
+  defaults, and document the resulting RTO and RPO on the Environments and Release Path wiki page.
+  Confirm whether auto-pause is acceptable for a user-facing authoritative store. The
+  parameterization this used to require is done: `sqlZoneRedundant`, `cosmosZoneRedundant`,
+  `auditStorageSku`, `defaultStorageSku`, `serviceBusCapacity`, `serviceBusPartitions`, and
+  `sqlAutoPauseMinutes` are all supplied per environment through `.env.example`, so this item is
+  now a decision about values rather than a code change.
 - **Status:** Not started
 - **Notes for future engineers:** `GP_S_Gen5` with `minCapacity: 0.5` and `autoPauseDelay: 60` means
   the first request after an idle hour pays a resume penalty. For a ~40-case supervised pilot that
@@ -394,23 +397,7 @@ close that gap.
   after adding it by opening a pull request touching each guarded path and confirming the expected
   reviewer is actually requested.
 
-### 4.2 — Parameterize the hard-coded baselines
-
-- **Priority:** P2
-- **Description:** Several policy-bearing values are literals in the Bicep rather than parameters:
-  Log Analytics retention of 365 days, blob and container soft delete of 7 days, the SQL SKU and
-  auto-pause settings, the Cosmos autoscale ceiling of 1000 RU/s, and the Service Bus Premium
-  capacity. Each of them is subject to a pending policy or cost decision, and none can currently
-  differ between `dev` and `pilot`.
-- **Dependencies:** `REVIEW.md` **R-03** (cost), **R-11** (retention and lifecycle windows).
-- **Recommended action:** Promote each value to a parameter with the current literal as its default,
-  and supply per-environment values through the AZD environment. Add the new variables to the
-  Configuration Contract wiki page and to `.env.example`.
-- **Status:** Not started
-- **Notes for future engineers:** The full list of current literals and their locations is in the
-  "Hard-coded baselines in the generated Bicep" table on the Configuration Contract wiki page.
-
-### 4.3 — Confirm the Functions subnet delegation matches the hosting SKU
+### 4.2 — Confirm the Functions subnet delegation matches the hosting SKU
 
 - **Priority:** P2
 - **Description:** `infra/modules/network.bicep` delegates `snet-functions` to

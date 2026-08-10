@@ -96,22 +96,55 @@ workload before any code references it — never its value.
 | `MODIFIED_ABUSE_MONITORING_STATUS` | `approved`, `denied`, or `not applicable`, with an evidence reference | Privacy and RAI | The identity-document Path A remains non-generative regardless |
 | `UPL_CLASSIFIER_VERSION` | Immutable release or version identifier | Compliance and RAI | Fail-closed release gate |
 
-## Hard-coded baselines in the generated Bicep
+## Infrastructure baselines
 
-These values are currently literals in the infrastructure modules rather than parameters. Each one
-is a planning baseline and several are pending a policy decision; the work to parameterize them is
-tracked in `TODO.md`.
+These were literals in the infrastructure modules. They are now parameters whose defaults reproduce
+exactly the values they replaced, so each can differ between `dev` and `pilot` without editing
+Bicep. **A default here is a planning baseline, not an approved value** — the gating decision is
+named in the last column.
 
-| Value | Location |
-|-------|----------|
-| Log Analytics retention `365` days | `infra/modules/observability.bicep` |
-| Blob soft delete and container soft delete `7` days, versioning enabled | `infra/modules/data.bicep` |
-| SQL `GP_S_Gen5` capacity `2`, auto-pause `60` minutes, minimum capacity `0.5`, `zoneRedundant: false` | `infra/modules/data.bicep` |
-| Cosmos `Session` consistency, autoscale max throughput `1000` RU/s, `isZoneRedundant: false`, hierarchical partition key `/tenantId` + `/caseId` | `infra/modules/data.bicep` |
-| Storage redundancy `Standard_ZRS` for the audit account, `Standard_LRS` for the others | `infra/modules/data.bicep` |
-| Service Bus `Premium` capacity `1`, one partition, duplicate-detection window `PT1H`, max delivery count `5`, lock duration `PT5M`, topic TTL `P14D` | `infra/modules/messaging.bicep` |
-| Key Vault soft-delete retention `90` days with purge protection | `infra/modules/security.bicep` |
-| Managed HSM `Standard_B1`, soft-delete retention `90` days with purge protection | `infra/modules/security.bicep` |
+AZD substitutes environment variables into `infra/main.parameters.json` textually, and that file has
+to remain valid JSON, so every one of these arrives as a string whatever it represents.
+`infra/main.bicep` converts them once and passes typed values to the modules, which carry the range
+and allowed-value constraints. Leaving a variable unset substitutes an empty string, which fails the
+`@minLength(1)` guard on its field rather than deploying something unintended.
+
+| Variable | Default | Accepted | Gated by |
+|----------|---------|----------|----------|
+| `LAPLUMA_LOG_ANALYTICS_RETENTION_DAYS` | `365` | 30–730 | R-11 |
+| `LAPLUMA_BLOB_SOFT_DELETE_DAYS` | `7` | 1–365 | R-11 |
+| `LAPLUMA_CONTAINER_SOFT_DELETE_DAYS` | `7` | 1–365 | R-11 |
+| `LAPLUMA_KEY_VAULT_SOFT_DELETE_DAYS` | `90` | 7–90 | R-11 |
+| `LAPLUMA_HSM_SOFT_DELETE_DAYS` | `90` | 7–90 | R-11 |
+| `LAPLUMA_SQL_SKU_NAME` | `GP_S_Gen5` | any SKU name | R-03 |
+| `LAPLUMA_SQL_SKU_CAPACITY` | `2` | ≥ 1 vCores | R-03 |
+| `LAPLUMA_SQL_MIN_CAPACITY` | `0.5` | decimal vCores | R-03 |
+| `LAPLUMA_SQL_AUTO_PAUSE_MINUTES` | `60` | ≥ -1; -1 disables | TODO 3.2 |
+| `LAPLUMA_COSMOS_MAX_THROUGHPUT` | `1000` | 1000–1000000 RU/s | R-03 |
+| `LAPLUMA_SERVICE_BUS_CAPACITY` | `1` | 1, 2, 4, 8, 16 | R-03 |
+| `LAPLUMA_SERVICE_BUS_PARTITIONS` | `1` | 1–4 | R-03 |
+| `LAPLUMA_HSM_SKU_NAME` | `Standard_B1` | `Standard_B1`, `Custom_B32` | R-03 |
+| `LAPLUMA_SQL_ZONE_REDUNDANT` | `false` | `true`, `false` | TODO 3.2 |
+| `LAPLUMA_COSMOS_ZONE_REDUNDANT` | `false` | `true`, `false` | TODO 3.2 |
+| `LAPLUMA_AUDIT_STORAGE_SKU` | `Standard_ZRS` | LRS, ZRS, GRS, GZRS | TODO 3.2 |
+| `LAPLUMA_DEFAULT_STORAGE_SKU` | `Standard_LRS` | LRS, ZRS, GRS, GZRS | TODO 3.2 |
+| `LAPLUMA_DUPLICATE_DETECTION_WINDOW` | `PT1H` | ISO 8601 duration | — |
+| `LAPLUMA_QUEUE_MESSAGE_TTL` | `P7D` | ISO 8601 duration | R-11 |
+| `LAPLUMA_QUEUE_LOCK_DURATION` | `PT5M` | ISO 8601 duration, max `PT5M` | — |
+| `LAPLUMA_QUEUE_MAX_DELIVERY_COUNT` | `5` | 1–2000 | — |
+| `LAPLUMA_TOPIC_MESSAGE_TTL` | `P14D` | ISO 8601 duration | R-11 |
+
+### Deliberately not parameters
+
+These stayed literals because making them adjustable would make a guarantee optional:
+
+| Value | Location | Why it is fixed |
+|-------|----------|-----------------|
+| Blob versioning enabled | `infra/modules/data.bicep` | A data-protection guarantee. The retention windows are tunable; whether versions exist at all is not. |
+| Key Vault and Managed HSM purge protection | `infra/modules/security.bicep` | Purge protection cannot be turned off once set, and an environment that could skip it is an environment where a key is destroyable. |
+| Cosmos `Session` consistency | `infra/modules/data.bicep` | A correctness property of the read path. Varying it per environment would let a consistency bug pass in `dev` and appear in `pilot`. |
+| Cosmos hierarchical partition key `/tenantId` + `/caseId` | `infra/modules/data.bicep` | Fixed at container creation; changing it is a data migration, not configuration. |
+| `allowSharedKeyAccess`, `disableLocalAuth`, `publicNetworkAccess`, TLS floors | all modules | Trust-zone invariants. They are the posture, not settings within it. |
 
 ## Related pages
 

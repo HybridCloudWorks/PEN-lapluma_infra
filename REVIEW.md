@@ -325,8 +325,9 @@ confirm it matches the participant notice, and state the per-purpose blob lifecy
 against unratified numbers would have to be redone and could make the participant notice inaccurate.
 
 **References.** Retention and erasure targets on the Pilot Policy and Compliance Gates wiki page;
-hard-coded baselines on the Configuration Contract wiki page. Blocks `TODO.md` items **3.5** and
-**4.2**.
+the infrastructure baselines table on the Configuration Contract wiki page, whose retention rows
+name this item as their gate. Those windows are parameters now, so resolving this sets values
+rather than requiring a code change. Blocks `TODO.md` item **3.5**.
 
 **Recommended next step.** Privacy owner and data owner reconcile the proposed values into one
 table, then confirm the drafted participant notice states the same numbers.
