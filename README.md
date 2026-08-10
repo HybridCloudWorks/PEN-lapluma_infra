@@ -87,7 +87,7 @@ Contract** page.
 | [`CHANGELOG.md`](CHANGELOG.md) | Completed work |
 | [`REVIEW.md`](REVIEW.md) | Blockers only a human decision, approval, or access grant can clear |
 | [`TODO.md`](TODO.md) | The engineering work queue |
-| [GitHub Wiki](https://github.com/HybridCloudWorks/PEN-lapluma_infra/wiki) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record |
+| [GitHub Wiki](https://github.com/HybridCloudWorks/PEN-lapluma_infra/wiki) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record, decision records, operational runbooks |
 
 The `wiki/` directory holds those pages as files, ready to publish. They are staged in the
 repository because publishing requires GitHub Wiki write access, which automation does not have
