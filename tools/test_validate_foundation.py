@@ -148,6 +148,40 @@ class ParameterCollectionTests(unittest.TestCase):
         self.assertEqual(len(failures), 1)
         self.assertIn("declared inline", failures[0])
 
+    def test_a_malformed_declaration_is_reported_rather_than_crashing(self) -> None:
+        # A rule whose job is to report a contract violation must not itself die reading one. A
+        # non-object entry previously raised AttributeError or TypeError out of the collector, so
+        # CI ended on a traceback rather than the ERROR line its log is scanned for.
+        for entry in ("not-an-object", 42, None, ["nested"]):
+            with self.subTest(entry=entry):
+                names, failures = validate_foundation.collect_parameter_names(
+                    {"/v1/catalog/packages": {"get": {"parameters": [entry]}}}
+                )
+
+                self.assertEqual(names, set())
+                self.assertEqual(len(failures), 1)
+                self.assertIn("not an object", failures[0])
+
+    def test_a_parameters_value_that_is_not_a_list_is_reported(self) -> None:
+        # Same reasoning one level up: `parameters` set to an object would have been iterated as
+        # its keys, silently collecting nothing while looking like a clean pass.
+        names, failures = validate_foundation.collect_parameter_names(
+            {"/v1/catalog/packages": {"parameters": {"name": "caseId"}}}
+        )
+
+        self.assertEqual(names, set())
+        self.assertEqual(len(failures), 1)
+        self.assertIn("declared as a list", failures[0])
+
+    def test_a_malformed_path_item_is_reported(self) -> None:
+        names, failures = validate_foundation.collect_parameter_names(
+            {"/v1/catalog/packages": "not-an-object"}
+        )
+
+        self.assertEqual(names, set())
+        self.assertEqual(len(failures), 1)
+        self.assertIn("path item is not an object", failures[0])
+
     def test_a_parameter_without_a_name_is_reported(self) -> None:
         _, failures = validate_foundation.collect_parameter_names(
             {"/v1/catalog/packages": {"get": {"parameters": [{"in": "query"}]}}}

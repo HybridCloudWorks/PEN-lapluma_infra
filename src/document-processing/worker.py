@@ -35,16 +35,22 @@ class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         if self.path not in {"/health", "/ready"}:
             # Not send_error: that renders an HTML body, so the same endpoint would answer in two
-            # content types depending on the path it was asked for.
-            self._respond(404, b"")
+            # content types depending on the path it was asked for. The body is a real document
+            # rather than nothing, because Content-Type: application/json on an empty payload is a
+            # contradiction — a client that parses every response unconditionally chokes on it.
+            self._respond(404, self._envelope("not-found"))
             return
 
-        status = "ready" if self.path == "/ready" else "ok"
-        payload = json.dumps(
+        self._respond(200, self._envelope("ready" if self.path == "/ready" else "ok"))
+
+    @staticmethod
+    def _envelope(status: str) -> bytes:
+        # One shape for every response, and it never echoes the requested path: what this service
+        # emits stays content-free whether the probe succeeded or not.
+        return json.dumps(
             {"status": status, "service": SERVICE_NAME, "version": CONTRACT_VERSION},
             separators=(",", ":"),
         ).encode("utf-8")
-        self._respond(200, payload)
 
     def _respond(self, status: int, payload: bytes) -> None:
         self.send_response(status)

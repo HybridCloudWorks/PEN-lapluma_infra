@@ -60,6 +60,23 @@ class HealthSurfaceTests(unittest.TestCase):
         self.assertEqual(raised.exception.status, 404)
         self.assertEqual(raised.exception.headers["Content-Type"], "application/json")
 
+    def test_the_not_found_body_is_actually_parseable_json(self) -> None:
+        # Declaring application/json and sending nothing is a contradiction: a client that parses
+        # every response unconditionally raises on the empty payload.
+        with self.assertRaises(urllib.error.HTTPError) as raised:
+            urllib.request.urlopen(f"{self.base}/metrics", timeout=5)
+
+        body = json.loads(raised.exception.read())
+        self.assertEqual(body["status"], "not-found")
+        self.assertEqual(body["service"], "document-processing")
+
+    def test_no_response_echoes_the_requested_path(self) -> None:
+        # Telemetry and payloads alike stay content-free, including on the failure path.
+        with self.assertRaises(urllib.error.HTTPError) as raised:
+            urllib.request.urlopen(f"{self.base}/DISTINCTIVE_MARKER", timeout=5)
+
+        self.assertNotIn("DISTINCTIVE_MARKER", raised.exception.read().decode("utf-8"))
+
     def test_no_response_discloses_the_interpreter_version(self) -> None:
         with urllib.request.urlopen(f"{self.base}/health", timeout=5) as response:
             server_header = response.headers["Server"]
