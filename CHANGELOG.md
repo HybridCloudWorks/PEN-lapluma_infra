@@ -27,6 +27,13 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Request logging no longer emits the URL. ASP.NET Core's `Hosting.Diagnostics` logs the full
+  request URL including the query string at `Information`, on by default, which the content-free
+  telemetry constraint does not allow. That category and `Microsoft.AspNetCore.Routing` are raised
+  to `Warning`; the service logs every rejection itself with a correlation identifier and no request
+  content, so the signal worth keeping is kept. A test asserts that no log from *any* category
+  carries a path, query value, or route value — measured by capturing at `Trace`, so removing the
+  filters makes the suppressed logging reappear and fails the test.
 - The acquisition sweep is a singleton and reports what the publisher accepted. The timer trigger
   called `start_new` with no instance ID, so Durable Functions minted a fresh GUID per firing and a
   sweep running longer than the schedule interval — or a `use_monitor` catch-up landing on a normal

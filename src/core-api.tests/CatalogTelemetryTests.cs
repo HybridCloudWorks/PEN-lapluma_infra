@@ -69,6 +69,28 @@ public sealed class CatalogTelemetryTests
     }
 
     [Fact]
+    public async Task No_log_from_any_category_carries_the_request_url()
+    {
+        // ASP.NET Core's own request logging emits the full URL including the query string at
+        // Information by default. Asserting only over this service's category would miss it, so
+        // this asserts over everything the pipeline writes.
+        using var factory = new CapturingFactory();
+
+        await factory.CreateClient().GetAsync(
+            "/v1/catalog/packages/DISTINCTIVE_MARKER?activationState=ANOTHER_MARKER");
+
+        var leaking = factory.AllEntries()
+            .Where(entry =>
+                entry.Message.Contains("DISTINCTIVE_MARKER", StringComparison.Ordinal)
+                || entry.Message.Contains("ANOTHER_MARKER", StringComparison.Ordinal)
+                || entry.Message.Contains("/v1/catalog", StringComparison.Ordinal))
+            .Select(entry => $"[{entry.Category}] {entry.Message}")
+            .ToArray();
+
+        Assert.Empty(leaking);
+    }
+
+    [Fact]
     public async Task A_successful_request_logs_no_problem()
     {
         using var factory = new CapturingFactory();
@@ -136,7 +158,11 @@ public sealed class CatalogTelemetryTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.ConfigureLogging(logging => logging.AddProvider(provider));
+            // Trace, so anything the application permits at any level is captured. Category
+            // filters configured by the application still apply, which is the point: if those
+            // filters are removed, the suppressed request logging reappears here.
+            builder.ConfigureLogging(logging =>
+                logging.SetMinimumLevel(LogLevel.Trace).AddProvider(provider));
             if (breakCatalog)
             {
                 builder.ConfigureServices(services => services.AddSingleton<CatalogRepository>(
@@ -145,11 +171,13 @@ public sealed class CatalogTelemetryTests
         }
 
         /// <summary>
-        /// Only this service's own problem logs. The framework's request logging is a separate
-        /// category and is not what these tests are asserting about.
+        /// Only this service's own problem logs, for the assertions about what it writes.
+        /// No_log_from_any_category_carries_the_request_url uses AllEntries instead.
         /// </summary>
         public CapturedLog[] ProblemEntries() =>
             provider.Entries.Where(entry => entry.Category == CatalogProblem.LogCategory).ToArray();
+
+        public CapturedLog[] AllEntries() => provider.Entries.ToArray();
 
         private sealed class CapturingLoggerProvider : ILoggerProvider
         {

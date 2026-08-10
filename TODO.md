@@ -16,7 +16,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
-| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.7 |
+| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
@@ -364,39 +364,6 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** The drill evidence itself must be content-free and pseudonymized —
   it lands in the audit account, which is subject to the immutability policy from item 2.4.
-
-### 3.7 — Stop the framework's request logging from emitting query strings
-
-- **Priority:** P2
-- **Description:** Discovered while instrumenting the Core API. The service's own problem logs are
-  content-free and tested to be so, but ASP.NET Core's built-in request logging is not.
-  `Microsoft.AspNetCore.Hosting.Diagnostics` emits the full URL including the query string at
-  `Information`, which is on by default with no `appsettings.json` present. Captured from a test
-  run against the real pipeline:
-
-  ```
-  [Microsoft.AspNetCore.Hosting.Diagnostics] Request starting HTTP/1.1 GET
-    http://localhost/v1/catalog/packages?activationState=MARKER_VALUE
-  ```
-
-  `Microsoft.AspNetCore.Routing.*` additionally logs the matched path. The content-free telemetry
-  constraint is stated absolutely, and this is application telemetry, so 3.1's diagnostic settings
-  do not cover it. Severity is limited today because the catalog contract accepts no `userId`,
-  `personId`, `caseId`, `documentId`, `eligibility`, or `facts` parameter and
-  `tools/validate_foundation.py` enforces that — so nothing applicant-identifying can currently
-  reach a query string. It stops being limited the moment an endpoint outside the catalog exists.
-- **Dependencies:** None. 1.4 determines where the telemetry lands, not what it contains.
-- **Recommended action:** Decide what request-level telemetry this service should emit, then
-  configure it deliberately rather than inheriting the default. Options: raise the log level for
-  `Microsoft.AspNetCore.Hosting.Diagnostics` and `Microsoft.AspNetCore.Routing` and rely on the
-  service's own logging, or add `UseHttpLogging` with an explicit field set that excludes the query
-  string. Extend `CatalogTelemetryTests` to assert across *all* log categories rather than only
-  `CatalogProblem.LogCategory`, which is the scope those tests deliberately have today.
-- **Status:** Not started
-- **Notes for future engineers:** Do not simply set `Microsoft.AspNetCore` to `Warning` and move
-  on — that also silences genuinely useful startup and failure diagnostics. The processing worker's
-  precedent (`worker.py` suppresses all request logging) is defensible there because its only
-  endpoints are probes; the Core API serves a real API surface and needs some request-level signal.
 
 ---
 
