@@ -15,7 +15,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | Phase | Theme | Items |
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the edge zone is not modelled | 1.1 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
@@ -74,69 +74,49 @@ place. What remains is the edge, which cannot be modelled until an address range
   retention. Bootstrapping the pool with the wrong `initialAdminObjectIds` is expensive to undo —
   confirm R-10 before the first provisioning run, not after.
 
-### 2.2 — Enforce processing-zone egress control
+### 2.2 — Implement the approved egress allowlist
 
 - **Priority:** P1
-- **Description:** `infra/modules/network.bicep` puts a single `DenyInternetEgress` outbound rule on
-  the processing NSG. That blocks direct internet destinations but does not implement the specified
-  "no general internet egress" posture with an approved destination allowlist — there is no route
-  table, no firewall, no DNS egress control, and the other four subnets have empty NSGs.
+- **Description:** The rule *structure* is in place. Every one of the five NSGs now carries a
+  baseline `DenyInternetEgress`, where four of them previously carried nothing at all — the AI zone
+  had unrestricted outbound internet access. The processing NSG additionally denies the `Sql` and
+  `AzureCosmosDB` service tags and the private-endpoint subnet prefix, which closes code review
+  finding **F-04**: an NSG carries an implicit `AllowVnetOutBound`, and every private endpoint sits
+  inside this VNet, so the internet rule never covered that path. What remains is the mechanism and
+  the destinations — there is still no route table, no firewall, and no DNS egress control.
 - **Dependencies:** `REVIEW.md` **R-09** (approved egress destinations and enforcement mechanism).
-  The private endpoints this used to wait on are in place — which sharpens the item rather than
-  softening it, since those endpoints are now reachable from every subnet in the VNet.
 - **Recommended action:** Implement the approved mechanism — an Azure Firewall with forced tunneling
-  via UDR, or an equivalent — with an explicit allowlist. Add baseline deny rules to the core, AI,
-  functions, and private-endpoint NSGs rather than leaving them empty. Add a validation test that
-  asserts a processing replica cannot resolve or reach an arbitrary external host.
-- **Status:** Not started
+  via UDR, or an equivalent — with an explicit allowlist, and punch the approved destinations
+  through the baseline denies rather than widening them. Add a validation test that asserts a
+  processing replica cannot resolve or reach an arbitrary external host.
+- **Status:** Partially complete — rule structure and the F-04 denies are in; the allowlist and its
+  enforcement mechanism remain.
 - **Notes for future engineers:** Container Apps environments need platform-level egress for image
   pulls and control-plane traffic. Use the ACR private endpoint plus the documented required FQDNs;
-  do not widen the allowlist to "all Azure services".
-  Code review finding **F-04** is an explicit acceptance criterion for this item, and it is not
-  satisfied by internet-egress work alone. NSGs carry an implicit `AllowVnetOutBound`, and every
-  private endpoint lives inside the same VNet, so `DenyInternetEgress` does not stop a processing
-  replica reaching the SQL or Cosmos private endpoints. Add deny rules for the `Sql` and
-  `AzureCosmosDB` service tags and for the private-endpoint subnet prefix, and give the core, AI,
-  functions, and private-endpoint NSGs baseline deny rules rather than leaving them empty — the AI
-  zone currently has unrestricted outbound internet access. Rule addresses depend on **R-09**; rule
-  structure does not, and can be authored now.
+  do not widen the allowlist to "all Azure services". The baseline deny sits at priority 4000 and
+  the F-04 database denies at 3000–3020, so an allowlist has the whole range below 3000 to work in
+  without editing what is already there.
 
-### 2.3 — Add defense-in-depth authorization to the Core API
+### 2.3 — Lock the audit immutability policy
 
 - **Priority:** P1
-- **Description:** `src/core-api/Program.cs` registers no authentication or authorization at all.
-  Every catalog endpoint is anonymous. The design places JWT validation at the APIM edge, but a
-  service whose only protection is an upstream gateway fails open the moment anything reaches it
-  directly — including from inside the core subnet.
-- **Dependencies:** `REVIEW.md` **R-06** (Entra registrations and API audience). The Core API is
-  hosted now, and its ingress is internal, so this is the only authorization it would have.
-- **Recommended action:** Add JWT bearer authentication bound to the confirmed Entra audience and
-  issuer, apply an authorization policy to the `/v1/catalog` group while leaving `/health` and
-  `/ready` anonymous, and add a test that asserts an unauthenticated catalog request returns 401.
-  Add the identity and policy boundary described in the architecture as a distinct module inside
-  `src/core-api`.
-- **Status:** Not started
-- **Notes for future engineers:** The catalog endpoints deliberately accept no `userId`, `personId`,
-  `folderId`, `caseId`, `documentId`, `eligibility`, or `facts` parameter, and
-  `tools/validate_foundation.py` enforces that. Adding authentication must not introduce any of
-  those as a query parameter.
-
-### 2.4 — Apply immutability to the audit storage account
-
-- **Priority:** P1
-- **Description:** The `audit` storage account is described as holding immutable evidence and is the
-  only account provisioned with `Standard_ZRS`, but it is configured identically to the others: no
-  immutability policy, no legal hold, and the same 7-day soft-delete window. Deletion evidence that
-  can be deleted is not evidence.
+- **Description:** The audit container now carries a time-based immutability policy with a
+  parameterized window, defaulting to seven years, and `allowProtectedAppendWrites` so evidence
+  appended over time is still protected. It is created **unlocked**, and an unlocked policy can be
+  shortened or removed — which is most of the protection missing.
 - **Dependencies:** `REVIEW.md` **R-11** (audit metadata retention, proposed 7 years).
-- **Recommended action:** Add a time-based immutability policy (WORM) to the audit container sized
-  to the approved retention period, with the policy locked in `staging` and `pilot`. Keep `dev`
-  unlocked so test data can be cleaned up.
+- **Recommended action:** Once R-11 ratifies the period, lock the policy in `staging` and `pilot`
+  with `az storage container immutability-policy lock`. Keep `dev` unlocked permanently so test data
+  can be cleaned up. Record the lock in the deployment runbook under 6.2.
 - **Status:** Not started
-- **Notes for future engineers:** A locked immutability policy cannot be shortened or removed. Do
-  not lock it until R-11 has ratified the retention period.
+- **Notes for future engineers:** **Locking is not a Bicep property, and there is deliberately no
+  parameter offering to do it.** ARM exposes the lock as an explicit action on the policy resource,
+  so a `lock: true` in the template would read like a guarantee and enforce nothing. It is an
+  irreversible out-of-band step: a locked policy cannot be shortened or removed by an owner, by a
+  subscription administrator, or by support. Extending it is the only permitted change. Do not run
+  the lock command until R-11 has ratified the number.
 
-### 2.5 — Add supply-chain and code scanning to CI
+### 2.4 — Add supply-chain and code scanning to CI
 
 - **Priority:** P2
 - **Description:** `.github/workflows/security-scanning.yml` now runs CodeQL for C# and Python,
@@ -173,7 +153,7 @@ place. What remains is the edge, which cannot be modelled until an address range
   install script at run time, which is unpinned and was observed failing outright here. Scanning a
   `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
 
-### 2.6 — Replace the Functions host shared-key auth default
+### 2.5 — Replace the Functions host shared-key auth default
 
 - **Priority:** P2
 - **Description:** Code review finding **F-17**. `src/functions/function_app.py` constructs
@@ -244,7 +224,8 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Description:** Cross-tenant, cross-folder, person-boundary, and agent-no-write invariant tests
   are required to pass on every build. Today the repository has five Python contract tests and no
   invariant tests at all.
-- **Dependencies:** 2.3, 5.2.
+- **Dependencies:** 5.2. The Core API's authorization boundary exists now, so a token-scoped
+  test has something to assert against — supplying real tokens still needs `REVIEW.md` **R-06**.
 - **Recommended action:** Build an integration test project that asserts, against a running `dev`
   environment: a token scoped to tenant A cannot read tenant B's data; a folder-scoped grant cannot
   traverse to a sibling folder; a person boundary cannot be crossed by any API path; and no AI or
@@ -296,7 +277,7 @@ place. What remains is the edge, which cannot be modelled until an address range
   evidence to the audit account. Document the procedure as a runbook (item 6.2).
 - **Status:** Not started
 - **Notes for future engineers:** The drill evidence itself must be content-free and pseudonymized —
-  it lands in the audit account, which is subject to the immutability policy from item 2.4.
+  it lands in the audit account, which is subject to the immutability policy from item 2.3.
 
 ---
 

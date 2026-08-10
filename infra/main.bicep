@@ -31,6 +31,11 @@ type RetentionBaseline = {
 
   @minLength(1)
   hsmSoftDeleteDays: string
+
+  // Not a soft-delete window: this one is a WORM period, and once its policy is locked it cannot
+  // be shortened. Seven years proposed, pending R-11.
+  @minLength(1)
+  auditImmutabilityDays: string
 }
 
 @description('Sizing and throughput. Values pending REVIEW.md R-03.')
@@ -176,6 +181,7 @@ param retention RetentionBaseline = {
   containerSoftDeleteDays: '7'
   keyVaultSoftDeleteDays: '90'
   hsmSoftDeleteDays: '90'
+  auditImmutabilityDays: '2555'
 }
 
 @description('Sizing and throughput.')
@@ -220,6 +226,7 @@ var retentionDays = {
   containerSoftDelete: int(retention.containerSoftDeleteDays)
   keyVaultSoftDelete: int(retention.keyVaultSoftDeleteDays)
   hsmSoftDelete: int(retention.hsmSoftDeleteDays)
+  auditImmutability: int(retention.auditImmutabilityDays)
 }
 var sizing = {
   sqlSkuCapacity: int(capacity.sqlSkuCapacity)
@@ -327,6 +334,7 @@ module data './modules/data.bicep' = if (enableProvisioning) {
     sqlZoneRedundant: redundancy.sqlZoneRedundant
     cosmosMaxThroughput: sizing.cosmosMaxThroughput
     cosmosZoneRedundant: redundancy.cosmosZoneRedundant
+    auditImmutabilityDays: retentionDays.auditImmutability
     auditStorageSku: resilience.auditStorageSku
     defaultStorageSku: resilience.defaultStorageSku
   }
