@@ -16,7 +16,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
-| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.8 |
+| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.7 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
@@ -365,28 +365,7 @@ close that gap.
 - **Notes for future engineers:** The drill evidence itself must be content-free and pseudonymized —
   it lands in the audit account, which is subject to the immutability policy from item 2.4.
 
-### 3.7 — Make the acquisition orchestration singleton and resilient
-
-- **Priority:** P2
-- **Description:** Code review findings **F-10** and **F-31**. The timer trigger calls
-  `client.start_new(...)` with no instance ID, so Durable Functions generates a fresh GUID per
-  firing and every firing starts an independent sweep with no check that the previous one finished.
-  The orchestrator has no retry policy, so a transient activity failure fails the whole
-  orchestration, and it discards the publish activity's return value — a future publisher that
-  accepts three of four proposals would still report `proposalCount: 4` with no sign of the
-  shortfall.
-- **Dependencies:** 5.4 supplies the real publisher.
-- **Recommended action:** Use a deterministic instance ID and skip the start when a run is already
-  `Running`, `Pending`, or `ContinuedAsNew`. Add `call_activity_with_retry` for transient failures
-  and propagate `acceptedProposalCount` and `published` into the orchestration result.
-- **Status:** Not started
-- **Notes for future engineers:** Do not retry `propose_acquisition_batch`'s `ValueError` — a
-  scope-drift rejection is deterministic and must fail closed on the first attempt. The
-  `document-processing` queue has duplicate detection with a one-hour window, but it keys on
-  `MessageId`, which the not-yet-written publisher must set deliberately; record that requirement
-  on 5.4 rather than relying on it. `activatedEditionCount: 0` stays regardless.
-
-### 3.8 — Stop the framework's request logging from emitting query strings
+### 3.7 — Stop the framework's request logging from emitting query strings
 
 - **Priority:** P2
 - **Description:** Discovered while instrumenting the Core API. The service's own problem logs are
