@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.3 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -72,7 +72,15 @@ close that gap.
   Add an `apim` module for the Edge zone. Tag each app with `azd-service-name` matching the
   corresponding `azure.yaml` service so AZD can bind them.
 - **Status:** Not started
-- **Notes for future engineers:** `src/core-api/Dockerfile` listens on `8080` via `ASPNETCORE_URLS`,
+- **Notes for future engineers:** The function app must pin **Python 3.13** in its
+  `linuxFxVersion`, matching the rest of the repository — `src/functions/requirements.txt`
+  requires it, since `azure-functions` 2.x needs `>=3.13` and the 1.x line caps at `<3.13`.
+  Confirm the Azure Functions runtime offers 3.13 on the chosen plan and region before
+  provisioning: that was not verifiable when the version was chosen, and it is the one
+  assumption behind it. `tools/validate_foundation.py` enforces agreement across the image, CI,
+  and the documentation, but it cannot see the hosting configuration until this item adds it —
+  extend `PYTHON_VERSION_SOURCES` to cover the Bicep once it exists.
+  `src/core-api/Dockerfile` listens on `8080` via `ASPNETCORE_URLS`,
   and `src/document-processing/worker.py` reads `PORT` with a default of `8080`. Both images already
   run as non-root, so no `runAsUser` override is needed. The processing environment must have no
   route to SQL or Cosmos — that is a trust-zone invariant, not a configuration preference.
@@ -414,31 +422,6 @@ close that gap.
   subnet, so getting this right before the first provisioning run avoids a rebuild.
 
 ---
-
-### 4.3 — Decide the Python baseline, which `azure-functions` 2.x now forces
-
-- **Priority:** P2
-- **Description:** The repository standardises on Python 3.12 — `README.md`, both wiki pages, the CI
-  `setup-python` step, and both Dockerfiles. Dependabot has proposed two changes that this baseline
-  blocks. `azure-functions` **2.x requires Python `>=3.13`**, and the 1.x line caps at `<3.13`: the
-  two ranges are disjoint, so `azure-functions>=2.2.0,<3` is uninstallable on 3.12 and the pin
-  cannot move without moving the interpreter. Separately, `python:3.12-slim` → `3.14-slim` was
-  proposed for the processing worker alone, which would ship a runtime two minor versions ahead of
-  the one CI tests on and ahead of the Functions app.
-- **Dependencies:** Confirm which Python versions the Azure Functions runtime supports on the
-  intended hosting SKU before committing to one; that constrains the answer more than anything here.
-- **Recommended action:** Choose one interpreter version for the whole repository and move
-  `README.md`, both wiki pages, `setup-python`, both Dockerfiles, and the `worker.py` docstring
-  together. Then take the `azure-functions` bump in the same change, not before.
-- **Status:** Not started
-- **Notes for future engineers:** Nothing installs `src/functions/requirements.txt` — not CI, not any
-  test. `test_acquisition_contract.py` reads `function_app.py` with `ast` precisely because the
-  Durable runtime cannot run offline. **A green CI run on a requirements change therefore proves
-  nothing about that change.** The incompatibility above was found by reading package metadata, not
-  by running anything, and the same will be true of the next one. `azure-functions-durable` 1.7.0 is
-  compatible with 3.12 and with `azure-functions` 1.x, so that bump is independent of this decision —
-  though it does pull in `aiohttp`, `requests`, `opentelemetry-api`, `opentelemetry-sdk`, `furl`, and
-  `python-dateutil`, where 1.3 pulled far less.
 
 ---
 

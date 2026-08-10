@@ -50,6 +50,27 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Moved the repository to **Python 3.13** and took the two `azure-functions` bumps that depended on
+  it: `azure-functions` to `>=2.2.0,<3` and `azure-functions-durable` to `>=1.7.0,<2`. The 2.x line
+  requires Python `>=3.13` and the 1.x line caps at `<3.13` — the ranges are disjoint, so the pin
+  could not move without the interpreter. The version now reads 3.13 in the worker image, the CI
+  `setup-python` step, the worker docstring, the README, and both wiki pages, which is every place
+  that states it. 3.13 rather than 3.14 because it is the minimum that unblocks the SDK; whether the
+  Azure Functions runtime offers 3.13 on the chosen plan and region could not be confirmed from here
+  and is recorded against `TODO.md` item 1.2, which pins `linuxFxVersion`.
+- Three guardrails so those failures cannot return, each verified by reproducing the failure it
+  prevents:
+  - CI resolves `src/functions/requirements.txt` against the interpreter it tests on. Nothing
+    installed that file before — not a test, not a build — so an unsatisfiable pin was invisible.
+    That is not hypothetical: the incompatibility above arrived as an automated update whose checks
+    all passed, and was found by reading package metadata by hand. The step fails on 3.12 and passes
+    on 3.13, which is the check doing its job.
+  - The validator requires one Python version across all six places that state it. Bumping only the
+    image — the exact single-file change that was proposed — is now rejected, naming both sides of
+    the disagreement, as is bumping only CI or only the documentation.
+  - Dependabot no longer proposes interpreter minor or major bumps for the worker image. Digest and
+    patch refreshes still come through, which is the security-relevant half; a version jump is a
+    repository-wide decision that cannot be correct as a one-file change.
 - Every third-party GitHub Action moved to its current major, in one change rather than five:
   `actions/checkout` to 7.0.1, `actions/setup-python` to 7.0.0, `actions/setup-dotnet` to 6.0.0, and
   all four `github/codeql-action` references to 4.37.6. The runner had begun forcing the previous

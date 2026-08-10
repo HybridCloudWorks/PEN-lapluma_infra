@@ -468,6 +468,49 @@ def validate_workflow_action_pins() -> Failures:
     return failures
 
 
+# Where the interpreter version is stated. These have to agree, and the set is explicit rather than
+# a repository-wide scan so that prose discussing a past or proposed version does not fail the rule.
+PYTHON_VERSION_SOURCES = (
+    ("src/document-processing/Dockerfile", re.compile(r"FROM python:(\d+\.\d+)-slim")),
+    (".github/workflows/foundation-validation.yml", re.compile(r"python-version:\s*'(\d+\.\d+)'")),
+    ("src/document-processing/worker.py", re.compile(r"Python (\d+\.\d+)")),
+    ("README.md", re.compile(r"Python (\d+\.\d+)")),
+    ("wiki/Architecture-Overview.md", re.compile(r"Python (\d+\.\d+)")),
+    ("wiki/Azure-Deployment-Plan.md", re.compile(r"Python (\d+\.\d+)")),
+)
+
+
+def validate_python_version_agreement() -> Failures:
+    """One interpreter version, stated the same way everywhere.
+
+    The version is not a per-component choice. `src/functions/requirements.txt` is bound to it —
+    azure-functions 2.x requires >=3.13 and the 1.x line caps at <3.13 — so a bump applied to one
+    file is wrong wherever it is applied alone. The image, CI, and the documentation drifting apart
+    is the failure this prevents: CI would keep testing on one interpreter while the container
+    shipped another, and nothing would say so.
+    """
+    failures = Failures()
+    found: dict[str, list[str]] = {}
+    for relative, pattern in PYTHON_VERSION_SOURCES:
+        path = ROOT / relative
+        if not path.is_file():
+            failures.require(False, f"python version source is missing: {relative}")
+            continue
+        versions = pattern.findall(path.read_text(encoding="utf-8"))
+        if not versions:
+            failures.require(False, f"{relative} states no Python version; the rule cannot check it")
+            continue
+        for version in versions:
+            found.setdefault(version, []).append(relative)
+
+    failures.require(
+        len(found) <= 1,
+        "the Python version must be the same everywhere, found "
+        + "; ".join(f"{v} in {', '.join(sorted(set(f)))}" for v, f in sorted(found.items())),
+    )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -475,6 +518,7 @@ def main() -> int:
         *validate_azure_interlock(),
         *validate_env_example(),
         *validate_workflow_action_pins(),
+        *validate_python_version_agreement(),
         *validate_no_sensitive_values(),
     ]
     if failures:
