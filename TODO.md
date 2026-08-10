@@ -19,7 +19,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.5 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
-| [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
+| [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.3 |
 
 ---
 
@@ -167,7 +167,8 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Dependencies:** 1.1 (APIM must front the app first); `REVIEW.md` **R-07** for the hostname.
 - **Recommended action:** Set `AuthLevel.ANONYMOUS` and terminate authentication at APIM with
   Entra, which is the topology the trust-zone model already describes. Record the decision as an
-  ADR under 6.3, since it moves a security boundary. Decide separately whether the Durable HTTP
+  ADR — the Architecture Decision Records wiki page carries the format — since it moves a security
+  boundary. Decide separately whether the Durable HTTP
   management API should be disabled outright through `extensions.durableTask` in `host.json`.
 - **Status:** Not started
 - **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
@@ -452,51 +453,51 @@ place. What remains is the edge, which cannot be modelled until an address range
 ### 6.1 — Publish the staged wiki pages and remove `wiki/`
 
 - **Priority:** P1
-- **Description:** Nine wiki pages are written and staged in `wiki/` — Home, Azure Deployment Plan,
-  Architecture Overview, Environments and Release Path, Configuration Contract, Security and Data
-  Protection, Pilot Policy and Compliance Gates, Azure Component Research Record, and Documentation
-  Standards. They are staged rather than published because the automation that prepared them has no
-  GitHub Wiki write access. Until they are published, the repository holds a documentation directory
-  that the documentation model does not permit.
+- **Description:** Fifteen wiki pages are written and staged in `wiki/` — the original nine (Home,
+  Azure Deployment Plan, Architecture Overview, Environments and Release Path, Configuration
+  Contract, Security and Data Protection, Pilot Policy and Compliance Gates, Azure Component
+  Research Record, Documentation Standards), plus the five architecture decision records and their
+  index, plus the four operational runbooks and their index. They are staged rather than published
+  because the automation that prepared them has no GitHub Wiki write access. Until they are
+  published, the repository holds a documentation directory that the documentation model does not
+  permit.
 - **Dependencies:** `REVIEW.md` **R-17** (wiki write access).
 - **Recommended action:** Clone `https://github.com/HybridCloudWorks/PEN-lapluma_infra.wiki.git`,
-  copy the contents of `wiki/` into it, push, verify all nine pages render and that every
+  copy the contents of `wiki/` into it, push, verify all fifteen pages render and that every
   cross-link resolves, then delete `wiki/` from this repository and update the README documentation
   table.
-- **Status:** Not started
+- **Status:** Blocked. The block is confirmed rather than assumed: cloning the wiki remote succeeds
+  and pushing returns HTTP 403, because the wiki is a separate repository from the perspective of
+  access control and is not in the authorized set. Adding it as a source fails too — GitHub does not
+  expose `<repo>.wiki` as a grantable repository. This will not clear by retrying.
 - **Notes for future engineers:** GitHub derives wiki page titles from filenames, so
   `Architecture-Overview.md` becomes "Architecture Overview" and the relative links in the pages
   (`[Architecture Overview](Architecture-Overview)`) resolve correctly. Do not rename the files.
+  This applies to the new pages too: `ADR-0001-AZD-and-Bicep-over-Terraform.md` renders as
+  "ADR 0001 AZD and Bicep over Terraform", and the cross-links between records are written against
+  those derived titles.
 
 ### 6.2 — Author the operational runbooks
 
 - **Priority:** P2
 - **Description:** Incident response, on-call procedure, restore drill, and deletion drill runbooks
-  are real-user pilot prerequisites. None exist.
-- **Dependencies:** 3.5, 6.1; `REVIEW.md` **R-04** (operations and on-call owner).
-- **Recommended action:** Write the runbooks as wiki pages once the operations owner is named and
-  `staging` exists to validate them against. Link them from the wiki Home page.
-- **Status:** Not started
+  are real-user pilot prerequisites. All four are now **drafted** and staged in `wiki/`, together
+  with an index page. What remains is validation: no step in any of them has been executed, because
+  no environment exists to execute it against.
+- **Dependencies:** 3.5, 6.1; `REVIEW.md` **R-04** (operations and on-call owner), **R-11** (the
+  deletion drill's pass criteria are the retention numbers).
+- **Recommended action:** Once `staging` exists, execute each runbook by hand and correct it against
+  what actually happened. The restore and deletion drills are the two that will change most —
+  every command in them is written against the resource shapes declared in `infra/`, not against a
+  deployed resource, and every timing figure is an intention rather than a measurement. Then fill in
+  the role names from R-04 and the response targets the operations owner agrees.
+- **Status:** Drafted, unvalidated. Each page carries a banner saying so.
 - **Notes for future engineers:** Runbooks belong in the wiki, never in the repository — see the
-  Documentation Standards wiki page.
+  Documentation Standards wiki page. Resist the urge to tidy away the "never executed" banners
+  before the drills have actually been run: a runbook that looks authoritative and has never been
+  tested is worse than one that admits what it is, because someone will follow it under pressure.
 
-### 6.3 — Record architecture decision records
-
-- **Priority:** P3
-- **Description:** Several foundational decisions are documented as conclusions with no recorded
-  alternatives: AZD with Bicep over Terraform, three separate Container Apps environments over one
-  with internal isolation, SQL as authoritative with Cosmos as rebuildable projections, Service Bus
-  Premium over Standard, and Managed HSM over Key Vault-managed keys. A future engineer cannot tell
-  what was rejected or why.
-- **Dependencies:** 6.1.
-- **Recommended action:** Write one short ADR per decision as a wiki page, capturing the context,
-  the options considered, the decision, and its consequences. Link them from the Architecture
-  Overview page.
-- **Status:** Not started
-- **Notes for future engineers:** The Azure Component Research Record wiki page holds the research
-  that informed several of these; use it as the starting evidence rather than re-researching.
-
-### 6.4 — Write the troubleshooting guide
+### 6.3 — Write the troubleshooting guide
 
 - **Priority:** P3
 - **Description:** No troubleshooting documentation exists. It cannot usefully be written before a

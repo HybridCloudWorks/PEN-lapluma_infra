@@ -99,6 +99,8 @@ security-feature, and cost validation. Security controls may not be removed to f
 
 ## Related pages
 
+- [Architecture Decision Records](Architecture-Decision-Records) — why the trust zones, the data
+  stores, and the transport are what they are, and what was rejected
 - [Azure Deployment Plan](Azure-Deployment-Plan)
 - [Environments and Release Path](Environments-and-Release-Path)
 - [Security and Data Protection](Security-and-Data-Protection)

@@ -50,6 +50,37 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Added
 
+- Five architecture decision records, staged in `wiki/` with an index page and linked from the
+  Architecture Overview: AZD with Bicep over Terraform, three Container Apps environments over one
+  with internal isolation, Azure SQL authoritative with Cosmos as rebuildable projections, Service
+  Bus Premium over Standard, and Managed HSM over Key Vault-managed keys. Each of these was
+  previously documented only as a conclusion, which leaves a future engineer unable to tell whether
+  a constraint is load-bearing or incidental — and the usual result of that is a constraint removed
+  by someone who assumed it was arbitrary.
+
+  Each record names the option that was nearly chosen and says what would have to change for it to
+  win, because that is the part a future engineer is actually looking for. Two are worth reading
+  even if the decision is not in question: Service Bus Premium is a *network* decision rather than a
+  throughput one — Standard cannot take a private endpoint, so the tier is what keeps the processing
+  zone's egress allowlist empty — and Managed HSM over Key Vault Premium is the closest call in the
+  set, with the record written so it can be argued against rather than merely cited.
+
+- Four operational runbooks, staged in `wiki/` with an index page: incident response, on-call
+  procedure, restore drill, and deletion drill. Each carries a banner stating that no step in it has
+  ever been executed, because no environment exists to execute it against — every command is written
+  against the resource shapes declared in `infra/`, and every timing figure is an intention rather
+  than a measurement. They are written now because the alternative is authoring them during the
+  first incident.
+
+  The on-call page spends its first section on what on-call is explicitly *not* authorized to do —
+  approve deployments, change retention windows, activate a form edition, read case content to
+  diagnose a problem, lock an immutability policy, or touch HSM key material. An under-specified
+  rotation ends with somebody at 02:00 making a decision they were never given authority for. The
+  deletion drill leads with the two stores every erasure check forgets: blob versions, which survive
+  deleting the current blob, and delivery links issued before erasure. Its strongest verification
+  step is only available because of ADR 0003 — drop the Cosmos projection, rebuild it from
+  post-erasure SQL, and confirm the rebuild produces nothing about the participant.
+
 - Repository governance files, all but one of them. `.github/dependabot.yml` watches NuGet, pip,
   Docker, and GitHub Actions. The last two are load-bearing rather than optional here: every
   container base image is pinned by digest and every action by commit SHA, so until now nothing
