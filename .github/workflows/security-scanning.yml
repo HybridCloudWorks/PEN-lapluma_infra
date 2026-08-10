@@ -22,7 +22,7 @@ jobs:
       proceed: ${{ steps.guard.outputs.proceed }}
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Decide whether this run duplicates the pull_request run
         id: guard
@@ -44,7 +44,7 @@ jobs:
         language: [csharp, python]
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Initialise CodeQL
         uses: github/codeql-action/init@c4dd10e44af883a891fe31ced449bcb4a6728b9b
@@ -69,7 +69,7 @@ jobs:
       contents: read
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Review dependency changes
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
@@ -95,7 +95,7 @@ jobs:
             context: src/document-processing
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Build the image
         run: docker build --tag lapluma-${{ matrix.image.name }}:scan ${{ matrix.image.context }}
@@ -140,7 +140,7 @@ jobs:
       security-events: write
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Pin the Bicep CLI version
         run: |
