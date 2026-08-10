@@ -50,6 +50,35 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The catalog has an authoritative source. `CatalogRepository` was an in-memory fixture registered
+  as a singleton with nothing behind it; `ICatalogSource` now has two implementations, and the
+  SQL-backed one is the **default**. The fixture is opt-in, because a deployment that failed to
+  configure its database serving a plausible hard-coded catalog is worse than an outage — nothing in
+  the response would say so. An unrecognised source value is refused rather than guessed.
+
+  The interface is asynchronous throughout, since one implementation talks to a database over a
+  private endpoint and a synchronous one would have blocked a request thread. `src/core-api/Sql/001_catalog_schema.sql`
+  carries the schema, with the contract's enumerations as `CHECK` constraints and `https://` enforced
+  on every URL column — the API is not the only thing that will ever write those tables. Package
+  activation is deliberately not stored: it is derived from the weakest form, and a stored copy could
+  disagree with the forms it summarises.
+
+  Wire names are read off the enums' own `JsonStringEnumMemberName` attributes rather than restated
+  in a second mapping, so the database, the JSON contract, and the C# member names cannot drift
+  apart. A value outside the contract raises instead of defaulting, because defaulting would
+  classify an unknown artifact as an official PDF.
+
+  **None of the SQL or Cosmos code has ever executed a query.** No environment has been provisioned,
+  so it compiles, it is reviewed, and that is the whole of the assurance behind it. The types say so
+  in their own documentation, and `TODO.md` 5.2 is now the integration test that will be its first
+  real exercise. What *is* tested is everything that does not need a database: which source a
+  configuration selects, that SQL is the default, that a missing server fails at startup, that the
+  connection string carries no password and authenticates with Entra, and the whole wire-name map.
+
+  Writing those tests found a real bug. The options were registered through a factory closure, so a
+  deployment missing its server name would have started, passed its liveness probe, stayed in
+  rotation, and failed every catalog call — while the comment beside it claimed it failed at
+  startup. It is built eagerly now.
 - The acquisition orchestration publishes. `publish_acquisition_proposals` returned metadata and
   sent nothing; the Durable activity now carries an identity-based Service Bus output binding to
   the `catalog-acquisition` queue, and the function app is configured with the namespace and its

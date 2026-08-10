@@ -9,5 +9,16 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
+    <PackageReference Include="Azure.Identity" Version="1.17.1" />
+    <!-- The Cosmos SDK still requires a Newtonsoft.Json reference for its own serializer, even
+         though nothing here uses it: System.Text.Json serialises every contract type. -->
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.55.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Sql\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

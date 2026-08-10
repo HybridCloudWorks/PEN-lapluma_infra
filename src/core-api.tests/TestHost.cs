@@ -41,6 +41,16 @@ internal static class TestHost
     public const string Audience = "api://lapluma-tests";
     public const string Issuer = "https://login.example.invalid/tenant/v2.0";
 
+    /// <summary>
+    /// Select the in-memory fixture. Production defaults to SQL, so every test that exercises the
+    /// catalog has to opt into the fixture explicitly — which is the point of the default.
+    /// </summary>
+    public static IWebHostBuilder WithFixtureCatalog(this IWebHostBuilder builder)
+    {
+        builder.UseSetting(CatalogSourceRegistration.SourceSetting, CatalogSourceRegistration.FixtureSource);
+        return builder;
+    }
+
     /// <summary>Supply an audience and issuer, so the catalog policy is configured rather than failing closed.</summary>
     public static IWebHostBuilder WithAuthenticationConfigured(this IWebHostBuilder builder)
     {
@@ -64,5 +74,5 @@ internal static class TestHost
 public sealed class AuthenticatedFactory : WebApplicationFactory<global::Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-        builder.WithAuthenticationConfigured().WithTestAuthentication();
+        builder.WithFixtureCatalog().WithAuthenticationConfigured().WithTestAuthentication();
 }

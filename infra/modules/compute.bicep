@@ -44,6 +44,15 @@ param functionsIdentityId string
 @description('Service Bus namespace the acquisition publisher writes to, fully qualified.')
 param serviceBusFullyQualifiedNamespace string = ''
 
+@description('Azure SQL server the Core API reads its catalog from, fully qualified.')
+param sqlServerFullyQualifiedName string = ''
+
+@description('Catalog database name.')
+param sqlDatabaseName string = ''
+
+@description('Cosmos endpoint the projection writer targets.')
+param cosmosEndpoint string = ''
+
 @description('Registry SKU. Premium is required for private endpoints, which this posture requires. Cost pending REVIEW.md R-03.')
 @allowed([
   'Basic'
@@ -198,6 +207,16 @@ resource coreApi 'Microsoft.App/containerApps@2024-03-01' = {
           image: placeholderImage
           env: [
             { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
+            // The catalog source. 'sql' is the default in code as well; naming it here means a
+            // reader of the infrastructure can see which catalog this app serves without reading
+            // the service.
+            { name: 'Catalog__Source', value: 'sql' }
+            { name: 'Catalog__SqlServer', value: sqlServerFullyQualifiedName }
+            { name: 'Catalog__SqlDatabase', value: sqlDatabaseName }
+            { name: 'Catalog__CosmosEndpoint', value: cosmosEndpoint }
+            // Picks the identity out of the several attachable to a host. Without it the credential
+            // has to guess, and guessing fails wherever more than one is attached.
+            { name: 'AZURE_CLIENT_ID', value: reference(coreIdentityId, '2023-01-31').clientId }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: applicationInsightsConnectionString
