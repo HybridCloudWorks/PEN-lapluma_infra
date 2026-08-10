@@ -19,7 +19,13 @@ import validate_foundation
 
 PLANTED = {
     "private key": "-----BEGIN " + "PRIVATE KEY-----",
-    "Azure storage connection string": "DefaultEndpointsProtocol=https;" + "AccountName=lapluma",
+    # Both halves of a connection string, assembled at runtime so neither this line nor any other
+    # in this file carries both names contiguously — the rule matches a single line carrying both,
+    # and a comment naming them together is enough to trip it.
+    # The key value is short so this plants the connection-string rule and not the account-key one.
+    "Azure storage connection string": "AccountName=lapluma;" + "Account" + "Key=short",
+    "Azure storage account key": "Account" + "Key=" + "A" * 88,
+    "shared access signature": "?" + "sig=" + "a" * 40,
     "JWT-like token": "eyJ" + "a" * 24 + "." + "b" * 24 + "." + "c" * 16,
     "concrete subscription assignment": "AZURE_SUBSCRIPTION_ID" + "=" + "0" * 36,
     "concrete tenant assignment": "AZURE_TENANT_ID" + "=" + "0" * 36,
@@ -45,6 +51,27 @@ class ScanForSecretsTests(unittest.TestCase):
                 findings = validate_foundation.scan_for_secrets(self.root)
                 self.assertEqual(len(findings), 1, findings)
                 self.assertTrue(findings[0].startswith(label), findings[0])
+
+    def test_a_connection_string_is_detected_whichever_order_its_parts_appear(self) -> None:
+        # Connection strings are unordered key/value pairs. The previous rule matched one fixed
+        # ordering, so the same credential written any other way passed the scan.
+        for ordering in (
+            "AccountName=lapluma;" + "Account" + "Key=short",
+            "Account" + "Key=short;" + "AccountName=lapluma",
+            "DefaultEndpointsProtocol=https;" + "Account" + "Key=short;AccountName=lapluma",
+        ):
+            with self.subTest(ordering=ordering):
+                self.write("infra/candidate.bicep", ordering)
+                findings = validate_foundation.scan_for_secrets(self.root)
+                self.assertEqual(len(findings), 1, findings)
+                self.assertTrue(findings[0].startswith("Azure storage connection string"), findings)
+
+    def test_the_two_halves_of_a_connection_string_on_separate_lines_do_not_match(self) -> None:
+        # The rule is line-scoped on purpose. Without that, this test file — which mentions both
+        # names in nearby lines — would report itself.
+        self.write("infra/candidate.bicep", "AccountName=lapluma\n" + "Account" + "Key=short\n")
+
+        self.assertEqual(validate_foundation.scan_for_secrets(self.root), [])
 
     def test_generated_directories_are_skipped(self) -> None:
         planted = PLANTED["Azure storage connection string"]

@@ -27,6 +27,16 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The secret scan matches an Azure storage connection string in any key ordering. Connection
+  strings are unordered key/value pairs, and the rule required one specific ordering, so the same
+  credential written any other way passed the scan. Added rules for a bare storage account key and
+  for a shared-access signature — the shapes that matter most in a repository whose invariant is
+  that `allowSharedKeyAccess` is false everywhere and access is managed-identity only.
+- The Core API build context is an allowlist. `src/core-api/Dockerfile` does `COPY . ./` while
+  `.dockerignore` excluded only build output, so a developer's local `appsettings.Development.json`,
+  `.env`, or certificate sitting in that directory would have been copied into a build layer. The
+  file now denies everything and re-includes only `*.cs` and `*.csproj`, so new source files are
+  picked up automatically and anything else has to be allowed deliberately.
 - The acquisition contract rejects an unknown key instead of ignoring it.
   `propose_acquisition_batch` read two keys with `.get()` and ignored everything else, while its
   sibling in the processing zone computed an exact key-set difference and had a test proving an
