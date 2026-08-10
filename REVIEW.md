@@ -262,12 +262,15 @@ Firewall, a UDR, or an equivalent — before it can be enforced beyond the curre
 private-DNS zone ownership and linking model, and approve the egress destination list with the
 enforcement mechanism.
 
-**Impact if unresolved.** Private endpoints and private DNS cannot be modeled, which means every
-data and AI service — all of which have public network access disabled — would be unreachable.
-This is the single largest technical dependency in the foundation.
+**Impact if unresolved.** The private endpoints and private DNS zones are modeled now, against the
+proposed `10.42.0.0/16` plan; ratifying or replacing that plan is what this item still decides, and
+replacement prefixes mean redeploying the network. Two things remain blocked outright: the egress
+allowlist and its enforcement mechanism, and the API Management edge, which needs a sixth subnet
+the plan does not allocate.
 
 **References.** Decision areas on the Security and Data Protection wiki page; foundation inputs on
-the Configuration Contract wiki page. Blocks `TODO.md` items **1.1** and **2.2**.
+the Configuration Contract wiki page. Blocks `TODO.md` items **1.1** (the edge subnet) and
+**2.2** (the egress allowlist).
 
 **Recommended next step.** Network owner reviews the proposed `10.42.0.0/16` plan against the
 existing address registry and either ratifies it or supplies replacement prefixes.

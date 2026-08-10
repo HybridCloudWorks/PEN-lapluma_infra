@@ -14,7 +14,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 
 | Phase | Theme | Items |
 |-------|-------|-------|
-| [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
+| [1](#phase-1--critical-fixes) | Critical fixes: the edge zone is not modelled | 1.1 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
@@ -25,112 +25,31 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 
 ## Phase 1 — Critical fixes
 
-The foundation as generated cannot function even once provisioning is unlocked. These four items
-close that gap.
+The private endpoints, hosting layer, role assignments, and Azure Monitor Private Link Scope are in
+place. What remains is the edge, which cannot be modelled until an address range exists for it.
 
-### 1.1 — Model private endpoints and private DNS zones
-
-- **Priority:** P0
-- **Description:** Every data and AI service in `infra/modules/` sets `publicNetworkAccess:
-  'Disabled'` — SQL, Cosmos, all four storage accounts, Service Bus, Key Vault, and Managed HSM —
-  but no `Microsoft.Network/privateEndpoints` or `Microsoft.Network/privateDnsZones` resources
-  exist. A `snet-private-endpoints` subnet is created with `privateEndpointNetworkPolicies:
-  'Disabled'` and then left empty. As written, provisioning would produce a set of services that
-  nothing can reach.
-- **Dependencies:** `REVIEW.md` **R-09** (address plan, DNS ownership, private DNS linking model).
-- **Recommended action:** Add a `privatelink` Bicep module that creates one private endpoint per
-  service into `snet-private-endpoints`, the corresponding `privatelink.*` private DNS zones, and
-  the VNet links. Cover `privatelink.database.windows.net`, `privatelink.documents.azure.com`,
-  `privatelink.blob.core.windows.net`, `privatelink.servicebus.windows.net`,
-  `privatelink.vaultcore.azure.net`, `privatelink.managedhsm.azure.net`,
-  `privatelink.cognitiveservices.azure.com`, and `privatelink.azurecr.io`. Extend
-  `tools/validate_foundation.py` to fail if a resource disables public access without a matching
-  private endpoint.
-- **Status:** Not started
-- **Notes for future engineers:** The four storage accounts are created with a `[for purpose in
-  storagePurposes]` loop; the private endpoints must be indexed the same way. `validate_foundation.py`
-  already asserts that resource collections are indexed rather than iterated in outputs — keep that
-  pattern.
-
-### 1.2 — Model the workload hosting layer
+### 1.1 — Model the API Management edge
 
 - **Priority:** P0
-- **Description:** `azure.yaml` declares three services — `core-api` and `processing-worker` with
-  `host: containerapp`, and `acquisition-functions` with `host: function` — but the Bicep models no
-  Container Apps environments, no container apps, no Functions hosting plan or function app, no
-  Container Registry, and no API Management. `azd deploy` has nowhere to deploy to, and the
-  delegated `snet-core`, `snet-processing`, `snet-ai`, and `snet-functions` subnets have no
-  consumers.
-- **Dependencies:** 1.1 (registry and workload access rely on private endpoints); `REVIEW.md`
-  **R-03** for the APIM SKU cost, **R-06** and **R-07** for the APIM identity and hostname
-  configuration.
-- **Recommended action:** Add a `compute` module creating three separate Container Apps managed
-  environments — core, processing, and AI, each bound to its own subnet and each with its own
-  logging boundary — plus the Core API container app with a minimum of one replica and explicit
-  health probes against `/health` and `/ready`, a queue-driven processing worker app or job, the
-  Functions hosting plan and function app, and Azure Container Registry with managed-identity pull.
-  Add an `apim` module for the Edge zone. Tag each app with `azd-service-name` matching the
-  corresponding `azure.yaml` service so AZD can bind them.
+- **Description:** The Core API container app is created with `external: false` ingress, so nothing
+  publishes it. That is correct for the current shape — an internet-facing authoritative API with no
+  gateway in front of it would be worse — but it means the Edge zone does not exist yet, and no
+  client can reach the service.
+- **Dependencies:** `REVIEW.md` **R-09** is the hard one — APIM needs its own dedicated subnet and
+  the address plan allocates five, none of them for the edge. Also **R-03** for the SKU cost,
+  **R-06** for the Entra application registration and API audience, and **R-07** for the public
+  hostname, DNS, and TLS certificate.
+- **Recommended action:** Once R-09 allocates a range, add `apim` to the `SubnetPrefixes` type in
+  `infra/main.bicep`, its variable to `.env.example` and `infra/main.parameters.json`, and a subnet
+  to `infra/modules/network.bicep`. Then add an `apim` module publishing the Core API container app,
+  validating the token audience R-06 settles, on the hostname R-07 settles.
 - **Status:** Not started
-- **Notes for future engineers:** The function app must pin **Python 3.13** in its
-  `linuxFxVersion`, matching the rest of the repository — `src/functions/requirements.txt`
-  requires it, since `azure-functions` 2.x needs `>=3.13` and the 1.x line caps at `<3.13`.
-  Confirm the Azure Functions runtime offers 3.13 on the chosen plan and region before
-  provisioning: that was not verifiable when the version was chosen, and it is the one
-  assumption behind it. `tools/validate_foundation.py` enforces agreement across the image, CI,
-  and the documentation, but it cannot see the hosting configuration until this item adds it —
-  extend `PYTHON_VERSION_SOURCES` to cover the Bicep once it exists.
-  `src/core-api/Dockerfile` listens on `8080` via `ASPNETCORE_URLS`,
-  and `src/document-processing/worker.py` reads `PORT` with a default of `8080`. Both images already
-  run as non-root, so no `runAsUser` override is needed. The processing environment must have no
-  route to SQL or Cosmos — that is a trust-zone invariant, not a configuration preference.
-
-### 1.3 — Model RBAC role assignments
-
-- **Priority:** P0
-- **Description:** `infra/modules/security.bicep` creates four user-assigned managed identities —
-  `id-*-core`, `id-*-processing`, `id-*-ai`, and `id-*-functions` — and outputs their resource IDs,
-  but no `Microsoft.Authorization/roleAssignments` resource exists anywhere. Every service has local
-  authentication and shared keys disabled, so with no role assignments no workload can read or write
-  anything.
-- **Dependencies:** 1.2 (the identities must be attached to real workloads first); `REVIEW.md`
-  **R-04** for the security, operations, and privacy group object IDs.
-- **Recommended action:** Add an `rbac` module granting the least privilege each zone actually
-  needs. The core identity: SQL managed-identity user, Blob Data Contributor scoped to the documents
-  and packages accounts, Service Bus Data Sender, Key Vault Secrets User. The processing identity:
-  Blob Data Reader on quarantine only, Blob Data Contributor on the staging container only, Service
-  Bus Data Receiver on `document-processing` only, Cognitive Services User on Document Intelligence.
-  The functions identity: Storage Blob and Queue roles for identity-based `AzureWebJobsStorage`,
-  Service Bus Data Sender and Receiver, Durable task hub access. The AI identity: no authoritative
-  data-plane role at all. Prefer group-scoped assignments over individual ones.
-- **Status:** Not started
-- **Notes for future engineers:** The processing zone must never receive a SQL or Cosmos role. If a
-  future change appears to need one, the design is wrong — route it through a governed Core API call
-  instead.
-
-### 1.4 — Resolve the Application Insights ingestion deadlock
-
-- **Priority:** P0
-- **Description:** `infra/modules/observability.bicep` sets both
-  `publicNetworkAccessForIngestion: 'Disabled'` and `publicNetworkAccessForQuery: 'Disabled'` on the
-  Application Insights component, but no Azure Monitor Private Link Scope exists. With ingestion
-  disabled and no AMPLS, workloads cannot send telemetry and operators cannot query it — the pilot
-  would run blind.
-- **Dependencies:** 1.1 (AMPLS needs a private endpoint and the `privatelink.monitor.azure.com`,
-  `privatelink.oms.opinsights.azure.com`, `privatelink.ods.opinsights.azure.com`, and
-  `privatelink.agentsvc.azure-automation.net` zones).
-- **Recommended action:** Add a `Microsoft.Insights/privateLinkScopes` resource, scope the Log
-  Analytics workspace and the Application Insights component to it, create its private endpoint in
-  `snet-private-endpoints`, and link the four required private DNS zones. Verify end to end that a
-  container app can emit a trace and that a query returns it.
-- **Status:** Not started
-- **Notes for future engineers:** AMPLS access-mode settings (`Open` versus `PrivateOnly`) apply to
-  ingestion and query independently. Choose `PrivateOnly` for both to match the stated posture, but
-  be aware it affects every workspace in scope. The Log Analytics workspace now sets
-  `features.disableLocalAuth: true`, which closed the shared-key ingestion path immediately, but its
-  own `publicNetworkAccessForIngestion` and `publicNetworkAccessForQuery` are deliberately still
-  unset: disabling them extends this same ingestion deadlock to the workspace. Set both to
-  `'Disabled'` as part of this item, once AMPLS exists — not before.
+- **Notes for future engineers:** APIM in internal VNet mode requires the Premium or Developer tier;
+  the cheaper tiers cannot join a virtual network at all, which makes this an R-03 question before
+  it is a networking one. `tools/validate_foundation.py` asserts that every resource disabling
+  public network access has a private endpoint wired to it — APIM in internal mode has no
+  `publicNetworkAccess` property and will not trip that rule, so do not read its silence as
+  approval.
 
 ---
 
@@ -143,8 +62,8 @@ close that gap.
   account, SQL database, or Cosmos account references a customer-managed key. Customer-managed
   encryption is stated as a pilot prerequisite rather than later hardening, so the HSM currently
   costs money without protecting anything.
-- **Dependencies:** 1.1, 1.3; `REVIEW.md` **R-10** (HSM administrators, key hierarchy, rotation
-  policy, CMK coverage).
+- **Dependencies:** `REVIEW.md` **R-10** (HSM administrators, key hierarchy, rotation policy, CMK
+  coverage). The private endpoints and role assignments this used to wait on are in place.
 - **Recommended action:** Once the key hierarchy is approved, create the keys, grant each service's
   system- or user-assigned identity the `Managed HSM Crypto Service Encryption User` role, and set
   the CMK properties on the four storage accounts, the SQL database transparent-data-encryption
@@ -162,8 +81,9 @@ close that gap.
   the processing NSG. That blocks direct internet destinations but does not implement the specified
   "no general internet egress" posture with an approved destination allowlist — there is no route
   table, no firewall, no DNS egress control, and the other four subnets have empty NSGs.
-- **Dependencies:** 1.1; `REVIEW.md` **R-09** (approved egress destinations and enforcement
-  mechanism).
+- **Dependencies:** `REVIEW.md` **R-09** (approved egress destinations and enforcement mechanism).
+  The private endpoints this used to wait on are in place — which sharpens the item rather than
+  softening it, since those endpoints are now reachable from every subnet in the VNet.
 - **Recommended action:** Implement the approved mechanism — an Azure Firewall with forced tunneling
   via UDR, or an equivalent — with an explicit allowlist. Add baseline deny rules to the core, AI,
   functions, and private-endpoint NSGs rather than leaving them empty. Add a validation test that
@@ -188,7 +108,8 @@ close that gap.
   Every catalog endpoint is anonymous. The design places JWT validation at the APIM edge, but a
   service whose only protection is an upstream gateway fails open the moment anything reaches it
   directly — including from inside the core subnet.
-- **Dependencies:** 1.2; `REVIEW.md` **R-06** (Entra registrations and API audience).
+- **Dependencies:** `REVIEW.md` **R-06** (Entra registrations and API audience). The Core API is
+  hosted now, and its ingress is internal, so this is the only authorization it would have.
 - **Recommended action:** Add JWT bearer authentication bound to the confirmed Entra audience and
   issuer, apply an authorization policy to the `/v1/catalog` group while leaving `/health` and
   `/ready` anonymous, and add a test that asserts an unauthenticated catalog request returns 401.
@@ -263,14 +184,14 @@ close that gap.
   Entra-only SQL. No HTTP trigger exists yet, but this is the app-wide default that the next one
   inherits, and the Durable extension's built-in orchestration management endpoints already carry
   it.
-- **Dependencies:** 1.2 (APIM must front the app first); `REVIEW.md` **R-07** for the hostname.
+- **Dependencies:** 1.1 (APIM must front the app first); `REVIEW.md` **R-07** for the hostname.
 - **Recommended action:** Set `AuthLevel.ANONYMOUS` and terminate authentication at APIM with
   Entra, which is the topology the trust-zone model already describes. Record the decision as an
   ADR under 6.3, since it moves a security boundary. Decide separately whether the Durable HTTP
   management API should be disabled outright through `extensions.durableTask` in `host.json`.
 - **Status:** Not started
 - **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
-  network restriction and APIM fronting are both in place — land it with 1.2, not before.
+  network restriction and APIM fronting are both in place — land it with 1.1, not before.
 
 ---
 
@@ -283,10 +204,11 @@ close that gap.
   Application Insights component, but not one resource in the network, security, messaging, or data
   modules has a `Microsoft.Insights/diagnosticSettings` child. No audit log, no SQL security log, no
   Key Vault access log, and no Service Bus operational log reaches the workspace.
-- **Dependencies:** 1.4.
+- **Dependencies:** None. The Azure Monitor Private Link Scope this waited on now exists.
 - **Recommended action:** Add diagnostic settings to SQL, Cosmos, all four storage accounts and
-  their blob services, Service Bus, Key Vault, Managed HSM, the NSGs, and — once 1.2 lands — the
-  Container Apps environments, the function app, ACR, and APIM. Route them all to the workspace.
+  their blob services, Service Bus, Key Vault, Managed HSM, the NSGs, the three Container Apps
+  environments, the function app, and ACR — all of which now exist — plus APIM once 1.1 lands.
+  Route them all to the workspace.
   Verify the emitted categories contain no case content, as the content-free telemetry constraint
   requires.
 - **Status:** Not started
@@ -322,7 +244,7 @@ close that gap.
 - **Description:** Cross-tenant, cross-folder, person-boundary, and agent-no-write invariant tests
   are required to pass on every build. Today the repository has five Python contract tests and no
   invariant tests at all.
-- **Dependencies:** 1.2, 1.3, 2.3, 5.2.
+- **Dependencies:** 2.3, 5.2.
 - **Recommended action:** Build an integration test project that asserts, against a running `dev`
   environment: a token scoped to tenant A cannot read tenant B's data; a folder-scoped grant cannot
   traverse to a sibling folder; a person boundary cannot be crossed by any API path; and no AI or
@@ -413,7 +335,7 @@ close that gap.
   baseline, but wrong for Elastic Premium, which requires `Microsoft.Web/serverFarms`. The plan
   allows an approved equivalent if Flex Consumption features are unavailable in East US 2, so the
   delegation is only conditionally correct.
-- **Dependencies:** 1.2; `REVIEW.md` **R-03** (region capability verification).
+- **Dependencies:** `REVIEW.md` **R-03** (region capability verification).
 - **Recommended action:** When the region verification confirms the available Functions hosting SKU,
   re-check the delegation and correct it if the SKU changed. Add a comment in the network module
   recording which SKU the delegation assumes.
@@ -434,7 +356,7 @@ close that gap.
   responsible for deterministic PDF generation, verification, and delivery. The directory does not
   exist, and `azure.yaml` declares no such service. Without it, step 6 of the data flow — the entire
   output half of the product — has no implementation.
-- **Dependencies:** 1.2, 5.2; `REVIEW.md` **R-14** (verified artifacts and approved field maps).
+- **Dependencies:** 5.2; `REVIEW.md` **R-14** (verified artifacts and approved field maps).
 - **Recommended action:** Create `src/package-worker` as a .NET 10 queue-driven worker or Container
   Apps Job. It fills an edition-pinned official form from a human-approved field ledger, round-trip
   verifies every mapped field (item 3.4), flattens the output where the artifact permits it, hashes
@@ -452,7 +374,7 @@ close that gap.
 - **Description:** `src/core-api/CatalogRepository.cs` is an in-memory fixture registered as a
   singleton. Azure SQL is the authoritative relational store in the design, and nothing in the Core
   API connects to it.
-- **Dependencies:** 1.2, 1.3.
+- **Dependencies:** None. The hosting layer and role assignments are in place.
 - **Recommended action:** Add the SQL-backed catalog and case schema, connect using the
   managed-identity `AZURE_CLIENT_ID` credential with no connection string, keep the in-memory
   fixture behind a `dev`-only flag for contract tests, and add the Cosmos projection writer for
@@ -472,7 +394,7 @@ close that gap.
   else. Its docstring states that the queue and Document Intelligence adapters are intentionally
   absent pending managed-identity endpoints and private-network approval. Those are step 4 of the
   data flow.
-- **Dependencies:** 1.1, 1.2, 1.3, 2.2; `REVIEW.md` **R-12** (model IDs and pinned API version).
+- **Dependencies:** 2.2; `REVIEW.md` **R-12** (model IDs and pinned API version).
 - **Recommended action:** Add a Service Bus receiver for `document-processing` that reads exactly
   one scoped message, a quarantine blob reader restricted to the single referenced object, a
   sanitization stage, a Document Intelligence client using the pinned API version over the private
@@ -495,7 +417,7 @@ close that gap.
   deliberate stub — the comment in `function_app.py` notes that the Service Bus adapter is deferred
   so local tests stay deterministic and the scaffold does not pretend to publish or activate
   anything. The orchestrator therefore returns metadata and publishes nothing.
-- **Dependencies:** 1.2, 1.3; `REVIEW.md` **R-16** (`ACQUISITION_SCHEDULE`).
+- **Dependencies:** `REVIEW.md` **R-16** (`ACQUISITION_SCHEDULE`).
 - **Recommended action:** Add an identity-based Service Bus output binding publishing to
   `catalog-acquisition`, keep the deterministic stub behind a test seam so the existing contract
   tests stay offline, and preserve the invariant that the function proposes and never activates.
@@ -518,7 +440,7 @@ close that gap.
 - **Description:** The unauthorized-practice-of-law release gate is a stated Alpha 0.2 requirement
   with a zero-escape threshold and fail-closed behaviour on classifier or audit unavailability. No
   classifier, no gate, and no corpora exist in this repository.
-- **Dependencies:** 1.2, 1.3; `REVIEW.md` **R-13** (corpora ownership, prohibited-act taxonomy,
+- **Dependencies:** `REVIEW.md` **R-13** (corpora ownership, prohibited-act taxonomy,
   versioning scheme).
 - **Recommended action:** Implement the classifier service in the AI trust zone with no
   authoritative write capability, wire `UPL_CLASSIFIER_VERSION` into the release gate, and make the
@@ -552,7 +474,7 @@ close that gap.
   Nothing in the Core API or the storage configuration implements issuance, expiry, or revocation,
   and shared-key access is disabled on every storage account, so classic SAS issuance is not
   available.
-- **Dependencies:** 1.3, 5.1.
+- **Dependencies:** 5.1.
 - **Recommended action:** Issue user-delegation SAS tokens through the core managed identity with a
   short lifetime, record every issuance in the audit trail, and implement revocation — either by
   rotating the user-delegation key or by fronting delivery with an authorized API endpoint. Ensure
@@ -617,7 +539,7 @@ close that gap.
 - **Priority:** P3
 - **Description:** No troubleshooting documentation exists. It cannot usefully be written before a
   `dev` environment produces real failure modes.
-- **Dependencies:** 1.1 – 1.4, 6.1.
+- **Dependencies:** 1.1, 6.1.
 - **Recommended action:** Once `dev` is provisioned, collect the actual failure modes — private DNS
   resolution failures, RBAC propagation delays, Container Apps revision failures, Durable task hub
   conflicts — and write them up as a wiki page.

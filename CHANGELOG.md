@@ -50,14 +50,60 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The foundation can now function once provisioning is unlocked. Four P0 gaps closed together,
+  because each was load-bearing for the next.
+
+  **Private endpoints and private DNS.** Every data service set `publicNetworkAccess: 'Disabled'`
+  while no `privateEndpoints` or `privateDnsZones` resource existed anywhere, and the
+  `snet-private-endpoints` subnet was created and left empty — provisioning would have produced a
+  set of services nothing could reach. `infra/modules/privatelink.bicep` creates twelve endpoints
+  and twelve zones with their virtual-network links. It is data-driven rather than one block per
+  service: the blocks would differ only in three strings, and a copied block is where a wrong
+  `groupId` or a zone that does not match its endpoint hides. Zones for services that do not exist
+  yet — Document Intelligence, under **R-12** — are created and linked anyway, since a zone is inert
+  until an endpoint registers a record in it.
+
+  **The workload hosting layer.** `azure.yaml` declared three services with nowhere to deploy them
+  and four delegated subnets with no consumers. `infra/modules/compute.bicep` adds three Container
+  Apps managed environments — core, processing, and AI, each bound to its own subnet, because an
+  environment is the logging and networking boundary and sharing one would collapse the trust-zone
+  split the subnets exist to express — plus the Core API app with liveness and readiness probes
+  wired to the endpoints that mean what they say, a queue-driven processing worker, a Flex
+  Consumption function app pinned to Python 3.13, and a Premium container registry with
+  managed-identity pull and no admin user. Each app carries the `azd-service-name` tag that binds it
+  to its `azure.yaml` service. The function host gets its own storage account: the four data
+  accounts hold case material under a retention obligation, and host bookkeeping does not belong
+  beside it.
+
+  **Role assignments.** Four managed identities existed with no assignment anywhere, while every
+  service had local authentication and shared keys disabled — no workload could read or write
+  anything. `infra/modules/rbac.bicep` adds thirteen assignments plus one Cosmos data-plane
+  assignment, every one scoped to a single resource rather than to the resource group, because a
+  group-scoped assignment would silently hand the processing zone the SQL and Cosmos access the
+  design exists to deny it. The processing zone gets blob **reader** on quarantine only and receiver
+  on one queue only. The AI zone gets nothing at all.
+
+  **The Application Insights ingestion deadlock.** Ingestion and query were both disabled with no
+  Azure Monitor Private Link Scope, so workloads could not send telemetry and operators could not
+  read it. The scope now exists with both access modes set to `PrivateOnly`, the workspace and the
+  component are scoped to it, and it is reached through a private endpoint resolving across the four
+  zones Azure Monitor needs. Only with that in place did the Log Analytics workspace's own public
+  ingestion and query get disabled — doing it earlier would have extended the same deadlock.
+- Three checks so those gaps cannot reopen, each verified by reproducing the failure it prevents:
+  a resource that disables public network access must have a private endpoint wired to it, and is
+  checked in both directions — a new locked-down service fails until an endpoint exists, and an
+  endpoint removed from the wiring fails too; the AI zone must hold no data-plane role, asserted
+  against the RBAC module rather than trusted to a comment; and the function host's Python version
+  joins the set that has to agree with the image, CI, and the documentation.
 - Moved the repository to **Python 3.13** and took the two `azure-functions` bumps that depended on
   it: `azure-functions` to `>=2.2.0,<3` and `azure-functions-durable` to `>=1.7.0,<2`. The 2.x line
   requires Python `>=3.13` and the 1.x line caps at `<3.13` — the ranges are disjoint, so the pin
   could not move without the interpreter. The version now reads 3.13 in the worker image, the CI
   `setup-python` step, the worker docstring, the README, and both wiki pages, which is every place
   that states it. 3.13 rather than 3.14 because it is the minimum that unblocks the SDK; whether the
-  Azure Functions runtime offers 3.13 on the chosen plan and region could not be confirmed from here
-  and is recorded against `TODO.md` item 1.2, which pins `linuxFxVersion`.
+  Azure Functions runtime offers 3.13 on the chosen plan and region could not be confirmed from here.
+  The function host now pins it in `infra/modules/compute.bicep`, so that is where the assumption
+  lives; confirm it before provisioning.
 - Three guardrails so those failures cannot return, each verified by reproducing the failure it
   prevents:
   - CI resolves `src/functions/requirements.txt` against the interpreter it tests on. Nothing
