@@ -18,7 +18,16 @@ SKIPPED_DIRECTORIES = frozenset({".git", "__pycache__", "bin", "obj", ".venv", "
 SKIPPED_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".gif", ".zip"})
 SECRET_PATTERNS = {
     "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-    "Azure storage connection string": re.compile(r"DefaultEndpointsProtocol=https;AccountName="),
+    # Connection strings are unordered key/value pairs. Matching one fixed ordering missed every
+    # other spelling of the same credential, so match a line carrying both parts instead.
+    "Azure storage connection string": re.compile(
+        r"^(?=[^\n]*AccountName=)(?=[^\n]*AccountKey=)[^\n]*$", re.MULTILINE
+    ),
+    # A bare account key, with no connection string around it. `allowSharedKeyAccess: false` is set
+    # on every storage account, so one appearing here is an accident worth catching on its own.
+    "Azure storage account key": re.compile(r"AccountKey=[A-Za-z0-9+/]{80,}={0,2}"),
+    # A shared-access signature carries its own authority. The design permits managed identity only.
+    "shared access signature": re.compile(r"[?&]sig=[A-Za-z0-9%+/]{20,}"),
     "JWT-like token": re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b"),
     "concrete subscription assignment": re.compile(r"AZURE_SUBSCRIPTION_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),
     "concrete tenant assignment": re.compile(r"AZURE_TENANT_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),

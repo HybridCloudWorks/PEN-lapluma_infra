@@ -15,7 +15,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | Phase | Theme | Items |
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.7 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.8 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
@@ -227,7 +227,15 @@ close that gap.
   a scheduled run that only writes to the Security tab is easy to miss.
 - **Status:** Partially complete — scanners run and report; enforcement and the settings toggles
   remain.
-- **Notes for future engineers:** The SHA pinning across both workflows is deliberate. Do not relax
+- **Notes for future engineers:** Enabling secret scanning is the part of this item that covers
+  provider-issued credentials — Entra client secrets, GitHub tokens, and the like. A pattern for
+  those was considered for `tools/validate_foundation.py` and deliberately not added: they have no
+  distinctive enough shape to match without a false-positive rate that would train reviewers to
+  ignore the scan, and GitHub's scanner uses partner-supplied signatures instead. The custom
+  scanner covers what is specific to this repository's invariants — private keys, storage
+  connection strings, bare account keys, shared-access signatures, and concrete tenant or
+  subscription assignments — and is not a substitute for the platform feature.
+  The SHA pinning across both workflows is deliberate. Do not relax
   it to tags for convenience. Trivy has no Bicep parser, which is why the infrastructure job
   compiles to ARM first and scans that; if the Bicep pin moves, the scanned artifact moves with it.
   The SARIF upload steps are skipped for pull requests from forks, which cannot be granted
@@ -255,28 +263,6 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
   network restriction and APIM fronting are both in place — land it with 1.2, not before.
-
-### 2.7 — Extend secret-scan coverage and tighten the build context
-
-- **Priority:** P2
-- **Description:** Code review findings **F-30** and **F-25**. The scanner's Azure storage
-  connection-string pattern requires one specific key ordering, so an unordered variant is missed,
-  and there is no pattern for a bare storage account key, a SAS token, or an Entra client secret —
-  the shapes that matter most in a repository whose invariant is that no shared key exists.
-  Separately, `src/core-api/Dockerfile` does `COPY . ./` while `.dockerignore` excludes only
-  `bin/`, `obj/`, `*.user`, and `*.suo`, so a developer's local `appsettings.Development.json`,
-  `.env`, or certificate would land in a build layer. The processing image is the counter-example
-  done right: it copies two named files.
-- **Dependencies:** None.
-- **Recommended action:** Add order-independent connection-string, account-key, and SAS-token
-  patterns. Either copy explicit filenames in the Core API Dockerfile or extend `.dockerignore` to
-  cover `.env*`, `appsettings.*.json`, `*.pfx`, `*.p12`, and `.git`.
-- **Status:** Not started
-- **Notes for future engineers:** `tools/test_validate_foundation.py` asserts exactly one finding
-  per planted pattern, so an added rule that also matches the existing planted string will break
-  that test — replace the original pattern rather than adding alongside it. New patterns must be
-  planted from runtime fragments the same way the existing ones are, or the test file trips the
-  scanner it tests.
 
 ---
 
