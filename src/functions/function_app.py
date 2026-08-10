@@ -28,6 +28,13 @@ ACQUISITION_INSTANCE_ID = "catalog-acquisition-singleton"
 # on the first attempt.
 PUBLISH_RETRY = df.RetryOptions(first_retry_interval_in_milliseconds=5_000, max_number_of_attempts=3)
 
+# Identity-based, not a connection string. The host resolves this prefix to
+# ServiceBusConnection__fullyQualifiedNamespace and authenticates with the function app's managed
+# identity, which is the only thing the namespace accepts — disableLocalAuth is set on it, so a
+# shared-access key would be refused even if one were configured here.
+SERVICE_BUS_CONNECTION = "ServiceBusConnection"
+ACQUISITION_QUEUE = "catalog-acquisition"
+
 
 @app.timer_trigger(
     schedule="%ACQUISITION_SCHEDULE%",
@@ -87,7 +94,20 @@ def propose_acquisition_activity(request: dict[str, Any]) -> list[dict[str, Any]
 
 
 @app.activity_trigger(input_name="proposals")
-def publish_acquisition_activity(proposals: list[dict[str, Any]]) -> dict[str, Any]:
-    # The Service Bus adapter is intentionally deferred. Returning metadata keeps local tests
-    # deterministic and prevents this scaffold from pretending to publish or activate anything.
-    return publish_acquisition_proposals(proposals)
+@app.service_bus_queue_output(
+    arg_name="messages",
+    queue_name=ACQUISITION_QUEUE,
+    connection=SERVICE_BUS_CONNECTION,
+)
+def publish_acquisition_activity(
+    proposals: list[dict[str, Any]],
+    messages: func.Out[list[str]],
+) -> dict[str, Any]:
+    # The binding collects messages rather than sending them one at a time: a Functions output
+    # binding is written once, when the function returns. Collecting into a list and setting it at
+    # the end is what makes a partial failure impossible to observe as a partial publish — either
+    # publish_acquisition_proposals raises and nothing is set, or every message goes together.
+    collected: list[str] = []
+    result = publish_acquisition_proposals(proposals, collected.append)
+    messages.set(collected)
+    return result

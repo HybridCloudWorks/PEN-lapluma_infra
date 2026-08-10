@@ -377,29 +377,20 @@ place. What remains is the edge, which cannot be modelled until an address range
   no path, query string, or document ID is emitted. Extend that discipline to the processing path —
   log correlation IDs, never content.
 
-### 5.4 — Implement the acquisition Service Bus adapter
+### 5.4 — Add a dead-letter policy to every `domain-events` subscription
 
 - **Priority:** P2
-- **Description:** `publish_acquisition_proposals` in `src/functions/acquisition_contract.py` is a
-  deliberate stub — the comment in `function_app.py` notes that the Service Bus adapter is deferred
-  so local tests stay deterministic and the scaffold does not pretend to publish or activate
-  anything. The orchestrator therefore returns metadata and publishes nothing.
-- **Dependencies:** `REVIEW.md` **R-16** (`ACQUISITION_SCHEDULE`).
-- **Recommended action:** Add an identity-based Service Bus output binding publishing to
-  `catalog-acquisition`, keep the deterministic stub behind a test seam so the existing contract
-  tests stay offline, and preserve the invariant that the function proposes and never activates.
+- **Description:** The acquisition adapter publishes to the `catalog-acquisition` queue and that
+  path is complete. The `domain-events` topic still has no subscriber, and it carries a 14-day TTL
+  with no dead-letter policy — because `deadLetteringOnMessageExpiration` belongs to
+  `Microsoft.ServiceBus/namespaces/topics/subscriptions`, and `SBTopicProperties` rejects it. A
+  message that reaches the TTL today would be discarded with no trace, if anything were subscribed.
+- **Dependencies:** None. It becomes real the moment a subscription exists.
+- **Recommended action:** Every subscription added to `domain-events` must set
+  `deadLetteringOnMessageExpiration: true`. Add the first subscription and the rule together.
 - **Status:** Not started
-- **Notes for future engineers:** The orchestrator returns `activatedEditionCount: 0`. That zero is
-  an assertion about behaviour, not a placeholder — keep it, and add a test that fails if any code
-  path can make it non-zero. `propose_acquisition_batch` now requires the exact key set
-  `REQUIRED_REQUEST_KEYS`, and a test reads the timer trigger's `client_input` keys out of
-  `function_app.py` to confirm the two agree. If this item adds a field to the orchestration input,
-  add it to that constant in the same change or the test fails — which is the point, since the
-  input is persisted to the task hub and replayed. The `domain-events` topic carries a 14-day TTL
-  but no dead-letter policy, because `deadLetteringOnMessageExpiration` belongs to
-  `Microsoft.ServiceBus/namespaces/topics/subscriptions` and no subscription is modelled yet — every
-  subscription this item adds must set it, or messages that reach the TTL are discarded with no
-  trace. Item 4.4 left the comment in `infra/modules/messaging.bicep` marking the spot.
+- **Notes for future engineers:** `infra/modules/messaging.bicep` carries a comment on the topic
+  marking the spot. The queues already set the flag, so the pattern to copy is directly above.
 
 ### 5.5 — Implement the UPL classifier and its fail-closed gate
 
