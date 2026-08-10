@@ -41,6 +41,9 @@ param processingIdentityId string
 @minLength(1)
 param functionsIdentityId string
 
+@description('Service Bus namespace the acquisition publisher writes to, fully qualified.')
+param serviceBusFullyQualifiedNamespace string = ''
+
 @description('Registry SKU. Premium is required for private endpoints, which this posture requires. Cost pending REVIEW.md R-03.')
 @allowed([
   'Basic'
@@ -371,6 +374,18 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'AzureWebJobsStorage__clientId', value: reference(functionsIdentityId, '2023-01-31').clientId }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: applicationInsightsConnectionString }
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
+        // Identity-based Service Bus binding. The __fullyQualifiedNamespace suffix is what tells
+        // the host to authenticate with the identity below instead of looking for a connection
+        // string; the namespace sets disableLocalAuth, so a key would be refused anyway.
+        {
+          name: 'ServiceBusConnection__fullyQualifiedNamespace'
+          value: serviceBusFullyQualifiedNamespace
+        }
+        { name: 'ServiceBusConnection__credential', value: 'managedidentity' }
+        {
+          name: 'ServiceBusConnection__clientId'
+          value: reference(functionsIdentityId, '2023-01-31').clientId
+        }
       ]
     }
   }

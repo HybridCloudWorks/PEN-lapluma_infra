@@ -50,6 +50,28 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The acquisition orchestration publishes. `publish_acquisition_proposals` returned metadata and
+  sent nothing; the Durable activity now carries an identity-based Service Bus output binding to
+  the `catalog-acquisition` queue, and the function app is configured with the namespace and its
+  managed identity rather than a connection string — the namespace sets `disableLocalAuth`, so a
+  shared-access key would be refused even if one were configured.
+
+  The publisher takes a `send` seam. The activity passes the output binding, the tests pass a
+  recorder, and passing nothing keeps the offline path deterministic. That is not a convenience:
+  without it the module could not be tested at all without the runtime it is deferred behind, which
+  is the same reason the orchestration's shape is asserted by parsing `function_app.py` with `ast`.
+
+  Three invariants are enforced rather than described. A proposal carrying a key outside
+  `PUBLISHABLE_KEYS` is refused rather than published — the message lands on a queue another
+  component reads, so an extra key is a contract change made by accident, and an applicant
+  identifier arriving there would be published rather than merely logged. Only `PROPOSED` items may
+  be published, so nothing that already claims an outcome can route around the two-person approval.
+  A send failure propagates rather than being swallowed, so the orchestrator's bounded retry sees
+  it and the accepted count never describes a publish that did not happen.
+
+  The binding collects into a list and sets it once, because a Functions output binding is written
+  when the function returns: either the contract check raises and nothing is set, or every message
+  goes together. There is no partial publish to observe.
 - Every resource that can emit diagnostics now routes them to the Log Analytics workspace. Not one
   resource in the network, security, messaging, data, or compute modules had a `diagnosticSettings`
   child: no SQL security log, no Key Vault access log, no Managed HSM audit trail, no Service Bus

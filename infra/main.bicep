@@ -362,6 +362,7 @@ module compute './modules/compute.bicep' = if (enableProvisioning) {
     functionsIdentityId: security!.outputs.functionsIdentityId
     registrySku: capacity.registrySku
     functionsPythonVersion: functionsPythonVersion
+    serviceBusFullyQualifiedNamespace: messaging!.outputs.namespaceFullyQualified
     diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
