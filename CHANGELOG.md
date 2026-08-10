@@ -50,6 +50,24 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Every third-party GitHub Action moved to its current major, in one change rather than five:
+  `actions/checkout` to 7.0.1, `actions/setup-python` to 7.0.0, `actions/setup-dotnet` to 6.0.0, and
+  all four `github/codeql-action` references to 4.37.6. The runner had begun forcing the previous
+  `checkout` and `codeql-action` pins onto Node 24 with a deprecation warning, so these were already
+  running on a runtime they do not target.
+
+  Combining them was not tidiness. Dependabot raises one pull request per action, and for
+  `github/codeql-action` that is one per sub-action — so its `init` and `analyze` proposals each
+  moved half of a set that has to move together, and neither touched the two `upload-sarif`
+  references at all. Both failed CI with `CodeQL job status was configuration error`, which names
+  neither the cause nor the fix.
+- The foundation validator now checks how workflow actions are pinned, so that failure cannot
+  recur. Every third-party action must be pinned to a full commit SHA, and every
+  `github/codeql-action` sub-action must be pinned to the *same* SHA. Repository-local composite
+  actions are exempt: they are read from the checked-out tree, so there is no ref to pin. Both rules
+  were verified by reproducing the failures — Dependabot's `init`-only change, an `upload-sarif` left
+  on the previous SHA, and a tag pin in place of a SHA are each rejected, naming the offending
+  action, while the unmutated tree passes.
 - Policy-bearing baselines are parameters instead of literals, so `dev` and `pilot` can differ
   without editing Bicep. Twenty-two values moved: Log Analytics retention, blob and container soft
   delete, Key Vault and Managed HSM soft delete, the SQL SKU with its capacity, minimum capacity and
