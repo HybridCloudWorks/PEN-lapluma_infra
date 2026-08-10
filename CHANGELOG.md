@@ -25,6 +25,29 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - Rewrote `README.md` so it covers only repository purpose, layout, requirements, quick start,
   configuration overview, conventions, and navigation.
 
+### Added
+
+- Repository governance files, all but one of them. `.github/dependabot.yml` watches NuGet, pip,
+  Docker, and GitHub Actions. The last two are load-bearing rather than optional here: every
+  container base image is pinned by digest and every action by commit SHA, so until now nothing
+  proposed those bumps and the pins went stale silently. `.github/pull_request_template.md` is a
+  short checklist of the invariants a change is actually read against — no credentials or applicant
+  identifiers, content-free telemetry, no processing-zone database route, no automated activation,
+  `enableProvisioning` still `false`, and new dependencies pinned. `.github/SECURITY.md` routes
+  reports to GitHub's private advisory flow and names the guarantee classes worth reporting, while
+  scoping out the gaps `REVIEW.md` and `TODO.md` already track. `.github/CONTRIBUTING.md` covers
+  where work is tracked, the commands CI runs, and the two conventions that are easy to miss —
+  verify a fix by breaking it, and record a finding rather than absorbing it into the current
+  change.
+
+  These four sit under `.github/` rather than the repository root. GitHub reads `SECURITY.md` and
+  `CONTRIBUTING.md` from either location, and `.github/` keeps the root at the four markdown files
+  the Documentation Standards allow.
+
+- Apache License 2.0, in a `LICENSE` byte-identical to the canonical text, with the copyright notice
+  in `NOTICE` as the Apache Software Foundation's own guidance directs. A public repository with no
+  licence grants nothing while looking merely unfinished; this states the terms.
+
 ### Fixed
 
 - A push to a branch with an open pull request no longer runs every workflow twice. Both workflows
