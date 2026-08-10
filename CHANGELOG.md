@@ -27,6 +27,38 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The processing zone's request contract is validated rather than prefix-matched. The blob URIs
+  that bound which single object the isolated worker may touch were checked only for an `https://`
+  prefix, which accepted a URI with no host at all, an arbitrary external host, a shared-access
+  signature smuggled through the query string, and two spellings of one object differing by a
+  trailing slash — defeating the create-only staging guarantee. They are now parsed: HTTPS only,
+  pinned to the Azure Blob host suffix, no embedded credentials, no query or fragment, a
+  container-and-blob path, and the normalised forms compared for distinctness.
+- Anchored value proposals validate their polygon rather than counting it. The previous check
+  counted coordinates while its message promised a "non-degenerate polygon", so a zero-area polygon
+  and a tuple of eight strings both passed. Coordinates must now be finite, non-negative numbers
+  enclosing a non-zero extent, and `AnchoredValueProposal` validates in `__post_init__`, so an
+  invalid proposal cannot be constructed at all — previously the "all proposals require human
+  confirmation" invariant depended on every caller remembering to call `validate()`.
+- The `sha256` error message no longer states a rule the code does not apply: the value is
+  normalised to lowercase on ingest, so the message says so instead of demanding lowercase input.
+- Core API error responses now conform to the published contract. Every problem document is served
+  as `application/problem+json` rather than `application/json`, and its `status` is derived from the
+  same value as the HTTP status so the two cannot disagree. A malformed `editionDate` previously
+  failed framework route binding, which returns a plain-text diagnostic in Development and a bare
+  empty 400 in Production — the error a client saw depended on the environment. The route now binds
+  the value as a string and parses it, so the response is a problem document everywhere, and
+  `contracts/catalog.openapi.json` declares the 400 the route can actually return.
+- Catalog codes are validated against the patterns the contract declares. A malformed
+  `categoryCode` previously returned 200 with an empty list, indistinguishable from a category that
+  legitimately has no packages; it now returns 400. With inputs validated, the lookups compare
+  ordinally rather than case-insensitively, matching the contract's uppercase-only declaration.
+- `CatalogRepository` asserts package-code uniqueness once at startup instead of throwing from
+  `SingleOrDefault` on a request, and the service version is a single constant pinned by test to
+  `info.version` in the contract rather than a literal repeated per endpoint.
+- Removed the global `JsonStringEnumConverter`. Type-level attributes take precedence over a
+  globally registered converter, so it never applied to any existing enum while making a new enum
+  added without those attributes look handled — it would have serialised in PascalCase.
 - The catalog fixture parser now rejects a form declared more than once. Classifications are keyed
   by form number, so a second declaration of the same form silently replaced the first and hid
   whatever it said.
@@ -57,6 +89,16 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Added
 
+- `src/core-api.tests`, a xUnit project holding the Core API to its published contract. Twenty-nine
+  tests run against the real request pipeline through `WebApplicationFactory<Program>`, so routing,
+  parameter binding, serialization, and status codes are exercised rather than handler bodies:
+  the catalog hierarchy, package list with taxonomy and activation-state filters, package detail,
+  the fail-closed schema lookup, both 404 problem documents, and every branch of the
+  `activationState` parse. Alongside them, unit tests pin the package activation derivation —
+  including that a package with no forms is `UNAVAILABLE` — and assert that the C# enum wire names
+  match the enum values published in `contracts/catalog.openapi.json`, so the two copies of each
+  enum in this repository cannot drift apart unnoticed. The project sets `TreatWarningsAsErrors`,
+  matching the project under test, and CI runs `dotnet test`.
 - `.github/workflows/security-scanning.yml`, running CodeQL for C# and Python, dependency review on
   pull requests, a Trivy scan of both container images, and a Trivy scan of the ARM template the
   Bicep compiles to, plus a weekly schedule so a newly published advisory surfaces without waiting

@@ -38,6 +38,9 @@ jobs:
       - name: Build .NET core API
         run: dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
 
+      - name: Test .NET core API
+        run: dotnet test src/core-api.tests/LaPluma.CoreApi.Tests.csproj --configuration Release
+
       - name: Pin the Bicep CLI version
         run: |
           az bicep install --version v0.46.1
