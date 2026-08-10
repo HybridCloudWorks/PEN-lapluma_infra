@@ -27,6 +27,19 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The Core API's `correlationId` is now findable. It was a fresh `Guid.NewGuid()` per response,
+  written nowhere and derived from nothing, so the identifier a user reported to support could not
+  be located in any log or trace. It is now derived from the ambient W3C trace identifier — sixteen
+  bytes, exactly a GUID, so the contract's `format: uuid` is unchanged while the value is something
+  that exists in the trace backend — and each problem is logged once at construction. The service
+  previously performed no logging at all. The log records the problem type, status, and correlation
+  identifier only; a test asserts these logs carry no path, query string, or route value.
+- `/ready` reports readiness rather than a literal. It answered from a constant and never resolved
+  `CatalogRepository`, so it could not detect the one way the catalog actually breaks: the fixture
+  is built in a static constructor that throws on an unrecognised form number, which makes every
+  `/v1/catalog/*` route return 500 while a literal probe stays green. Readiness now resolves the
+  repository and returns 503 when it cannot be built, with `/health` left as pure liveness so an
+  orchestrator does not restart a process that is running correctly.
 - The secret scan matches an Azure storage connection string in any key ordering. Connection
   strings are unordered key/value pairs, and the rule required one specific ordering, so the same
   credential written any other way passed the scan. Added rules for a bare storage account key and
