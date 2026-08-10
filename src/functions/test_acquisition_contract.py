@@ -93,5 +93,99 @@ class RequestShapeTests(unittest.TestCase):
         self.assertEqual(trigger_keys, set(REQUIRED_REQUEST_KEYS))
 
 
+class OrchestrationShapeTests(unittest.TestCase):
+    """Structural assertions over function_app.py.
+
+    The Durable Functions runtime cannot run here — the azure packages are deliberately absent so
+    this suite stays offline — so these read the source rather than execute it. They pin the
+    decisions that are invisible at runtime until the failure they prevent actually happens.
+    """
+
+    @staticmethod
+    def source() -> "ast.Module":
+        import ast
+        from pathlib import Path
+
+        return ast.parse(Path(__file__).with_name("function_app.py").read_text(encoding="utf-8"))
+
+    @staticmethod
+    def calls(tree: "ast.Module", name: str) -> list["ast.Call"]:
+        import ast
+
+        return [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == name
+        ]
+
+    def test_the_sweep_is_started_with_a_fixed_instance_id(self) -> None:
+        # Without one, Durable Functions mints a fresh GUID per firing and a slow sweep overlaps
+        # itself, proposing the same editions twice.
+        import ast
+
+        starts = self.calls(self.source(), "start_new")
+        self.assertEqual(len(starts), 1)
+        self.assertGreaterEqual(
+            len(starts[0].args), 2, "start_new must be given an explicit instance ID"
+        )
+        instance_argument = starts[0].args[1]
+        self.assertIsInstance(instance_argument, ast.Name)
+        self.assertEqual(instance_argument.id, "ACQUISITION_INSTANCE_ID")
+
+    def test_an_in_flight_sweep_is_checked_before_starting_another(self) -> None:
+        self.assertEqual(len(self.calls(self.source(), "get_status")), 1)
+
+    def test_the_publish_is_retried_and_the_proposal_is_not(self) -> None:
+        # A proposal failure is a deterministic scope-drift rejection. Retrying it would fail three
+        # times more slowly and must not look like a transient error.
+        import ast
+
+        tree = self.source()
+        retried = {
+            call.args[0].value
+            for call in self.calls(tree, "call_activity_with_retry")
+            if call.args and isinstance(call.args[0], ast.Constant)
+        }
+        plain = {
+            call.args[0].value
+            for call in self.calls(tree, "call_activity")
+            if call.args and isinstance(call.args[0], ast.Constant)
+        }
+
+        self.assertEqual(retried, {"publish_acquisition_activity"})
+        self.assertEqual(plain, {"propose_acquisition_activity"})
+
+    def test_the_orchestration_result_reports_what_the_publisher_accepted(self) -> None:
+        # Returning only proposalCount would let a publisher that accepted three of four proposals
+        # report success for all four.
+        import ast
+
+        returns = [
+            node
+            for node in ast.walk(self.source())
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict)
+        ]
+        self.assertEqual(len(returns), 1)
+        keys = {key.value for key in returns[0].value.keys if isinstance(key, ast.Constant)}
+        self.assertEqual(
+            keys,
+            {"proposalCount", "acceptedProposalCount", "published", "activatedEditionCount"},
+        )
+
+    def test_nothing_can_report_an_activated_edition(self) -> None:
+        # activatedEditionCount: 0 is an assertion about behaviour, not a placeholder.
+        import ast
+
+        tree = self.source()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Dict):
+                for key, value in zip(node.keys, node.values, strict=False):
+                    if isinstance(key, ast.Constant) and key.value == "activatedEditionCount":
+                        self.assertIsInstance(value, ast.Constant)
+                        self.assertEqual(value.value, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

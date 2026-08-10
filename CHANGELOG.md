@@ -27,6 +27,16 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The acquisition sweep is a singleton and reports what the publisher accepted. The timer trigger
+  called `start_new` with no instance ID, so Durable Functions minted a fresh GUID per firing and a
+  sweep running longer than the schedule interval — or a `use_monitor` catch-up landing on a normal
+  firing — started a second sweep proposing the same editions to the same downstream. It now uses a
+  fixed instance ID and skips the start when a run is already `Running`, `Pending`, or
+  `ContinuedAsNew`. The publish activity is retried on transient failure; the proposal activity
+  deliberately is not, because a scope-drift rejection is deterministic and must fail closed on the
+  first attempt. The orchestration result now carries `acceptedProposalCount` and `published` rather
+  than discarding them, so a publisher accepting three of four proposals cannot report success for
+  all four.
 - The Core API's `correlationId` is now findable. It was a fresh `Guid.NewGuid()` per response,
   written nowhere and derived from nothing, so the identifier a user reported to support could not
   be located in any log or trace. It is now derived from the ambient W3C trace identifier — sixteen
