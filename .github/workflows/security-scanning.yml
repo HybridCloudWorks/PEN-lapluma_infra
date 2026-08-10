@@ -1,0 +1,147 @@
+name: Security scanning
+
+on:
+  pull_request:
+  push:
+  schedule:
+    # Weekly, so a newly published advisory is surfaced without waiting for the next commit.
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, python]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@c4dd10e44af883a891fe31ced449bcb4a6728b9b
+        with:
+          languages: ${{ matrix.language }}
+          # No build step: the C# project is a single csproj and the worker is interpreted.
+          build-mode: none
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@c4dd10e44af883a891fe31ced449bcb4a6728b9b
+        with:
+          category: /language:${{ matrix.language }}
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
+        with:
+          fail-on-severity: high
+
+  image-scan:
+    name: Image scan (${{ matrix.image.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: core-api
+            context: src/core-api
+          - name: processing-worker
+            context: src/document-processing
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Build the image
+        run: docker build --tag lapluma-${{ matrix.image.name }}:scan ${{ matrix.image.context }}
+
+      - name: Export the image for scanning
+        # Scanning a tarball keeps the Docker socket out of the scanner's reach.
+        run: docker save lapluma-${{ matrix.image.name }}:scan --output image.tar
+
+      - name: Scan the image
+        # Trivy runs from its own digest-pinned image rather than the marketplace action, whose
+        # setup step fetches a release binary through an install script at run time — unpinned, and
+        # observed failing outright on this repository.
+        run: |
+          # --exit-code 0 reports without failing, until the baseline is triaged. See TODO.md 2.5.
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            image \
+            --input image.tar \
+            --format sarif \
+            --output trivy-${{ matrix.image.name }}.sarif \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            --exit-code 0
+
+      - name: Upload the image scan results
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+        uses: github/codeql-action/upload-sarif@c4dd10e44af883a891fe31ced449bcb4a6728b9b
+        with:
+          sarif_file: trivy-${{ matrix.image.name }}.sarif
+          category: container-${{ matrix.image.name }}
+
+  infrastructure-scan:
+    name: Infrastructure scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Pin the Bicep CLI version
+        run: |
+          az bicep install --version v0.46.1
+          az bicep version
+
+      - name: Compile Bicep to an ARM template
+        # Trivy has no Bicep parser, so scan the ARM template Bicep already compiles to.
+        run: az bicep build --file infra/main.bicep --outfile arm-template.json
+
+      - name: Scan the ARM template
+        run: |
+          # --exit-code 0 reports without failing, until the baseline is triaged. See TODO.md 2.5.
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            config arm-template.json \
+            --format sarif \
+            --output trivy-infrastructure.sarif \
+            --severity CRITICAL,HIGH \
+            --exit-code 0
+
+      - name: Upload the infrastructure scan results
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+        uses: github/codeql-action/upload-sarif@c4dd10e44af883a891fe31ced449bcb4a6728b9b
+        with:
+          sarif_file: trivy-infrastructure.sarif
+          category: infrastructure

@@ -117,6 +117,10 @@ public sealed record FormPackage(
 {
     [JsonIgnore]
     public FormActivationState ActivationState =>
+        // A package is only as activated as its weakest form, so a package with no forms is
+        // UNAVAILABLE. Without this branch every Any() below is false and the expression falls
+        // through to PILOT — the most permissive state, and one that permits case creation.
+        Forms.Count == 0 ? FormActivationState.Unavailable :
         Forms.Any(form => form.ActivationState == FormActivationState.Unavailable) ? FormActivationState.Unavailable :
         Forms.Any(form => form.ActivationState == FormActivationState.CatalogOnly) ? FormActivationState.CatalogOnly :
         Forms.Any(form => form.ActivationState == FormActivationState.Assisted) ? FormActivationState.Assisted :

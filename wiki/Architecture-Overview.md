@@ -10,10 +10,10 @@ The constraints this architecture exists to enforce are documented in
 
 | Component | Type | Technology | Path |
 |-----------|------|------------|------|
-| Core API | API service | .NET 9 / ASP.NET Core | `src/core-api` |
-| Identity and policy boundary | Core module or service | .NET 9; Entra-backed auth; policy enforcement | `src/core-api` initially; extract only with measured need |
-| Catalog and case services | Core modules | .NET 9; edition-pinned catalog and case workflows | `src/core-api` initially |
-| Package and delivery service | Core module or worker | .NET 9; deterministic PDF generation, verification, delivery | `src/package-worker` |
+| Core API | API service | .NET 10 / ASP.NET Core | `src/core-api` |
+| Identity and policy boundary | Core module or service | .NET 10; Entra-backed auth; policy enforcement | `src/core-api` initially; extract only with measured need |
+| Catalog and case services | Core modules | .NET 10; edition-pinned catalog and case workflows | `src/core-api` initially |
+| Package and delivery service | Core module or worker | .NET 10; deterministic PDF generation, verification, delivery | `src/package-worker` |
 | Document processing | Isolated workers | Python 3.12 | `src/document-processing` |
 | Event and schedule orchestration | Serverless glue | Azure Functions / Durable Functions | `src/functions` |
 | Contracts | OpenAPI 3.1, JSON Schema, CloudEvents-compatible envelopes | Language-neutral | `contracts` |
@@ -39,7 +39,7 @@ placeholder scaffolds. `src/package-worker` has not been created yet; that gap i
 | Zone | Workloads | Required isolation |
 |------|-----------|--------------------|
 | Edge | API Management | Only public application ingress; JWT, schema, rate, size, and idempotency enforcement; no data persistence |
-| Core ACA environment | .NET 9 Core API and package worker | Private data-plane access; authoritative writes; no parsing of raw hostile documents |
+| Core ACA environment | .NET 10 Core API and package worker | Private data-plane access; authoritative writes; no parsing of raw hostile documents |
 | Processing ACA environment | Python 3.12 sanitizer, OCR, and extraction workers | No database route; no general internet egress; least-privilege per-message and per-blob access; ephemeral workers |
 | AI ACA environment | Guardrail and bounded AI proposal services | No authoritative write or approval authority; model access through private endpoints; fail closed |
 | Orchestration | Azure Functions and Durable Functions | Timers, event intake, retries, and stateful coordination; calls governed services instead of bypassing them |
