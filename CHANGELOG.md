@@ -7,6 +7,29 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- Added drafted proposals to `REVIEW.md`. Thirteen of the seventeen blockers now carry a
+  **Proposed answer** — a concrete draft the named owner can approve, amend, or reject in one
+  reading, rather than a policy they have to author from nothing. Several of these items had been
+  open not because the decision was hard but because the writing was, and a decision is a much
+  smaller task than a blank page. Each proposal states what it costs to accept and names the row
+  most worth arguing with, so a rejection is as easy to give as an approval.
+
+  Four items carry no proposal, deliberately: R-01 (tenant and subscription IDs), R-02 (a written
+  authorization), R-10's object IDs, and R-17 (a repository permission) turn on facts and grants
+  only their owner holds. The same rule runs through every proposal that does exist — where a real
+  identifier is needed it states the identifier's *shape* and stops, because a plausible invented
+  GUID or hostname is worse than a blank field: a blank is visibly unanswered and an invention is
+  not.
+
+  Two of the proposals correct the framing of their own item. R-09's egress section records that
+  `src/functions/acquisition_contract.py` performs no upstream fetch today, so the functions-zone
+  allowlist is a prerequisite for work not yet written rather than a live gap — but the
+  `DenyInternet` rule will block the first fetch at runtime rather than at review, so the list has
+  to be approved before that work starts. R-16 notes the same thing about the acquisition schedule.
+  R-12 declines to pin a Document Intelligence API version at all: this repository cannot reach the
+  service to confirm the current GA string, and a version pinned from memory would be exactly the
+  confident unverified value that item exists to prevent.
+
 - Moved the Core API from .NET 9 to **.NET 10**. `LaPluma.CoreApi.csproj` targets `net10.0`, the
   Dockerfile builds on `dotnet/sdk:10.0` and runs on `dotnet/aspnet:10.0`, and CI installs the
   10.0.x SDK. .NET 9 is a Standard Term Support release whose support window has closed; .NET 10 is
