@@ -5,8 +5,14 @@ param location string = resourceGroup().location
 param tags object = {}
 
 // Service Bus namespace names share one global DNS namespace, exactly like the Key Vault, Cosmos,
-// SQL, and storage names, all of which already carry a suffix. Without one, deployment depends on
-// whether anyone else has taken 'sb-lapluma-dev'.
+// SQL, and storage names, all of which already carry a suffix. This one previously did not, so
+// deployment depended on whether anyone else had taken the plain 'sb-<name>' it resolved to.
+//
+// `name` is not dropped: it is an input to the suffix, so two environments still get distinct
+// namespaces. It is kept out of the literal stem for the reason data.bicep states over its own
+// `compactName` — a globally scoped name is built from a fixed safe stem plus uniqueString output,
+// so an environment name that is legal in Bicep but illegal in a global DNS label cannot reach it.
+// Which of the two conventions in data.bicep should win repository-wide is REVIEW.md R-05.
 var suffix = take(uniqueString(subscription().id, resourceGroup().id, name), 6)
 
 resource serviceBus 'Microsoft.ServiceBus/namespaces@2024-01-01' = {

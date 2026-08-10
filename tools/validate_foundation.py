@@ -69,11 +69,30 @@ def collect_parameter_names(paths: dict[str, Any]) -> tuple[set[str], list[str]]
     names: set[str] = set()
     failures: list[str] = []
     for path, path_item in paths.items():
-        declarations = list(path_item.get("parameters", []))
+        # Every shape below is checked before it is read. This rule exists to report a contract
+        # violation, so malformed input has to reach CI as the ERROR line the log is scanned for,
+        # not as a traceback from inside the rule.
+        if not isinstance(path_item, dict):
+            failures.append(f"catalog path item is not an object: {path}")
+            continue
+
+        declarations: list[Any] = []
+        sources = [path_item.get("parameters")]
         for key, operation in path_item.items():
             if key != "parameters" and isinstance(operation, dict):
-                declarations.extend(operation.get("parameters", []))
+                sources.append(operation.get("parameters"))
+        for source in sources:
+            if source is None:
+                continue
+            if not isinstance(source, list):
+                failures.append(f"catalog parameters must be declared as a list: {path}")
+                continue
+            declarations.extend(source)
+
         for declaration in declarations:
+            if not isinstance(declaration, dict):
+                failures.append(f"catalog parameter declaration is not an object: {path}")
+                continue
             if "$ref" in declaration:
                 failures.append(
                     f"catalog parameters must be declared inline so they can be read: {path}"

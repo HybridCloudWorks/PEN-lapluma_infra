@@ -58,7 +58,11 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   key is a compile error naming the key instead of a failure deep inside the network module. The
   Service Bus namespace was the only globally scoped resource named without a `uniqueString` suffix
   and now matches its Key Vault, Cosmos, SQL, and storage siblings, so deployment no longer depends
-  on whether anyone else has taken `sb-lapluma-dev`. Both queues set `deadLetteringOnMessageExpiration`
+  on whether anyone else has already taken the plain name it resolved to. The module's `name`
+  parameter still feeds that suffix — it is kept out of the literal stem so an environment name
+  legal in Bicep but illegal in a global DNS label cannot reach one, the same reasoning
+  `data.bicep` applies to its own `compactName`. Which of that file's two conventions should win
+  repository-wide is `REVIEW.md` **R-05**. Both queues set `deadLetteringOnMessageExpiration`
   with no TTL, which meant the default was effectively infinite and the dead-letter policy could
   never fire; they now carry an explicit seven-day window pending `REVIEW.md` **R-11**. The SQL
   database and the Cosmos database and container are tagged — the remaining untagged resources are
@@ -79,9 +83,18 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   interpreter version, or answer one endpoint in two content types. Requests now time out,
   `ThreadingHTTPServer` shuts down on SIGTERM so container stop lets in-flight probes finish, the
   `Server` header is the service name rather than `BaseHTTP/0.6 Python/3.12.x`, and an unknown path
-  returns an empty JSON-typed 404 instead of an HTML error page. `PORT` is validated rather than
-  passed straight to `int()`, which previously crashed at startup with an unhandled `ValueError` on
-  a non-numeric value.
+  returns a JSON 404 instead of an HTML error page. That 404 carries a real document rather than
+  an empty payload, because `Content-Type: application/json` with nothing after it is a
+  contradiction that breaks any client parsing every response unconditionally; the body uses the
+  same envelope as a successful probe and never echoes the requested path. `PORT` is validated
+  rather than passed straight to `int()`, which previously crashed at startup with an unhandled
+  `ValueError` on a non-numeric value.
+- The prohibited-input rule reports a malformed contract instead of dying on one. Every shape it
+  reads is type-checked first: a path item, a `parameters` value, and each declaration within it.
+  A non-object entry previously raised `AttributeError` or `TypeError` out of the collector, so a
+  rule whose entire purpose is to surface a contract violation ended CI on a traceback rather
+  than the ERROR line the log is scanned for. A `parameters` value set to an object was worse
+  than a crash — it was iterated as its keys, collecting nothing while looking like a clean pass.
 - The prohibited-input rule now sees every parameter declaration. It collected names from operation
   objects only, so a `parameters` list declared at path-item level — a documented OpenAPI construct
   that applies to every operation beneath it — was invisible, and a `caseId` declared that way
