@@ -18,6 +18,7 @@ handshake shared with it is
 | `contracts/` | OpenAPI 3.1 catalog contract and the iOS package-compatibility handshake |
 | `infra/` | Subscription-scope Bicep entrypoint, modules, and the AZD parameter file |
 | `src/core-api/` | .NET 10 catalog and health API |
+| `src/core-api.tests/` | xUnit tests for the catalog API, over the real request pipeline |
 | `src/document-processing/` | Python 3.12 isolated processing worker |
 | `src/functions/` | Durable Functions catalog-acquisition skeleton |
 | `tools/` | `validate_foundation.py`, the dependency-free contract and interlock validator |
@@ -41,8 +42,9 @@ python3 tools/validate_foundation.py
 python3 -m unittest discover -s src/document-processing -p 'test_*.py'
 python3 -m unittest discover -s src/functions -p 'test_*.py'
 
-# .NET build
+# .NET build and tests
 dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
+dotnet test src/core-api.tests/LaPluma.CoreApi.Tests.csproj --configuration Release
 
 # Bicep compilation (no provisioning)
 az bicep build --file infra/main.bicep
