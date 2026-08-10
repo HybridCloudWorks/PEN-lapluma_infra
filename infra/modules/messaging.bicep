@@ -4,6 +4,42 @@ param name string
 param location string = resourceGroup().location
 param tags object = {}
 
+@description('Service Bus Premium messaging units. Pending REVIEW.md R-03 and TODO 3.2.')
+@allowed([
+  1
+  2
+  4
+  8
+  16
+])
+param serviceBusCapacity int = 1
+
+@description('Premium messaging partitions. Pending REVIEW.md R-03 and TODO 3.2.')
+@minValue(1)
+@maxValue(4)
+param serviceBusPartitions int = 1
+
+@description('Duplicate-detection window, ISO 8601 duration.')
+@minLength(1)
+param duplicateDetectionWindow string = 'PT1H'
+
+@description('Queue message time to live, ISO 8601 duration. Pending REVIEW.md R-11.')
+@minLength(1)
+param queueMessageTimeToLive string = 'P7D'
+
+@description('Queue lock duration, ISO 8601 duration. Maximum PT5M.')
+@minLength(1)
+param queueLockDuration string = 'PT5M'
+
+@description('Deliveries before a message is dead-lettered.')
+@minValue(1)
+@maxValue(2000)
+param queueMaxDeliveryCount int = 5
+
+@description('Topic message time to live, ISO 8601 duration. Pending REVIEW.md R-11.')
+@minLength(1)
+param topicMessageTimeToLive string = 'P14D'
+
 // Service Bus namespace names share one global DNS namespace, exactly like the Key Vault, Cosmos,
 // SQL, and storage names, all of which already carry a suffix. This one previously did not, so
 // deployment depended on whether anyone else had taken the plain 'sb-<name>' it resolved to.
@@ -19,9 +55,9 @@ resource serviceBus 'Microsoft.ServiceBus/namespaces@2024-01-01' = {
   name: 'sb-lapluma-${suffix}'
   location: location
   tags: tags
-  sku: { name: 'Premium', tier: 'Premium', capacity: 1 }
+  sku: { name: 'Premium', tier: 'Premium', capacity: serviceBusCapacity }
   properties: {
-    premiumMessagingPartitions: 1
+    premiumMessagingPartitions: serviceBusPartitions
     publicNetworkAccess: 'Disabled'
     disableLocalAuth: true
     minimumTlsVersion: '1.2'
@@ -33,13 +69,13 @@ resource acquisitionQueue 'Microsoft.ServiceBus/namespaces/queues@2024-01-01' = 
   name: 'catalog-acquisition'
   properties: {
     requiresDuplicateDetection: true
-    duplicateDetectionHistoryTimeWindow: 'PT1H'
+    duplicateDetectionHistoryTimeWindow: duplicateDetectionWindow
     // Without a TTL the default is effectively infinite, so the dead-letter policy below can never
     // fire and a stuck message is retained instead of surfaced. Window pending R-11.
-    defaultMessageTimeToLive: 'P7D'
+    defaultMessageTimeToLive: queueMessageTimeToLive
     deadLetteringOnMessageExpiration: true
-    maxDeliveryCount: 5
-    lockDuration: 'PT5M'
+    maxDeliveryCount: queueMaxDeliveryCount
+    lockDuration: queueLockDuration
   }
 }
 
@@ -48,13 +84,13 @@ resource processingQueue 'Microsoft.ServiceBus/namespaces/queues@2024-01-01' = {
   name: 'document-processing'
   properties: {
     requiresDuplicateDetection: true
-    duplicateDetectionHistoryTimeWindow: 'PT1H'
+    duplicateDetectionHistoryTimeWindow: duplicateDetectionWindow
     // Without a TTL the default is effectively infinite, so the dead-letter policy below can never
     // fire and a stuck message is retained instead of surfaced. Window pending R-11.
-    defaultMessageTimeToLive: 'P7D'
+    defaultMessageTimeToLive: queueMessageTimeToLive
     deadLetteringOnMessageExpiration: true
-    maxDeliveryCount: 5
-    lockDuration: 'PT5M'
+    maxDeliveryCount: queueMaxDeliveryCount
+    lockDuration: queueLockDuration
   }
 }
 
@@ -68,8 +104,8 @@ resource eventsTopic 'Microsoft.ServiceBus/namespaces/topics@2024-01-01' = {
     // every subscription added by TODO 5.4 must set deadLetteringOnMessageExpiration itself or its
     // expired messages are discarded silently.
     requiresDuplicateDetection: true
-    duplicateDetectionHistoryTimeWindow: 'PT1H'
-    defaultMessageTimeToLive: 'P14D'
+    duplicateDetectionHistoryTimeWindow: duplicateDetectionWindow
+    defaultMessageTimeToLive: topicMessageTimeToLive
   }
 }
 

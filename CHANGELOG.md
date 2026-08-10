@@ -50,6 +50,32 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Policy-bearing baselines are parameters instead of literals, so `dev` and `pilot` can differ
+  without editing Bicep. Twenty-two values moved: Log Analytics retention, blob and container soft
+  delete, Key Vault and Managed HSM soft delete, the SQL SKU with its capacity, minimum capacity and
+  auto-pause delay, the Cosmos autoscale ceiling, both zone-redundancy flags, the audit and default
+  storage redundancy, the Managed HSM SKU, Service Bus capacity and partitions, and the messaging
+  duplicate-detection window, lock duration, delivery count, and both TTLs. Every default reproduces
+  exactly the literal it replaced — this made the baselines adjustable, it did not adjust them, and
+  a check asserts each default against the value it came from.
+
+  AZD substitutes into `infra/main.parameters.json` textually and that file must stay valid JSON,
+  because `tools/validate_foundation.py` parses it. Every substituted value therefore arrives as a
+  string whatever it represents. The parameters are declared as strings at that boundary and
+  converted once in `infra/main.bicep`; the modules take properly typed parameters carrying the
+  range and allowed-value constraints, so an out-of-range value is rejected naming the parameter.
+  Each was probed: 5000 retention days, a one-day Key Vault window, 100 RU/s, a Service Bus capacity
+  of 3, and an invented storage SKU are all refused, while a valid override compiles.
+
+  The four parameter groups are named for the decision that gates their values — retention, capacity,
+  resilience, messaging — rather than for the module that consumes them, so what unblocks a change is
+  visible from the parameter list. The values themselves remain pending `REVIEW.md` **R-03** and
+  **R-11** and `TODO.md` item 3.2, which is now a decision about numbers rather than a code change.
+
+  Five values deliberately stayed literals, recorded with reasons on the Configuration Contract wiki
+  page: blob versioning, Key Vault and HSM purge protection, Cosmos `Session` consistency, the
+  hierarchical partition key, and the shared-key, local-auth, public-access, and TLS settings.
+  Making those adjustable would turn a guarantee into an option.
 - A push to a branch with an open pull request no longer runs every workflow twice. Both workflows
   trigger on an unfiltered `pull_request` and an unfiltered `push`, so one commit produced four
   workflow runs and sixteen check runs where eight carry the same signal — double the CodeQL and
