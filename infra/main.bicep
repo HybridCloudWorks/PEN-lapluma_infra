@@ -271,6 +271,7 @@ module network './modules/network.bicep' = if (enableProvisioning) {
     tags: commonTags
     vnetAddressPrefix: vnetAddressPrefix
     subnetPrefixes: subnetPrefixes
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 
@@ -296,6 +297,7 @@ module security './modules/security.bicep' = if (enableProvisioning) {
     keyVaultSoftDeleteRetentionDays: retentionDays.keyVaultSoftDelete
     hsmSoftDeleteRetentionDays: retentionDays.hsmSoftDelete
     hsmSkuName: capacity.hsmSkuName
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 
@@ -313,6 +315,7 @@ module messaging './modules/messaging.bicep' = if (enableProvisioning) {
     queueLockDuration: messagingBaseline.queueLockDuration
     queueMaxDeliveryCount: queueMaxDeliveryCount
     topicMessageTimeToLive: messagingBaseline.topicMessageTimeToLive
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 
@@ -337,6 +340,7 @@ module data './modules/data.bicep' = if (enableProvisioning) {
     auditImmutabilityDays: retentionDays.auditImmutability
     auditStorageSku: resilience.auditStorageSku
     defaultStorageSku: resilience.defaultStorageSku
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 
@@ -358,6 +362,7 @@ module compute './modules/compute.bicep' = if (enableProvisioning) {
     functionsIdentityId: security!.outputs.functionsIdentityId
     registrySku: capacity.registrySku
     functionsPythonVersion: functionsPythonVersion
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 

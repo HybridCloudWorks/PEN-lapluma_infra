@@ -40,6 +40,12 @@ param queueMaxDeliveryCount int = 5
 @minLength(1)
 param topicMessageTimeToLive string = 'P14D'
 
+@description('''
+Log Analytics workspace every diagnostic setting routes to. Empty disables them, which is what keeps
+each module compilable on its own; main.bicep always supplies it.
+''')
+param diagnosticsWorkspaceId string = ''
+
 // Service Bus namespace names share one global DNS namespace, exactly like the Key Vault, Cosmos,
 // SQL, and storage names, all of which already carry a suffix. This one previously did not, so
 // deployment depended on whether anyone else had taken the plain 'sb-<name>' it resolved to.
@@ -114,3 +120,13 @@ output acquisitionQueueName string = acquisitionQueue.name
 output processingQueueName string = processingQueue.name
 output eventsTopicName string = eventsTopic.name
 output serviceBusId string = serviceBus.id
+
+resource serviceBusDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  scope: serviceBus
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}

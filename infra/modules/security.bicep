@@ -22,6 +22,12 @@ param hsmSoftDeleteRetentionDays int = 90
 ])
 param hsmSkuName string = 'Standard_B1'
 
+@description('''
+Log Analytics workspace every diagnostic setting routes to. Empty disables them, which is what keeps
+each module compilable on its own; main.bicep always supplies it.
+''')
+param diagnosticsWorkspaceId string = ''
+
 var suffix = take(uniqueString(subscription().id, resourceGroup().id, name), 6)
 // Globally scoped names use only a fixed safe stem plus uniqueString output.
 var compactName = 'lapluma'
@@ -99,3 +105,26 @@ output corePrincipalId string = coreIdentity.properties.principalId
 output processingPrincipalId string = processingIdentity.properties.principalId
 output aiPrincipalId string = aiIdentity.properties.principalId
 output functionsPrincipalId string = functionsIdentity.properties.principalId
+
+var securityDiagnosticsEnabled = !empty(diagnosticsWorkspaceId)
+
+resource keyVaultDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (securityDiagnosticsEnabled) {
+  scope: keyVault
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
+
+resource managedHsmDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (securityDiagnosticsEnabled) {
+  // The HSM's audit trail is the record of who touched a key. Losing it loses the ability to answer
+  // that question at all, which is the point of holding keys in an HSM.
+  scope: managedHsm
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+  }
+}

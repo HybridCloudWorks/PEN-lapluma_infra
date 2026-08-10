@@ -62,6 +62,12 @@ param auditStorageSku string = 'Standard_ZRS'
 param defaultStorageSku string = 'Standard_LRS'
 
 @description('''
+Log Analytics workspace every diagnostic setting routes to. Empty disables them, which is what keeps
+each module compilable on its own; main.bicep always supplies it.
+''')
+param diagnosticsWorkspaceId string = ''
+
+@description('''
 Immutability window for the audit container, in days. The audit account is described as holding
 immutable evidence and was configured identically to the other three: deletion evidence that can be
 deleted is not evidence. Proposed retention is seven years, pending REVIEW.md R-11.
@@ -221,3 +227,56 @@ output cosmosId string = cosmos.id
 output cosmosAccountName string = cosmos.name
 output storageAccountIds array = [for (_, index) in storagePurposes: storageAccounts[index].id]
 output storagePurposeNames array = storagePurposes
+
+// ---------------------------------------------------------------------------------------------
+// Diagnostics. Nothing in this foundation logged anywhere: no SQL security log, no Key Vault access
+// log, no Service Bus operational log reached the workspace.
+//
+// `allLogs` rather than an enumerated category list, deliberately. A list has to be revised every
+// time Azure adds a category, and the failure mode of a stale list is silence — the category simply
+// never arrives, and nothing says so.
+// ---------------------------------------------------------------------------------------------
+
+var diagnosticsEnabled = !empty(diagnosticsWorkspaceId)
+
+resource sqlDatabaseDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (diagnosticsEnabled) {
+  // On the database, not the server: the server exposes no log categories of its own.
+  scope: sqlDatabase
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'AllMetrics', enabled: true }]
+  }
+}
+
+resource cosmosDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (diagnosticsEnabled) {
+  scope: cosmos
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'Requests', enabled: true }]
+  }
+}
+
+resource storageAccountDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (purpose, index) in storagePurposes: if (diagnosticsEnabled) {
+  // The account itself emits metrics only. Read and write operations are logged by the blob
+  // service below, which is where an access to case material actually shows up.
+  scope: storageAccounts[index]
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    metrics: [{ category: 'Transaction', enabled: true }]
+  }
+}]
+
+resource blobServiceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (purpose, index) in storagePurposes: if (diagnosticsEnabled) {
+  scope: blobServices[index]
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+    metrics: [{ category: 'Transaction', enabled: true }]
+  }
+}]

@@ -333,7 +333,7 @@ against unratified numbers would have to be redone and could make the participan
 **References.** Retention and erasure targets on the Pilot Policy and Compliance Gates wiki page;
 the infrastructure baselines table on the Configuration Contract wiki page, whose retention rows
 name this item as their gate. Those windows are parameters now, so resolving this sets values
-rather than requiring a code change. Blocks `TODO.md` item **3.5**.
+rather than requiring a code change. Blocks `TODO.md` item **3.4**.
 
 **Recommended next step.** Privacy owner and data owner reconcile the proposed values into one
 table, then confirm the drafted participant notice states the same numbers.
