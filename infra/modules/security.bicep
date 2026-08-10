@@ -5,6 +5,23 @@ param location string = resourceGroup().location
 param tags object = {}
 param hsmInitialAdminObjectId string
 
+@description('Key Vault soft-delete window. Pending REVIEW.md R-11. Purge protection is not a parameter.')
+@minValue(7)
+@maxValue(90)
+param keyVaultSoftDeleteRetentionDays int = 90
+
+@description('Managed HSM soft-delete window. Pending REVIEW.md R-11. Purge protection is not a parameter.')
+@minValue(7)
+@maxValue(90)
+param hsmSoftDeleteRetentionDays int = 90
+
+@description('Managed HSM SKU. Pending REVIEW.md R-03.')
+@allowed([
+  'Standard_B1'
+  'Custom_B32'
+])
+param hsmSkuName string = 'Standard_B1'
+
 var suffix = take(uniqueString(subscription().id, resourceGroup().id, name), 6)
 // Globally scoped names use only a fixed safe stem plus uniqueString output.
 var compactName = 'lapluma'
@@ -18,7 +35,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     sku: { family: 'A', name: 'standard' }
     enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 90
+    softDeleteRetentionInDays: keyVaultSoftDeleteRetentionDays
     enablePurgeProtection: true
     publicNetworkAccess: 'Disabled'
     networkAcls: {
@@ -32,12 +49,12 @@ resource managedHsm 'Microsoft.KeyVault/managedHSMs@2023-07-01' = {
   name: 'hsm${compactName}${suffix}'
   location: location
   tags: tags
-  sku: { family: 'B', name: 'Standard_B1' }
+  sku: { family: 'B', name: hsmSkuName }
   properties: {
     tenantId: subscription().tenantId
     initialAdminObjectIds: [hsmInitialAdminObjectId]
     enablePurgeProtection: true
-    softDeleteRetentionInDays: 90
+    softDeleteRetentionInDays: hsmSoftDeleteRetentionDays
     publicNetworkAccess: 'Disabled'
     networkAcls: {
       bypass: 'None'

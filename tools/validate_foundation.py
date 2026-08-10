@@ -8,29 +8,107 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FAILURES: list[str] = []
+
+
+class Failures(list[str]):
+    """Failures collected by one check.
+
+    Each check owns its own list rather than appending to a module-level global, so a check can be
+    run more than once, or on its own, without inheriting another's results.
+    """
+
+    def require(self, condition: bool, message: str) -> None:
+        if not condition:
+            self.append(message)
 
 # Generated output, not source. These mirror the directories .gitignore already excludes.
 SKIPPED_DIRECTORIES = frozenset({".git", "__pycache__", "bin", "obj", ".venv", "node_modules"})
 SKIPPED_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".gif", ".zip"})
 SECRET_PATTERNS = {
     "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-    "Azure storage connection string": re.compile(r"DefaultEndpointsProtocol=https;AccountName="),
+    # Connection strings are unordered key/value pairs. Matching one fixed ordering missed every
+    # other spelling of the same credential, so match a line carrying both parts instead.
+    "Azure storage connection string": re.compile(
+        r"^(?=[^\n]*AccountName=)(?=[^\n]*AccountKey=)[^\n]*$", re.MULTILINE
+    ),
+    # A bare account key, with no connection string around it. `allowSharedKeyAccess: false` is set
+    # on every storage account, so one appearing here is an accident worth catching on its own.
+    "Azure storage account key": re.compile(r"AccountKey=[A-Za-z0-9+/]{80,}={0,2}"),
+    # A shared-access signature carries its own authority. The design permits managed identity only.
+    "shared access signature": re.compile(r"[?&]sig=[A-Za-z0-9%+/]{20,}"),
     "JWT-like token": re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b"),
     "concrete subscription assignment": re.compile(r"AZURE_SUBSCRIPTION_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),
     "concrete tenant assignment": re.compile(r"AZURE_TENANT_ID\s*[:=]\s*[0-9a-fA-F-]{36}"),
 }
 
 
-def require(condition: bool, message: str) -> None:
-    if not condition:
-        FAILURES.append(message)
+PROHIBITED_INPUTS = (
+    "userid",
+    "personid",
+    "folderid",
+    "caseid",
+    "documentid",
+    "eligibility",
+    "facts",
+)
 
 
-def validate_openapi() -> None:
+def collect_parameter_names(paths: dict[str, Any]) -> tuple[set[str], list[str]]:
+    """Return every declared parameter name, lowercased, plus any structural failures.
+
+    OpenAPI permits `parameters` as a sibling of `get`/`post` on the path item, applying to every
+    operation beneath it. Reading operations alone misses those entirely, so a prohibited input
+    declared that way walks past the rule that exists to keep person, case, and eligibility
+    identifiers out of the catalog API. A `$ref` parameter has no `name` at all; this gate rejects
+    it rather than dereferencing, because a rule that cannot read a declaration must not pass it.
+    """
+    names: set[str] = set()
+    failures: list[str] = []
+    for path, path_item in paths.items():
+        # Every shape below is checked before it is read. This rule exists to report a contract
+        # violation, so malformed input has to reach CI as the ERROR line the log is scanned for,
+        # not as a traceback from inside the rule.
+        if not isinstance(path_item, dict):
+            failures.append(f"catalog path item is not an object: {path}")
+            continue
+
+        declarations: list[Any] = []
+        sources = [path_item.get("parameters")]
+        for key, operation in path_item.items():
+            if key != "parameters" and isinstance(operation, dict):
+                sources.append(operation.get("parameters"))
+        for source in sources:
+            if source is None:
+                continue
+            if not isinstance(source, list):
+                failures.append(f"catalog parameters must be declared as a list: {path}")
+                continue
+            declarations.extend(source)
+
+        for declaration in declarations:
+            if not isinstance(declaration, dict):
+                failures.append(f"catalog parameter declaration is not an object: {path}")
+                continue
+            if "$ref" in declaration:
+                failures.append(
+                    f"catalog parameters must be declared inline so they can be read: {path}"
+                )
+                continue
+            name = declaration.get("name")
+            if isinstance(name, str):
+                names.add(name.lower())
+            else:
+                failures.append(f"catalog parameter declares no name: {path}")
+    return names, failures
+
+
+def validate_openapi() -> Failures:
+    failures = Failures()
+    require = failures.require
     path = ROOT / "contracts/catalog.openapi.json"
     document = json.loads(path.read_text(encoding="utf-8"))
     require(document.get("openapi") == "3.1.0", "catalog contract must use OpenAPI 3.1.0")
@@ -46,17 +124,21 @@ def validate_openapi() -> None:
     }
     require(set(paths) == expected_paths, "catalog contract path set drifted")
 
-    parameter_names = {
-        parameter["name"].lower()
-        for path_item in paths.values()
-        for operation in path_item.values()
-        if isinstance(operation, dict)
-        for parameter in operation.get("parameters", [])
-    }
-    for prohibited in ("userid", "personid", "folderid", "caseid", "documentid", "eligibility", "facts"):
-        require(prohibited not in parameter_names, f"catalog operation accepts prohibited input: {prohibited}")
+    parameter_names, collection_failures = collect_parameter_names(paths)
+    for failure in collection_failures:
+        require(False, failure)
+    for prohibited in PROHIBITED_INPUTS:
+        require(
+            prohibited not in parameter_names,
+            f"catalog operation accepts prohibited input: {prohibited}",
+        )
+    for path, path_item in paths.items():
+        for key, operation in path_item.items():
+            if isinstance(operation, dict) and "requestBody" in operation:
+                require(False, f"catalog operations accept no request body: {key.upper()} {path}")
 
-    schemas = document["components"]["schemas"]
+    schemas = document.get("components", {}).get("schemas", {})
+    require(bool(schemas), "catalog contract must declare component schemas")
     expected_enums = {
         "FormArtifactKind": ["OFFICIAL_PDF", "EXTERNAL_WORKFLOW", "PROPRIETARY_FORM", "AUTHORED_TEMPLATE"],
         "FormFillCapability": ["AUTOMATIC_FILL", "ASSISTED_PREPARATION", "REFERENCE_ONLY"],
@@ -64,17 +146,19 @@ def validate_openapi() -> None:
         "FormEncoding": ["ACROFORM", "XFA", "FLAT"],
     }
     for schema_name, expected in expected_enums.items():
-        require(schemas[schema_name].get("enum") == expected, f"{schema_name} enum drifted")
+        require(schemas.get(schema_name, {}).get("enum") == expected, f"{schema_name} enum drifted")
     require(
-        schemas["FormEditionId"].get("required") == ["authority", "formID", "editionDate"],
+        schemas.get("FormEditionId", {}).get("required") == ["authority", "formID", "editionDate"],
         "edition identity must be authority-aware",
     )
     require(
-        {"sourcePageURL", "artifactURL"}.issubset(schemas["FormSourceMetadata"]["properties"]),
+        {"sourcePageURL", "artifactURL"}.issubset(
+            schemas.get("FormSourceMetadata", {}).get("properties", {})
+        ),
         "source URL keys must match the Swift contract",
     )
     require(
-        "activationState" not in schemas["FormPackage"].get("properties", {}),
+        "activationState" not in schemas.get("FormPackage", {}).get("properties", {}),
         "package activation must be derived from child forms, matching the Swift contract",
     )
     for schema_name, property_name in (
@@ -84,7 +168,8 @@ def validate_openapi() -> None:
         ("FormPackage", "feeCitationURL"),
     ):
         require(
-            schemas[schema_name]["properties"][property_name].get("pattern") == "^https://",
+            schemas.get(schema_name, {}).get("properties", {}).get(property_name, {}).get("pattern")
+            == "^https://",
             f"{schema_name}.{property_name} must require HTTPS",
         )
 
@@ -99,6 +184,7 @@ def validate_openapi() -> None:
         "ExtractedFieldManifest",
     }
     require(required_models.issubset(schemas), "catalog model set is incomplete")
+    return failures
 
 
 FORM_DECLARATION = re.compile(
@@ -131,7 +217,9 @@ def parse_form_classifications(source: str) -> dict[str, tuple[str, str, str]]:
     return dict(parse_form_declarations(source))
 
 
-def validate_priority_and_modes() -> None:
+def validate_priority_and_modes() -> Failures:
+    failures = Failures()
+    require = failures.require
     source = (ROOT / "src/core-api/CatalogRepository.cs").read_text(encoding="utf-8")
     function_contract = (ROOT / "src/functions/acquisition_contract.py").read_text(encoding="utf-8")
     compatibility = json.loads(
@@ -198,15 +286,18 @@ def validate_priority_and_modes() -> None:
     model_source = (ROOT / "src/core-api/CatalogModels.cs").read_text(encoding="utf-8")
     require("record FormEditionId(" in model_source and "string Authority" in model_source, "edition identity must include authority")
     require("FormActivationState.Pilot" not in source, "placeholder catalog must not activate a pilot edition")
+    return failures
 
 
-def validate_azure_interlock() -> None:
+def validate_azure_interlock() -> Failures:
+    failures = Failures()
+    require = failures.require
     azure_yaml = (ROOT / "azure.yaml").read_text(encoding="utf-8")
     for service in ("core-api", "processing-worker", "acquisition-functions"):
         require(f"  {service}:" in azure_yaml, f"azure.yaml missing {service}")
 
     parameters = json.loads((ROOT / "infra/main.parameters.json").read_text(encoding="utf-8"))
-    interlock = parameters["parameters"]["enableProvisioning"]["value"]
+    interlock = parameters.get("parameters", {}).get("enableProvisioning", {}).get("value")
     require(interlock is False, "provisioning interlock must remain false")
 
     main_bicep = (ROOT / "infra/main.bicep").read_text(encoding="utf-8")
@@ -218,28 +309,78 @@ def validate_azure_interlock() -> None:
     security_bicep = (ROOT / "infra/modules/security.bicep").read_text(encoding="utf-8")
     require("for account in storageAccounts" not in data_bicep, "resource collections must be indexed in outputs")
     require("kv-lapluma-${suffix}" in security_bicep, "Key Vault name must stay within its 24-character limit")
+    return failures
 
 
-def validate_env_example() -> None:
+APP_SETTINGS_MARKER = "# --- Application settings ---"
+
+
+def scan_binding_placeholders(root: Path) -> set[str]:
+    """Every %NAME% the Functions host must resolve before it will start."""
+    names: set[str] = set()
+    for path in (root / "src/functions").rglob("*"):
+        if path.is_file() and path.suffix in {".py", ".json"}:
+            names |= set(re.findall(r"%([A-Z][A-Z0-9_]*)%", path.read_text(encoding="utf-8")))
+    return names
+
+
+def mentioned_in_source(root: Path, name: str) -> bool:
+    """Whether a setting name appears in the services at all.
+
+    Deliberately a literal search rather than a scan for `os.environ`: a value can be read through
+    an indirection, and a rule that only recognises one access form reports a live setting as
+    stale.
+    """
+    for path in (root / "src").rglob("*"):
+        if path.is_file() and path.suffix in {".py", ".json"}:
+            if name in path.read_text(encoding="utf-8"):
+                return True
+    return False
+
+
+def validate_env_example() -> Failures:
+    failures = Failures()
+    require = failures.require
     parameters_text = (ROOT / "infra/main.parameters.json").read_text(encoding="utf-8")
     referenced = set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", parameters_text))
 
     path = ROOT / ".env.example"
     if not path.is_file():
         require(False, ".env.example must exist and list every substituted parameter variable")
-        return
+        return failures
 
     declaration = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
     documented: dict[str, str] = {}
+    app_settings: dict[str, str] = {}
+    in_app_settings = False
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         stripped = line.strip()
+        if stripped == APP_SETTINGS_MARKER:
+            in_app_settings = True
+            continue
         if not stripped or stripped.startswith("#"):
             continue
         match = declaration.match(stripped)
         if match is None:
             require(False, f".env.example line {number} is neither a comment nor a NAME= declaration")
             continue
-        documented[match.group(1)] = match.group(2).strip()
+        target = app_settings if in_app_settings else documented
+        target[match.group(1)] = match.group(2).strip()
+
+    # Application settings are checked against the services, not against the Bicep parameters.
+    bound = scan_binding_placeholders(ROOT)
+    undeclared = sorted(bound - app_settings.keys())
+    require(
+        not undeclared,
+        f".env.example does not declare app settings the services bind: {', '.join(undeclared)}",
+    )
+    stale = sorted(name for name in app_settings if not mentioned_in_source(ROOT, name))
+    require(not stale, f".env.example declares app settings nothing uses: {', '.join(stale)}")
+    populated_settings = sorted(name for name, value in app_settings.items() if value)
+    require(
+        not populated_settings,
+        f".env.example must carry no value: {', '.join(populated_settings)}",
+    )
 
     missing = sorted(referenced - documented.keys())
     require(not missing, f".env.example is missing parameter variables: {', '.join(missing)}")
@@ -250,6 +391,7 @@ def validate_env_example() -> None:
     )
     populated = sorted(name for name, value in documented.items() if value)
     require(not populated, f".env.example must carry no value: {', '.join(populated)}")
+    return failures
 
 
 def scan_for_secrets(root: Path, ignored_files: frozenset[Path] = frozenset()) -> list[str]:
@@ -278,20 +420,25 @@ def scan_for_secrets(root: Path, ignored_files: frozenset[Path] = frozenset()) -
     return findings
 
 
-def validate_no_sensitive_values() -> None:
+def validate_no_sensitive_values() -> Failures:
+    failures = Failures()
+    require = failures.require
     # This module defines the patterns as literals, so it matches itself and is always skipped.
     for finding in scan_for_secrets(ROOT, frozenset({Path(__file__).resolve()})):
         require(False, finding)
+    return failures
 
 
 def main() -> int:
-    validate_openapi()
-    validate_priority_and_modes()
-    validate_azure_interlock()
-    validate_env_example()
-    validate_no_sensitive_values()
-    if FAILURES:
-        for failure in FAILURES:
+    failures = [
+        *validate_openapi(),
+        *validate_priority_and_modes(),
+        *validate_azure_interlock(),
+        *validate_env_example(),
+        *validate_no_sensitive_values(),
+    ]
+    if failures:
+        for failure in failures:
             print(f"ERROR: {failure}", file=sys.stderr)
         return 1
     print("Foundation validation passed")

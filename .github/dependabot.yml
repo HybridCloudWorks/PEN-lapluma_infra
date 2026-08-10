@@ -1,0 +1,47 @@
+version: 2
+
+# Docker and GitHub Actions are load-bearing here, not optional. Every container base image is
+# pinned by digest and every action by commit SHA, so nothing bumps them on its own — without these
+# two ecosystems the pins go stale silently and a published advisory is never proposed.
+updates:
+  - package-ecosystem: nuget
+    directory: /src/core-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: nuget
+    directory: /src/core-api.tests
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # The processing worker is deliberately stdlib-only, so it declares no dependency file and has
+  # nothing for pip to watch. That is an architectural guarantee, not an omission — if a
+  # requirements file ever appears under src/document-processing, adding it here is the smaller half
+  # of that change.
+  - package-ecosystem: pip
+    directory: /src/functions
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /src/core-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /src/document-processing
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Covers .github/workflows and the composite action under .github/actions alike; the directory is
+  # always the repository root for this ecosystem.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

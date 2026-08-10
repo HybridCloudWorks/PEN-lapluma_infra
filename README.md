@@ -96,3 +96,14 @@ repository because publishing requires GitHub Wiki write access, which automatio
 
 The classification rules that decide where a new document goes are on the wiki's **Documentation
 Standards** page.
+
+Repository metadata lives outside that model, because GitHub reads it from fixed locations:
+[`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) (how to pick up work and what review looks
+for), [`.github/SECURITY.md`](.github/SECURITY.md) (how to report a vulnerability privately),
+`.github/pull_request_template.md`, and `.github/dependabot.yml`. They sit under `.github/` rather
+than the repository root so the root keeps the four markdown files the Documentation Standards
+allow.
+
+## Licence
+
+[Apache License 2.0](LICENSE). Copyright 2026 HybridCloudWorks; see [`NOTICE`](NOTICE).

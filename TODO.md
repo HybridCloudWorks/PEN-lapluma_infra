@@ -15,9 +15,9 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | Phase | Theme | Items |
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.8 |
-| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.8 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
+| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -227,7 +227,15 @@ close that gap.
   a scheduled run that only writes to the Security tab is easy to miss.
 - **Status:** Partially complete — scanners run and report; enforcement and the settings toggles
   remain.
-- **Notes for future engineers:** The SHA pinning across both workflows is deliberate. Do not relax
+- **Notes for future engineers:** Enabling secret scanning is the part of this item that covers
+  provider-issued credentials — Entra client secrets, GitHub tokens, and the like. A pattern for
+  those was considered for `tools/validate_foundation.py` and deliberately not added: they have no
+  distinctive enough shape to match without a false-positive rate that would train reviewers to
+  ignore the scan, and GitHub's scanner uses partner-supplied signatures instead. The custom
+  scanner covers what is specific to this repository's invariants — private keys, storage
+  connection strings, bare account keys, shared-access signatures, and concrete tenant or
+  subscription assignments — and is not a substitute for the platform feature.
+  The SHA pinning across both workflows is deliberate. Do not relax
   it to tags for convenience. Trivy has no Bicep parser, which is why the infrastructure job
   compiles to ARM first and scans that; if the Bicep pin moves, the scanned artifact moves with it.
   The SARIF upload steps are skipped for pull requests from forks, which cannot be granted
@@ -236,29 +244,7 @@ close that gap.
   install script at run time, which is unpinned and was observed failing outright here. Scanning a
   `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
 
-### 2.6 — Reject unknown keys in the acquisition contract
-
-- **Priority:** P2
-- **Description:** Code review finding **F-09**. `propose_acquisition_batch` in
-  `src/functions/acquisition_contract.py` reads two keys with `.get()` and ignores every other key
-  in the request. Its sibling, `ProcessingRequest.from_mapping`, computes an exact key-set
-  difference and rejects anything unknown — and a test exists specifically to prove an injected
-  `approve` key fails closed. The two contract modules take opposite positions on the same question
-  at the same kind of boundary. This dict is also the Durable Functions orchestrator input, and
-  orchestration inputs are persisted to the task hub and replayed, so any personal or case field
-  reaching this function is written to durable history. `host.json`'s `traceInputsAndOutputs: false`
-  suppresses tracing, not history.
-- **Dependencies:** None.
-- **Recommended action:** Compute the exact required key set and reject both unknown and missing
-  keys, mirroring `contracts.py`. Add the test in **T-06**, asserting an extra `approve` or
-  `personId` key raises.
-- **Notes for future engineers:** `tools/validate_foundation.py` requires each of the four approved
-  form IDs to appear in this file; `PRIORITY_FORM_IDS` and `PRIORITY_FORMS` are untouched by this
-  change. Today the only caller is the timer trigger, which builds its own input — this matters the
-  moment an externally-startable orchestration exists.
-- **Status:** Not started
-
-### 2.7 — Replace the Functions host shared-key auth default
+### 2.6 — Replace the Functions host shared-key auth default
 
 - **Priority:** P2
 - **Description:** Code review finding **F-17**. `src/functions/function_app.py` constructs
@@ -277,28 +263,6 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
   network restriction and APIM fronting are both in place — land it with 1.2, not before.
-
-### 2.8 — Extend secret-scan coverage and tighten the build context
-
-- **Priority:** P2
-- **Description:** Code review findings **F-30** and **F-25**. The scanner's Azure storage
-  connection-string pattern requires one specific key ordering, so an unordered variant is missed,
-  and there is no pattern for a bare storage account key, a SAS token, or an Entra client secret —
-  the shapes that matter most in a repository whose invariant is that no shared key exists.
-  Separately, `src/core-api/Dockerfile` does `COPY . ./` while `.dockerignore` excludes only
-  `bin/`, `obj/`, `*.user`, and `*.suo`, so a developer's local `appsettings.Development.json`,
-  `.env`, or certificate would land in a build layer. The processing image is the counter-example
-  done right: it copies two named files.
-- **Dependencies:** None.
-- **Recommended action:** Add order-independent connection-string, account-key, and SAS-token
-  patterns. Either copy explicit filenames in the Core API Dockerfile or extend `.dockerignore` to
-  cover `.env*`, `appsettings.*.json`, `*.pfx`, `*.p12`, and `.git`.
-- **Status:** Not started
-- **Notes for future engineers:** `tools/test_validate_foundation.py` asserts exactly one finding
-  per planted pattern, so an added rule that also matches the existing planted string will break
-  that test — replace the original pattern rather than adding alongside it. New patterns must be
-  planted from runtime fragments the same way the existing ones are, or the test file trips the
-  scanner it tests.
 
 ---
 
@@ -333,9 +297,12 @@ close that gap.
 - **Dependencies:** `REVIEW.md` **R-03** (cost approval), **R-10** (SQL floor, maximum, zone
   redundancy, backup policy).
 - **Recommended action:** Derive the resilience settings from an agreed SLO rather than from
-  defaults, parameterize them per environment so `pilot` can differ from `dev`, and document the
-  resulting RTO and RPO on the Environments and Release Path wiki page. Confirm whether auto-pause
-  is acceptable for a user-facing authoritative store.
+  defaults, and document the resulting RTO and RPO on the Environments and Release Path wiki page.
+  Confirm whether auto-pause is acceptable for a user-facing authoritative store. The
+  parameterization this used to require is done: `sqlZoneRedundant`, `cosmosZoneRedundant`,
+  `auditStorageSku`, `defaultStorageSku`, `serviceBusCapacity`, `serviceBusPartitions`, and
+  `sqlAutoPauseMinutes` are all supplied per environment through `.env.example`, so this item is
+  now a decision about values rather than a code change.
 - **Status:** Not started
 - **Notes for future engineers:** `GP_S_Gen5` with `minCapacity: 0.5` and `autoPauseDelay: 60` means
   the first request after an idle hour pays a resume penalty. For a ~40-case supervised pilot that
@@ -401,92 +368,36 @@ close that gap.
 - **Notes for future engineers:** The drill evidence itself must be content-free and pseudonymized —
   it lands in the audit account, which is subject to the immutability policy from item 2.4.
 
-### 3.7 — Instrument the Core API and make readiness mean something
-
-- **Priority:** P1
-- **Description:** Code review findings **F-13** and **F-14**. `src/core-api/Program.cs` performs
-  no logging at all — there is no `ILogger` anywhere in the service — and the `correlationId` in
-  every problem response is a fresh `Guid.NewGuid()` that is never written anywhere and is not
-  derived from `Activity.Current` or `HttpContext.TraceIdentifier`. The identifier a user reports
-  to support cannot be found in any log or trace. Separately, `/ready` returns a static literal and
-  never resolves `CatalogRepository`, so it cannot detect the one way the catalog can actually be
-  broken: `CatalogRepository.Form` throws on an unrecognised form number from a static initialiser,
-  which would make every `/v1/catalog/*` route return 500 forever while `/health` and `/ready` stay
-  green.
-- **Dependencies:** 1.4 for where the telemetry lands. The .NET test project exists.
-- **Recommended action:** Register `AddProblemDetails`, derive the correlation ID from
-  `Activity.Current?.TraceId` falling back to `HttpContext.TraceIdentifier`, and log each problem
-  once at construction. Have `/ready` resolve the repository and return 503 when the catalog cannot
-  initialise, keeping `/health` as pure liveness. Consider moving the `Form` guard out of the static
-  initialiser so the failure is loud at startup rather than deferred to the first request.
-- **Status:** Not started
-- **Notes for future engineers:** Content-free telemetry applies to these logs: correlation IDs
-  only, never a path, query string, route value, or document identifier.
-  `src/document-processing/worker.py` already suppresses all request logging for exactly this
-  reason — follow that precedent. Note this is application telemetry, which 3.1 does not cover.
-
-### 3.8 — Make the acquisition orchestration singleton and resilient
-
-- **Priority:** P2
-- **Description:** Code review findings **F-10** and **F-31**. The timer trigger calls
-  `client.start_new(...)` with no instance ID, so Durable Functions generates a fresh GUID per
-  firing and every firing starts an independent sweep with no check that the previous one finished.
-  The orchestrator has no retry policy, so a transient activity failure fails the whole
-  orchestration, and it discards the publish activity's return value — a future publisher that
-  accepts three of four proposals would still report `proposalCount: 4` with no sign of the
-  shortfall.
-- **Dependencies:** 5.4 supplies the real publisher.
-- **Recommended action:** Use a deterministic instance ID and skip the start when a run is already
-  `Running`, `Pending`, or `ContinuedAsNew`. Add `call_activity_with_retry` for transient failures
-  and propagate `acceptedProposalCount` and `published` into the orchestration result.
-- **Status:** Not started
-- **Notes for future engineers:** Do not retry `propose_acquisition_batch`'s `ValueError` — a
-  scope-drift rejection is deterministic and must fail closed on the first attempt. The
-  `document-processing` queue has duplicate detection with a one-hour window, but it keys on
-  `MessageId`, which the not-yet-written publisher must set deliberately; record that requirement
-  on 5.4 rather than relying on it. `activatedEditionCount: 0` stays regardless.
-
 ---
 
 ## Phase 4 — Technical debt
 
-### 4.1 — Add repository governance files
+### 4.1 — Add `CODEOWNERS` once the approval owners are named
 
 - **Priority:** P2
-- **Description:** The repository has no `CODEOWNERS`, no Dependabot configuration, no pull-request
-  template, no `SECURITY.md`, no `CONTRIBUTING.md`, and no licence file. For a repository whose
-  design depends on two-person approval of field maps and on named security and privacy owners, the
-  absence of `CODEOWNERS` is the most significant gap.
-- **Dependencies:** `REVIEW.md` **R-04** (named owners) for `CODEOWNERS` content.
-- **Recommended action:** Add `.github/CODEOWNERS` requiring review from the platform owner for
-  `infra/`, the security owner for `infra/modules/security.bicep`, and the catalog and compliance
-  owners for `contracts/`. Add `.github/dependabot.yml` for NuGet, pip, Docker, and GitHub Actions.
-  Add a minimal PR template, `SECURITY.md`, `CONTRIBUTING.md`, and a licence. Keep each one short
-  and link to the wiki rather than restating content.
+- **Description:** The rest of the governance set landed — `.github/dependabot.yml`,
+  `.github/pull_request_template.md`, `.github/SECURITY.md`, `.github/CONTRIBUTING.md`, and an
+  Apache-2.0 `LICENSE` with `NOTICE`. `CODEOWNERS` did not, and it is the one that matters most:
+  the design depends on two-person approval of field maps and on named security and privacy owners,
+  and nothing enforces either today.
+- **Dependencies:** `REVIEW.md` **R-04** (named owners). This is a hard block, not a soft one — see
+  the notes.
+- **Recommended action:** Once R-04 names the owners and their GitHub identities exist, add
+  `.github/CODEOWNERS` requiring review from the platform owner for `infra/`, the security owner for
+  `infra/modules/security.bicep`, and the catalog and compliance owners for `contracts/`. Then turn
+  on "Require review from Code Owners" in branch protection, without which the file only requests
+  review and never blocks a merge.
 - **Status:** Not started
-- **Notes for future engineers:** These are the only markdown files permitted in `.github/`. Keep
-  them minimal — the documentation model treats anything longer as content that belongs in the wiki.
-  The Docker and GitHub Actions Dependabot ecosystems are now load-bearing rather than optional: both
-  container base images and every workflow action are pinned by digest or commit SHA, so until this
-  item lands there is nothing proposing those bumps and the pins go stale silently.
+- **Notes for future engineers:** Do not fill this in with placeholder handles to make the file look
+  complete. **GitHub silently ignores a `CODEOWNERS` entry naming a user or team that does not
+  exist, or that lacks write access** — no error, no warning, and the file reads as though the
+  control is in place while requesting review from nobody. That failure mode is the reason this item
+  was left open rather than shipped with invented owners. At the time of writing the organisation
+  has no teams, and the repository has two admins, so any entry must name real accounts. Verify
+  after adding it by opening a pull request touching each guarded path and confirming the expected
+  reviewer is actually requested.
 
-### 4.2 — Parameterize the hard-coded baselines
-
-- **Priority:** P2
-- **Description:** Several policy-bearing values are literals in the Bicep rather than parameters:
-  Log Analytics retention of 365 days, blob and container soft delete of 7 days, the SQL SKU and
-  auto-pause settings, the Cosmos autoscale ceiling of 1000 RU/s, and the Service Bus Premium
-  capacity. Each of them is subject to a pending policy or cost decision, and none can currently
-  differ between `dev` and `pilot`.
-- **Dependencies:** `REVIEW.md` **R-03** (cost), **R-11** (retention and lifecycle windows).
-- **Recommended action:** Promote each value to a parameter with the current literal as its default,
-  and supply per-environment values through the AZD environment. Add the new variables to the
-  Configuration Contract wiki page and to `.env.example`.
-- **Status:** Not started
-- **Notes for future engineers:** The full list of current literals and their locations is in the
-  "Hard-coded baselines in the generated Bicep" table on the Configuration Contract wiki page.
-
-### 4.3 — Confirm the Functions subnet delegation matches the hosting SKU
+### 4.2 — Confirm the Functions subnet delegation matches the hosting SKU
 
 - **Priority:** P2
 - **Description:** `infra/modules/network.bicep` delegates `snet-functions` to
@@ -502,98 +413,7 @@ close that gap.
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
 
-### 4.4 — Harden the foundation validator
-
-- **Priority:** P2
-- **Description:** Code review findings **F-05** and **F-24**. The prohibited-input rule collects
-  parameter names only from operation objects, so a `parameters` list declared at path-item level —
-  a documented OpenAPI construct that applies to every operation — is invisible to it, and a
-  `$ref` parameter has no `name` key and crashes the validator with a `KeyError` instead of an
-  `ERROR:` line. Separately, `document["components"]["schemas"]` and similar direct indexing turn
-  structural drift into a traceback rather than a diagnosis, and the module-level `FAILURES` global
-  is why the four `validate_*` functions have no unit tests: they cannot run without contaminating
-  shared state.
-- **Dependencies:** None. Do this before **T-01** extends validator test coverage further.
-- **Recommended action:** Flatten path-item and operation parameters, and reject `$ref` parameters
-  outright — a fail-closed gate should require inline declarations it can actually read. Scan
-  `requestBody` schemas too. Replace direct indexing with guarded lookups. Have each `validate_*`
-  return its failures rather than appending to a global, so `main()` concatenates and the functions
-  become testable.
-- **Status:** Not started
-- **Notes for future engineers:** The prohibited-input rule is the one keeping person, case, and
-  eligibility parameters out of the catalog API. Widening what it can see is the point of this item.
-
-### 4.5 — Resolve Bicep parameter, naming, and API-version inconsistencies
-
-- **Priority:** P2
-- **Description:** Code review findings **F-15**, **F-16**, **F-20**, **F-21**, and **F-22**. Only
-  `resourceNamePrefix` carries length constraints; `environmentName` does not, yet it flows into
-  `sql-${name}-${suffix}`, and Azure SQL server names permit lowercase, digits, and hyphens only —
-  so `AZURE_ENV_NAME=Dev` fails after the resource group and network have already deployed. Every
-  parameter is environment-substituted, so an unset variable becomes `""`, which ARM treats as
-  supplied and which silently overrides the `location` default. `subnetPrefixes` is an untyped
-  `object`, so a misspelled key fails deep inside the network module. The Service Bus namespace is
-  the only globally-scoped resource named without a `uniqueString` suffix, making deployment depend
-  on whether anyone else has taken `sb-lapluma-dev`. Both queues set
-  `deadLetteringOnMessageExpiration` without a TTL, so the policy can never fire, while the topic
-  sets a TTL without dead-lettering, so expired messages vanish. `sqlDatabase` and the Cosmos
-  database and container carry no tags, though the SQL database holds the authoritative case data.
-  Service Bus and SQL pin preview API versions while everything else uses GA.
-- **Dependencies:** `REVIEW.md` **R-05** (naming convention and tag granularity), **R-11** (the TTL
-  values, not the structural fix).
-- **Recommended action:** Add length constraints and a user-defined type for `subnetPrefixes`, and
-  apply `toLower()` where `environmentName` composes a resource name. Give the Service Bus namespace
-  the stem-plus-suffix treatment its siblings use. Give the queues an explicit TTL and the topic
-  dead-lettering. Tag the SQL database and the Cosmos database and container. Move to GA API
-  versions unless a preview-only property is required, and comment the pin if one is.
-- **Status:** Not started
-- **Notes for future engineers:** `infra/main.bicep` names a symbolic resource `resourceGroup`,
-  shadowing the built-in function. It is legal at subscription scope and compiles, but reads as a
-  mistake — rename it while you are in the file. The linter runs at `error` for twenty rules, so
-  removing the last use of a parameter will fail the build under `no-unused-params`.
-
-### 4.6 — Inventory the runtime app settings the validator cannot see
-
-- **Priority:** P2
-- **Description:** Code review finding **F-18**. `ACQUISITION_SCHEDULE`, `DURABLE_TASK_HUB_NAME`,
-  and `PORT` are consumed by the reviewed code and appear in no machine-checked inventory.
-  `validate_env_example` enforces bidirectional parity between `.env.example` and
-  `infra/main.parameters.json`, which structurally covers only the Bicep parameter half of the
-  configuration contract. All three are documented on the Configuration Contract wiki page, which
-  is unpublished and unverified by any tool. Two of the three are required for the Functions host to
-  start at all. `worker.py` also parses `PORT` with no guard, so a non-numeric value crashes at
-  startup with a traceback.
-- **Dependencies:** `REVIEW.md` **R-16** for the `ACQUISITION_SCHEDULE` value, not for the
-  inventory or the validation.
-- **Recommended action:** Extend the validator to scan `%NAME%` references under `src/functions/`
-  and `os.environ` reads under `src/`, and require each to appear in a declared inventory. Guard the
-  `PORT` parse with an explicit range check.
-- **Status:** Not started
-- **Notes for future engineers:** Adding these three to `.env.example` as-is will trip the existing
-  parity check, which requires every declared name to be substituted by a Bicep parameter. Either
-  give app settings their own section the parity check skips, or introduce a separate inventory
-  file — the code review proposed `CHECKLIST.md`, which the Documentation Standards wiki page does
-  not currently permit, so that is a documentation-model decision before it is an engineering one.
-
-### 4.7 — Harden the processing worker health listener
-
-- **Priority:** P3
-- **Description:** Code review finding **F-23**. `BaseHTTPRequestHandler.timeout` defaults to
-  `None` and `ThreadingHTTPServer` spawns an uncapped thread per connection, so a client sending
-  partial request lines holds threads open indefinitely. `send_error` emits an HTML body and a
-  `Server: BaseHTTP/0.6 Python/3.12.x` header, disclosing the interpreter version and using a
-  different content type from the JSON success path. There is no SIGTERM handler or `server_close`,
-  so container stop is an abrupt teardown.
-- **Dependencies:** None.
-- **Recommended action:** Set `timeout`, override `server_version` and `sys_version` to suppress the
-  banner, return JSON for the 404 path, and add graceful shutdown. Setting
-  `protocol_version = "HTTP/1.1"` requires an accurate `Content-Length` on every response, which the
-  success path already sends.
-- **Status:** Not started
-- **Notes for future engineers:** Low impact — the processing zone has no public ingress and the
-  probe traffic is platform-generated. Worth doing because each is a one-liner in a file that is
-  otherwise carefully considered. Add no dependencies; the zero-third-party-dependency guarantee for
-  this image is architectural.
+---
 
 ---
 
@@ -674,7 +494,15 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** The orchestrator returns `activatedEditionCount: 0`. That zero is
   an assertion about behaviour, not a placeholder — keep it, and add a test that fails if any code
-  path can make it non-zero.
+  path can make it non-zero. `propose_acquisition_batch` now requires the exact key set
+  `REQUIRED_REQUEST_KEYS`, and a test reads the timer trigger's `client_input` keys out of
+  `function_app.py` to confirm the two agree. If this item adds a field to the orchestration input,
+  add it to that constant in the same change or the test fails — which is the point, since the
+  input is persisted to the task hub and replayed. The `domain-events` topic carries a 14-day TTL
+  but no dead-letter policy, because `deadLetteringOnMessageExpiration` belongs to
+  `Microsoft.ServiceBus/namespaces/topics/subscriptions` and no subscription is modelled yet — every
+  subscription this item adds must set it, or messages that reach the TTL are discarded with no
+  trace. Item 4.4 left the comment in `infra/modules/messaging.bicep` marking the spot.
 
 ### 5.5 — Implement the UPL classifier and its fail-closed gate
 

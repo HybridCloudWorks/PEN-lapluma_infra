@@ -8,7 +8,26 @@ permissions:
   contents: read
 
 jobs:
+  guard:
+    name: Duplicate run guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.guard.outputs.proceed }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Decide whether this run duplicates the pull_request run
+        id: guard
+        uses: ./.github/actions/duplicate-run-guard
+
   validate:
+    needs: guard
+    if: needs.guard.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
