@@ -8,6 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 // over a globally registered converter, so the global one never applied to any existing enum while
 // making a new enum added without those attributes look handled — it would quietly serialise in
 // PascalCase instead of failing visibly.
+// ASP.NET Core's request logging emits the full URL, query string included, at Information — on by
+// default. Telemetry here must be content-free, so those two categories are raised to Warning: the
+// service logs every rejection itself with a correlation identifier and no request content, which
+// is the signal worth keeping. Warnings and errors from both categories still come through.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
+
 builder.Services.AddSingleton<CatalogRepository>();
 
 var app = builder.Build();
