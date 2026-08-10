@@ -8,18 +8,35 @@ from __future__ import annotations
 
 import json
 import os
+import signal
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from types import FrameType
 
 from contracts import CONTRACT_VERSION
 
 
 SERVICE_NAME = "document-processing"
 
+# A request that stalls mid-line would otherwise hold its thread indefinitely, and
+# ThreadingHTTPServer caps nothing.
+REQUEST_TIMEOUT_SECONDS = 5
+
 
 class HealthHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    timeout = REQUEST_TIMEOUT_SECONDS
+
+    # Suppress the default banner. The interpreter's patch version is not something a probe
+    # endpoint needs to announce.
+    server_version = SERVICE_NAME
+    sys_version = ""
+
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         if self.path not in {"/health", "/ready"}:
-            self.send_error(404)
+            # Not send_error: that renders an HTML body, so the same endpoint would answer in two
+            # content types depending on the path it was asked for.
+            self._respond(404, b"")
             return
 
         status = "ready" if self.path == "/ready" else "ok"
@@ -27,22 +44,51 @@ class HealthHandler(BaseHTTPRequestHandler):
             {"status": status, "service": SERVICE_NAME, "version": CONTRACT_VERSION},
             separators=(",", ":"),
         ).encode("utf-8")
-        self.send_response(200)
+        self._respond(200, payload)
+
+    def _respond(self, status: int, payload: bytes) -> None:
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        # HTTP/1.1 keep-alive requires an accurate length on every response, including empty ones.
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
-        self.wfile.write(payload)
+        if payload:
+            self.wfile.write(payload)
+
+    def version_string(self) -> str:
+        # The default joins server_version and sys_version, which leaves a trailing separator once
+        # the interpreter version is blanked.
+        return SERVICE_NAME
 
     def log_message(self, format: str, *args: object) -> None:
         # Do not emit paths, query strings, document IDs, or free text from health traffic.
         return
 
 
+def resolve_port(environ: dict[str, str] | None = None) -> int:
+    """Read PORT, refusing anything that is not a usable port rather than crashing on int()."""
+    raw = (environ if environ is not None else os.environ).get("PORT", "8080")
+    if not raw.isdigit() or not 1 <= int(raw) <= 65535:
+        raise SystemExit(f"PORT must be an integer between 1 and 65535, not {raw!r}")
+    return int(raw)
+
+
 def main() -> None:
-    port = int(os.environ.get("PORT", "8080"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), HealthHandler)
-    server.serve_forever()
+    server = ThreadingHTTPServer(("0.0.0.0", resolve_port()), HealthHandler)
+
+    def shut_down(signal_number: int, frame: FrameType | None) -> None:
+        del signal_number, frame
+        # Container stop sends SIGTERM. Close the listener so in-flight probes finish rather than
+        # being severed.
+        server.shutdown()
+
+    signal.signal(signal.SIGTERM, shut_down)
+    signal.signal(signal.SIGINT, shut_down)
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
