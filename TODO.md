@@ -369,25 +369,30 @@ close that gap.
 
 ## Phase 4 — Technical debt
 
-### 4.1 — Add repository governance files
+### 4.1 — Add `CODEOWNERS` once the approval owners are named
 
 - **Priority:** P2
-- **Description:** The repository has no `CODEOWNERS`, no Dependabot configuration, no pull-request
-  template, no `SECURITY.md`, no `CONTRIBUTING.md`, and no licence file. For a repository whose
-  design depends on two-person approval of field maps and on named security and privacy owners, the
-  absence of `CODEOWNERS` is the most significant gap.
-- **Dependencies:** `REVIEW.md` **R-04** (named owners) for `CODEOWNERS` content.
-- **Recommended action:** Add `.github/CODEOWNERS` requiring review from the platform owner for
-  `infra/`, the security owner for `infra/modules/security.bicep`, and the catalog and compliance
-  owners for `contracts/`. Add `.github/dependabot.yml` for NuGet, pip, Docker, and GitHub Actions.
-  Add a minimal PR template, `SECURITY.md`, `CONTRIBUTING.md`, and a licence. Keep each one short
-  and link to the wiki rather than restating content.
+- **Description:** The rest of the governance set landed — `.github/dependabot.yml`,
+  `.github/pull_request_template.md`, `.github/SECURITY.md`, `.github/CONTRIBUTING.md`, and an
+  Apache-2.0 `LICENSE` with `NOTICE`. `CODEOWNERS` did not, and it is the one that matters most:
+  the design depends on two-person approval of field maps and on named security and privacy owners,
+  and nothing enforces either today.
+- **Dependencies:** `REVIEW.md` **R-04** (named owners). This is a hard block, not a soft one — see
+  the notes.
+- **Recommended action:** Once R-04 names the owners and their GitHub identities exist, add
+  `.github/CODEOWNERS` requiring review from the platform owner for `infra/`, the security owner for
+  `infra/modules/security.bicep`, and the catalog and compliance owners for `contracts/`. Then turn
+  on "Require review from Code Owners" in branch protection, without which the file only requests
+  review and never blocks a merge.
 - **Status:** Not started
-- **Notes for future engineers:** These are the only markdown files permitted in `.github/`. Keep
-  them minimal — the documentation model treats anything longer as content that belongs in the wiki.
-  The Docker and GitHub Actions Dependabot ecosystems are now load-bearing rather than optional: both
-  container base images and every workflow action are pinned by digest or commit SHA, so until this
-  item lands there is nothing proposing those bumps and the pins go stale silently.
+- **Notes for future engineers:** Do not fill this in with placeholder handles to make the file look
+  complete. **GitHub silently ignores a `CODEOWNERS` entry naming a user or team that does not
+  exist, or that lacks write access** — no error, no warning, and the file reads as though the
+  control is in place while requesting review from nobody. That failure mode is the reason this item
+  was left open rather than shipped with invented owners. At the time of writing the organisation
+  has no teams, and the repository has two admins, so any entry must name real accounts. Verify
+  after adding it by opening a pull request touching each guarded path and confirming the expected
+  reviewer is actually requested.
 
 ### 4.2 — Parameterize the hard-coded baselines
 
