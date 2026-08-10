@@ -27,6 +27,18 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The prohibited-input rule now sees every parameter declaration. It collected names from operation
+  objects only, so a `parameters` list declared at path-item level — a documented OpenAPI construct
+  that applies to every operation beneath it — was invisible, and a `caseId` declared that way
+  walked past the rule that exists to keep person, case, and eligibility identifiers out of the
+  catalog API. A `$ref` parameter has no `name`, so the old code raised `KeyError` and CI failed
+  with a traceback rather than a diagnosis; such declarations are now rejected, because a gate that
+  cannot read a declaration must not pass it. Request bodies are rejected outright, since no catalog
+  operation declares one.
+- Structural drift in the contract now produces a diagnosis rather than a traceback: the remaining
+  direct dictionary indexing in the validator is guarded. Each check owns its failures instead of
+  appending to a module-level global, so a check can run twice, or alone, without inheriting
+  another's results — which is why these functions previously had no unit tests.
 - Request logging no longer emits the URL. ASP.NET Core's `Hosting.Diagnostics` logs the full
   request URL including the query string at `Information`, on by default, which the content-free
   telemetry constraint does not allow. That category and `Microsoft.AspNetCore.Routing` are raised

@@ -106,6 +106,76 @@ class ScanForSecretsTests(unittest.TestCase):
         self.assertEqual(findings, [])
 
 
+class ParameterCollectionTests(unittest.TestCase):
+    """The rule that keeps person, case, and eligibility identifiers out of the catalog API.
+
+    It is only as good as what it can see, so these test what it collects rather than only that it
+    passes against the current contract.
+    """
+
+    def test_operation_level_parameters_are_collected(self) -> None:
+        names, failures = validate_foundation.collect_parameter_names(
+            {"/v1/catalog/packages": {"get": {"parameters": [{"name": "categoryCode", "in": "query"}]}}}
+        )
+
+        self.assertEqual(names, {"categorycode"})
+        self.assertEqual(failures, [])
+
+    def test_path_item_level_parameters_are_collected(self) -> None:
+        # OpenAPI permits `parameters` as a sibling of `get`, applying to every operation beneath
+        # it. Reading operations alone missed these, so a prohibited input declared this way
+        # walked straight past the gate.
+        names, failures = validate_foundation.collect_parameter_names(
+            {
+                "/v1/catalog/packages": {
+                    "parameters": [{"name": "caseId", "in": "query"}],
+                    "get": {"parameters": [{"name": "categoryCode", "in": "query"}]},
+                }
+            }
+        )
+
+        self.assertEqual(names, {"caseid", "categorycode"})
+        self.assertEqual(failures, [])
+
+    def test_a_ref_parameter_is_rejected_rather_than_crashing(self) -> None:
+        # A $ref declaration has no `name`; the previous code indexed it and died with a KeyError,
+        # so CI failed with a traceback instead of a diagnosis.
+        names, failures = validate_foundation.collect_parameter_names(
+            {"/v1/catalog/packages": {"get": {"parameters": [{"$ref": "#/components/parameters/CaseId"}]}}}
+        )
+
+        self.assertEqual(names, set())
+        self.assertEqual(len(failures), 1)
+        self.assertIn("declared inline", failures[0])
+
+    def test_a_parameter_without_a_name_is_reported(self) -> None:
+        _, failures = validate_foundation.collect_parameter_names(
+            {"/v1/catalog/packages": {"get": {"parameters": [{"in": "query"}]}}}
+        )
+
+        self.assertEqual(len(failures), 1)
+        self.assertIn("declares no name", failures[0])
+
+    def test_every_prohibited_input_would_be_caught_at_path_item_level(self) -> None:
+        for prohibited in validate_foundation.PROHIBITED_INPUTS:
+            with self.subTest(prohibited=prohibited):
+                names, _ = validate_foundation.collect_parameter_names(
+                    {"/v1/catalog/packages": {"parameters": [{"name": prohibited, "in": "query"}]}}
+                )
+                self.assertIn(prohibited, names)
+
+
+class ChecksAreIndependentTests(unittest.TestCase):
+    def test_running_a_check_twice_does_not_accumulate_failures(self) -> None:
+        # Each check owns its failures now. With a module-level global, a second run inherited the
+        # first run's results, which is why these functions had no unit tests.
+        first = validate_foundation.validate_openapi()
+        second = validate_foundation.validate_openapi()
+
+        self.assertEqual(list(first), list(second))
+        self.assertEqual(list(first), [])
+
+
 class CatalogInvariantTests(unittest.TestCase):
     """The catalog rules must reject semantic drift, not merely the absence of a literal.
 
