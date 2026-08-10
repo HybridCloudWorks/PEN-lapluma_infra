@@ -27,6 +27,16 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The acquisition contract rejects an unknown key instead of ignoring it.
+  `propose_acquisition_batch` read two keys with `.get()` and ignored everything else, while its
+  sibling in the processing zone computed an exact key-set difference and had a test proving an
+  injected `approve` key fails closed — two contract modules taking opposite positions on the same
+  question at the same kind of boundary. The request is now checked as a whole shape. This matters
+  beyond consistency: the dict is the Durable Functions orchestration input, which is persisted to
+  the task hub and replayed, so a personal or case field reaching this function would be written to
+  durable storage. `host.json`'s `traceInputsAndOutputs: false` suppresses tracing, not history.
+  `requestedAt` is required and must parse as ISO 8601, and a test reads the timer trigger's
+  `client_input` keys out of `function_app.py` so the caller and the contract cannot drift apart.
 - The processing zone's request contract is validated rather than prefix-matched. The blob URIs
   that bound which single object the isolated worker may touch were checked only for an `https://`
   prefix, which accepted a URI with no host at all, an arbitrary external host, a shared-access

@@ -15,7 +15,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | Phase | Theme | Items |
 |-------|-------|-------|
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.8 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.7 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.8 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
@@ -236,29 +236,7 @@ close that gap.
   install script at run time, which is unpinned and was observed failing outright here. Scanning a
   `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
 
-### 2.6 — Reject unknown keys in the acquisition contract
-
-- **Priority:** P2
-- **Description:** Code review finding **F-09**. `propose_acquisition_batch` in
-  `src/functions/acquisition_contract.py` reads two keys with `.get()` and ignores every other key
-  in the request. Its sibling, `ProcessingRequest.from_mapping`, computes an exact key-set
-  difference and rejects anything unknown — and a test exists specifically to prove an injected
-  `approve` key fails closed. The two contract modules take opposite positions on the same question
-  at the same kind of boundary. This dict is also the Durable Functions orchestrator input, and
-  orchestration inputs are persisted to the task hub and replayed, so any personal or case field
-  reaching this function is written to durable history. `host.json`'s `traceInputsAndOutputs: false`
-  suppresses tracing, not history.
-- **Dependencies:** None.
-- **Recommended action:** Compute the exact required key set and reject both unknown and missing
-  keys, mirroring `contracts.py`. Add the test in **T-06**, asserting an extra `approve` or
-  `personId` key raises.
-- **Notes for future engineers:** `tools/validate_foundation.py` requires each of the four approved
-  form IDs to appear in this file; `PRIORITY_FORM_IDS` and `PRIORITY_FORMS` are untouched by this
-  change. Today the only caller is the timer trigger, which builds its own input — this matters the
-  moment an externally-startable orchestration exists.
-- **Status:** Not started
-
-### 2.7 — Replace the Functions host shared-key auth default
+### 2.6 — Replace the Functions host shared-key auth default
 
 - **Priority:** P2
 - **Description:** Code review finding **F-17**. `src/functions/function_app.py` constructs
@@ -278,7 +256,7 @@ close that gap.
 - **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
   network restriction and APIM fronting are both in place — land it with 1.2, not before.
 
-### 2.8 — Extend secret-scan coverage and tighten the build context
+### 2.7 — Extend secret-scan coverage and tighten the build context
 
 - **Priority:** P2
 - **Description:** Code review findings **F-30** and **F-25**. The scanner's Azure storage
@@ -674,7 +652,11 @@ close that gap.
 - **Status:** Not started
 - **Notes for future engineers:** The orchestrator returns `activatedEditionCount: 0`. That zero is
   an assertion about behaviour, not a placeholder — keep it, and add a test that fails if any code
-  path can make it non-zero.
+  path can make it non-zero. `propose_acquisition_batch` now requires the exact key set
+  `REQUIRED_REQUEST_KEYS`, and a test reads the timer trigger's `client_input` keys out of
+  `function_app.py` to confirm the two agree. If this item adds a field to the orchestration input,
+  add it to that constant in the same change or the test fails — which is the point, since the
+  input is persisted to the task hub and replayed.
 
 ### 5.5 — Implement the UPL classifier and its fail-closed gate
 
