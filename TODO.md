@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.4 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.3 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -421,35 +421,6 @@ close that gap.
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
 
-### 4.4 — Resolve Bicep parameter, naming, and API-version inconsistencies
-
-- **Priority:** P2
-- **Description:** Code review findings **F-15**, **F-16**, **F-20**, **F-21**, and **F-22**. Only
-  `resourceNamePrefix` carries length constraints; `environmentName` does not, yet it flows into
-  `sql-${name}-${suffix}`, and Azure SQL server names permit lowercase, digits, and hyphens only —
-  so `AZURE_ENV_NAME=Dev` fails after the resource group and network have already deployed. Every
-  parameter is environment-substituted, so an unset variable becomes `""`, which ARM treats as
-  supplied and which silently overrides the `location` default. `subnetPrefixes` is an untyped
-  `object`, so a misspelled key fails deep inside the network module. The Service Bus namespace is
-  the only globally-scoped resource named without a `uniqueString` suffix, making deployment depend
-  on whether anyone else has taken `sb-lapluma-dev`. Both queues set
-  `deadLetteringOnMessageExpiration` without a TTL, so the policy can never fire, while the topic
-  sets a TTL without dead-lettering, so expired messages vanish. `sqlDatabase` and the Cosmos
-  database and container carry no tags, though the SQL database holds the authoritative case data.
-  Service Bus and SQL pin preview API versions while everything else uses GA.
-- **Dependencies:** `REVIEW.md` **R-05** (naming convention and tag granularity), **R-11** (the TTL
-  values, not the structural fix).
-- **Recommended action:** Add length constraints and a user-defined type for `subnetPrefixes`, and
-  apply `toLower()` where `environmentName` composes a resource name. Give the Service Bus namespace
-  the stem-plus-suffix treatment its siblings use. Give the queues an explicit TTL and the topic
-  dead-lettering. Tag the SQL database and the Cosmos database and container. Move to GA API
-  versions unless a preview-only property is required, and comment the pin if one is.
-- **Status:** Not started
-- **Notes for future engineers:** `infra/main.bicep` names a symbolic resource `resourceGroup`,
-  shadowing the built-in function. It is legal at subscription scope and compiles, but reads as a
-  mistake — rename it while you are in the file. The linter runs at `error` for twenty rules, so
-  removing the last use of a parameter will fail the build under `no-unused-params`.
-
 ---
 
 ## Phase 5 — Feature enhancements
@@ -533,7 +504,11 @@ close that gap.
   `REQUIRED_REQUEST_KEYS`, and a test reads the timer trigger's `client_input` keys out of
   `function_app.py` to confirm the two agree. If this item adds a field to the orchestration input,
   add it to that constant in the same change or the test fails — which is the point, since the
-  input is persisted to the task hub and replayed.
+  input is persisted to the task hub and replayed. The `domain-events` topic carries a 14-day TTL
+  but no dead-letter policy, because `deadLetteringOnMessageExpiration` belongs to
+  `Microsoft.ServiceBus/namespaces/topics/subscriptions` and no subscription is modelled yet — every
+  subscription this item adds must set it, or messages that reach the TTL are discarded with no
+  trace. Item 4.4 left the comment in `infra/modules/messaging.bicep` marking the spot.
 
 ### 5.5 — Implement the UPL classifier and its fail-closed gate
 

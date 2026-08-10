@@ -11,7 +11,9 @@ var suffix = take(uniqueString(subscription().id, resourceGroup().id, name), 6)
 // environment name still participates in the suffix without leaking unsafe characters.
 var compactName = 'lapluma'
 
-resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
+// GA API versions throughout. A preview version can change shape or be withdrawn between
+// deployments, which turns an unrelated redeploy into a failed one.
+resource sqlServer 'Microsoft.Sql/servers@2023-08-01' = {
   name: 'sql-${name}-${suffix}'
   location: location
   tags: tags
@@ -30,10 +32,11 @@ resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
   }
 }
 
-resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-05-01-preview' = {
+resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01' = {
   parent: sqlServer
   name: 'lapluma'
   location: location
+  tags: tags
   sku: {
     name: 'GP_S_Gen5'
     tier: 'GeneralPurpose'
@@ -67,12 +70,14 @@ resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
 resource projectionsDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = {
   parent: cosmos
   name: 'derived'
+  tags: tags
   properties: { resource: { id: 'derived' } }
 }
 
 resource projectionsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
   parent: projectionsDatabase
   name: 'case-projections'
+  tags: tags
   properties: {
     resource: {
       id: 'case-projections'

@@ -27,6 +27,26 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Bicep parameters, naming, and API versions are consistent, and the failures they permitted now
+  fail at parameter validation instead of mid-deployment. Every parameter is environment-substituted
+  by AZD, and an unset variable substitutes to the empty string, which ARM treats as supplied — so
+  an empty string silently overrode a default rather than falling back to it. Each string parameter,
+  including all five subnet prefixes, now carries a minimum length. `environmentName` gained length
+  bounds and is lowercased where it composes a resource name, because it flows into
+  `sql-${name}-${suffix}` and Azure SQL server names permit only lowercase letters, digits, and
+  hyphens: `AZURE_ENV_NAME=Dev` previously failed after the resource group and network had already
+  deployed. `subnetPrefixes` is a user-defined type rather than an untyped `object`, so a misspelled
+  key is a compile error naming the key instead of a failure deep inside the network module. The
+  Service Bus namespace was the only globally scoped resource named without a `uniqueString` suffix
+  and now matches its Key Vault, Cosmos, SQL, and storage siblings, so deployment no longer depends
+  on whether anyone else has taken `sb-lapluma-dev`. Both queues set `deadLetteringOnMessageExpiration`
+  with no TTL, which meant the default was effectively infinite and the dead-letter policy could
+  never fire; they now carry an explicit seven-day window pending `REVIEW.md` **R-11**. The SQL
+  database and the Cosmos database and container are tagged — the remaining untagged resources are
+  ARM proxy types whose definitions have no `tags` property at all, which was confirmed rather than
+  assumed. Service Bus and SQL moved off preview API versions to GA, leaving no preview pin anywhere
+  in `infra/`. `infra/main.bicep` no longer names a symbolic resource `resourceGroup`, shadowing the
+  built-in function.
 - Runtime application settings are inventoried and checked. `ACQUISITION_SCHEDULE`,
   `DURABLE_TASK_HUB_NAME`, and `PORT` are consumed by the services but appeared in no
   machine-checked inventory — the existing `.env.example` parity rule covers only the Bicep
