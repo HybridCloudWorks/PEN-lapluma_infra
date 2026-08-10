@@ -34,15 +34,23 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.13
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Set up .NET 10
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
+
+      - name: Resolve the Functions requirements
+        # Nothing else installs this file — not a test, not a build — so an unsatisfiable pin is
+        # otherwise invisible. That is not hypothetical: azure-functions 2.x requires Python >=3.13
+        # while the 1.x line caps at <3.13, and the pin was raised across that boundary by an
+        # automated update whose checks all passed. Resolving against the interpreter CI actually
+        # uses is what turns that into a failure here rather than a surprise at deployment.
+        run: python -m pip install --dry-run --quiet -r src/functions/requirements.txt
 
       - name: Validate contracts, priorities, placeholders, and secret absence
         run: python tools/validate_foundation.py
