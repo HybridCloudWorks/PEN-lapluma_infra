@@ -187,7 +187,10 @@ as `ENTRA_API_AUDIENCE`, and confirm `ENTRA_STAFF_TENANT_ID`.
 safely and the iOS client has nothing to authenticate against.
 
 **References.** Identity and public interface table on the Configuration Contract wiki page; Edge
-zone on the Architecture Overview wiki page. Related engineering work: `TODO.md` item **2.3**.
+zone on the Architecture Overview wiki page. The Core API's own JWT validation is built and fails
+closed, so this item supplies the audience and issuer it validates against rather than gating
+whether it validates at all; until then no catalog request can succeed. `TODO.md` item **1.1**
+(the API Management edge) is the remaining engineering work.
 
 **Recommended next step.** Identity owner drafts the registration design for security review, then
 provisions the registrations in the tenant confirmed in R-01.

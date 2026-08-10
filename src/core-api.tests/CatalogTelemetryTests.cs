@@ -161,6 +161,7 @@ public sealed class CatalogTelemetryTests
             // Trace, so anything the application permits at any level is captured. Category
             // filters configured by the application still apply, which is the point: if those
             // filters are removed, the suppressed request logging reappears here.
+            builder.WithAuthenticationConfigured().WithTestAuthentication();
             builder.ConfigureLogging(logging =>
                 logging.SetMinimumLevel(LogLevel.Trace).AddProvider(provider));
             if (breakCatalog)

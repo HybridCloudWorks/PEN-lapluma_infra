@@ -61,6 +61,16 @@ param auditStorageSku string = 'Standard_ZRS'
 ])
 param defaultStorageSku string = 'Standard_LRS'
 
+@description('''
+Immutability window for the audit container, in days. The audit account is described as holding
+immutable evidence and was configured identically to the other three: deletion evidence that can be
+deleted is not evidence. Proposed retention is seven years, pending REVIEW.md R-11.
+''')
+@minValue(1)
+@maxValue(146000)
+param auditImmutabilityDays int = 2555
+
+
 var suffix = take(uniqueString(subscription().id, resourceGroup().id, name), 6)
 // Globally scoped names use only a fixed safe stem plus uniqueString output. The reviewed
 // environment name still participates in the suffix without leaking unsafe characters.
@@ -180,6 +190,28 @@ resource purposeContainers 'Microsoft.Storage/storageAccounts/blobServices/conta
   properties: { publicAccess: 'None' }
 }]
 
+// WORM on the audit container only. The other three hold working material that retention and
+// erasure policy must be able to remove — an immutability policy there would collide with the
+// erasure obligation rather than support it.
+//
+// This policy is created UNLOCKED, and there is deliberately no parameter offering to lock it.
+// Locking is not a declarative property: ARM exposes it as an explicit action on the policy
+// (`az storage container immutability-policy lock`), so a `lock: true` here would be a setting that
+// reads like a guarantee and enforces nothing. An unlocked policy can still be shortened or removed,
+// which is exactly why the lock is a deliberate, irreversible, out-of-band step taken in `staging`
+// and `pilot` once REVIEW.md R-11 ratifies the period — and never in `dev`, where test data has to
+// be removable. TODO.md carries the runbook step.
+resource auditImmutability 'Microsoft.Storage/storageAccounts/blobServices/containers/immutabilityPolicies@2023-05-01' = {
+  parent: purposeContainers[indexOf(storagePurposes, 'audit')]
+  name: 'default'
+  properties: {
+    immutabilityPeriodSinceCreationInDays: auditImmutabilityDays
+    // Protects append-only evidence written over time rather than only whole blobs.
+    allowProtectedAppendWrites: true
+  }
+}
+
+output auditImmutabilityDays int = auditImmutabilityDays
 output sqlServerName string = sqlServer.name
 output sqlDatabaseName string = sqlDatabase.name
 output cosmosEndpoint string = cosmos.properties.documentEndpoint

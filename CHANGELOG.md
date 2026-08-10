@@ -50,6 +50,49 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The Core API is no longer anonymous. Every catalog endpoint accepted every request; the design
+  terminates JWT validation at the API Management edge, and a service whose only protection is an
+  upstream gateway fails open the moment anything reaches it directly — which, inside the core
+  subnet, plenty can. `src/core-api/CatalogAuthentication.cs` adds bearer validation and a policy
+  applied to the `/v1/catalog` group, so a route added later inherits it instead of having to
+  remember it. `/health` and `/ready` stay anonymous: an orchestrator holds no token, and a probe
+  that needed one would report the identity provider's health rather than this service's.
+
+  It **fails closed**. With no audience and issuer configured there is nothing to validate a token
+  against, so the policy denies outright rather than falling back to accepting whatever arrives.
+  Without that explicit deny the service would still reject unsigned tokens, but any scheme
+  registered later — a test handler, a developer's convenience shim — would sail straight through. A
+  test asserts that an authenticated caller is still refused by an unconfigured deployment.
+
+  Adding the lock broke 27 of the 49 existing tests, which is the evidence that it is real: the 22
+  that survived were the health, readiness, and contract tests that never touched the catalog. Those
+  27 now authenticate through a test scheme, because they are about catalog behaviour rather than
+  about the lock; the lock has its own tests.
+
+  One bug surfaced while writing them. `UseStatusCodePages` inspects the response on the way out, so
+  it only sees what was produced *below* it. Registered above authentication, the 401 travelled
+  outward past it and reached the client as a bare status code — every other failure carrying a
+  problem document and that one not. The middleware order is now explicit and commented, and the
+  test that caught it asserts the 401 body.
+- Network security groups carry rules. Four of the five had none at all, which left the AI zone with
+  unrestricted outbound internet access; each now carries a baseline internet deny. The processing
+  group additionally denies the `Sql` and `AzureCosmosDB` service tags and the private-endpoint
+  subnet prefix, closing code review finding **F-04**: an NSG carries an implicit
+  `AllowVnetOutBound` at priority 65000 and every private endpoint sits inside this VNet, so the
+  existing `DenyInternetEgress` never covered a processing replica reaching the database endpoints —
+  that traffic is intra-VNet and the internet rule does not apply to it. Rule structure is authored
+  here; the destination addresses for an allowlist are `REVIEW.md` **R-09** and are not invented.
+- The audit container carries a time-based immutability policy, with the window parameterized and
+  defaulting to seven years pending **R-11**, and `allowProtectedAppendWrites` so evidence appended
+  over time stays protected. Only the audit container: the other three hold working material that
+  retention and erasure policy has to be able to remove, and a policy there would collide with the
+  erasure obligation rather than support it.
+
+  The policy is created **unlocked**, and there is deliberately no parameter offering to lock it.
+  Locking is not a declarative property — ARM exposes it as an explicit action on the policy — so a
+  `lock: true` in the template would read like a guarantee and enforce nothing. It is an
+  irreversible out-of-band step for `staging` and `pilot` once R-11 ratifies the period, and never
+  for `dev`.
 - The foundation can now function once provisioning is unlocked. Four P0 gaps closed together,
   because each was load-bearing for the next.
 

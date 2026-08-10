@@ -10,11 +10,14 @@ namespace LaPluma.CoreApi.Tests;
 /// End-to-end tests over the real request pipeline, so serialization, routing, parameter binding,
 /// and status codes are all exercised rather than the handler bodies alone.
 /// </summary>
-public sealed class CatalogApiTests : IClassFixture<WebApplicationFactory<global::Program>>
+// AuthenticatedFactory, not a bare WebApplicationFactory: the catalog group now requires
+// authorization, and these tests are about catalog behaviour rather than about the lock. The tests
+// that exercise the lock itself are in CatalogAuthorizationTests.
+public sealed class CatalogApiTests : IClassFixture<AuthenticatedFactory>
 {
-    private readonly WebApplicationFactory<global::Program> factory;
+    private readonly AuthenticatedFactory factory;
 
-    public CatalogApiTests(WebApplicationFactory<global::Program> factory) => this.factory = factory;
+    public CatalogApiTests(AuthenticatedFactory factory) => this.factory = factory;
 
     private HttpClient Client() => factory.CreateClient();
 

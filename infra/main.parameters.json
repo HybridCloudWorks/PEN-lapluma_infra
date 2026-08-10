@@ -48,7 +48,8 @@
         "blobSoftDeleteDays": "${LAPLUMA_BLOB_SOFT_DELETE_DAYS}",
         "containerSoftDeleteDays": "${LAPLUMA_CONTAINER_SOFT_DELETE_DAYS}",
         "keyVaultSoftDeleteDays": "${LAPLUMA_KEY_VAULT_SOFT_DELETE_DAYS}",
-        "hsmSoftDeleteDays": "${LAPLUMA_HSM_SOFT_DELETE_DAYS}"
+        "hsmSoftDeleteDays": "${LAPLUMA_HSM_SOFT_DELETE_DAYS}",
+        "auditImmutabilityDays": "${LAPLUMA_AUDIT_IMMUTABILITY_DAYS}"
       }
     },
     "capacity": {
