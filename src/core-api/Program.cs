@@ -8,6 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 // over a globally registered converter, so the global one never applied to any existing enum while
 // making a new enum added without those attributes look handled — it would quietly serialise in
 // PascalCase instead of failing visibly.
+// ASP.NET Core's request logging emits the full URL, query string included, at Information — on by
+// default. Telemetry here must be content-free, so those two categories are raised to Warning: the
+// service logs every rejection itself with a correlation identifier and no request content, which
+// is the signal worth keeping. Warnings and errors from both categories still come through.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
+
 builder.Services.AddSingleton<CatalogRepository>();
 
 var app = builder.Build();
@@ -24,14 +31,35 @@ app.UseStatusCodePages(async context =>
     }
 
     var problem = CatalogProblem.Create(
-        "request-invalid", "Request is invalid", response.StatusCode);
+        context.HttpContext, "request-invalid", "Request is invalid", response.StatusCode);
     await response.WriteAsJsonAsync(problem, options: null, contentType: CatalogProblem.ContentType);
 });
 
 app.MapGet("/health", () =>
     Results.Ok(new HealthResponse("ok", ServiceMetadata.Name, ServiceMetadata.Version)));
-app.MapGet("/ready", () =>
-    Results.Ok(new HealthResponse("ready", ServiceMetadata.Name, ServiceMetadata.Version)));
+// Readiness resolves the repository rather than answering from a literal. CatalogRepository
+// initialises its fixture in a static constructor that throws on an unrecognised form number; if
+// that happens, every catalog route returns 500 forever while a literal probe stays green.
+app.MapGet("/ready", (IServiceProvider services, ILoggerFactory loggerFactory) =>
+{
+    try
+    {
+        if (services.GetRequiredService<CatalogRepository>().GetHierarchy().Count > 0)
+        {
+            return Results.Ok(
+                new HealthResponse("ready", ServiceMetadata.Name, ServiceMetadata.Version));
+        }
+    }
+    catch (Exception error)
+    {
+        // Deliberately broad: any failure to construct the catalog means this replica cannot serve
+        // its only purpose, whatever the cause, and readiness must say so rather than propagate.
+        loggerFactory.CreateLogger(CatalogProblem.LogCategory)
+            .LogError(error, "Catalog repository could not be initialised; reporting not ready.");
+    }
+
+    return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+});
 
 var catalog = app.MapGroup("/v1/catalog");
 
@@ -39,6 +67,7 @@ catalog.MapGet("/categories", (CatalogRepository repository) =>
     Results.Ok(new CatalogHierarchyResponse(repository.GetHierarchy())));
 
 catalog.MapGet("/packages", IResult (
+    HttpContext context,
     string? categoryCode,
     string? subcategoryCode,
     string? activationState,
@@ -48,18 +77,18 @@ catalog.MapGet("/packages", IResult (
     // rather than a successful empty catalog indistinguishable from a legitimately empty one.
     if (categoryCode is not null && !CatalogPatterns.CatalogCode().IsMatch(categoryCode))
     {
-        return CatalogProblem.Result("catalog-code-invalid", "categoryCode is invalid", 400);
+        return CatalogProblem.Result(context, "catalog-code-invalid", "categoryCode is invalid", 400);
     }
 
     if (subcategoryCode is not null && !CatalogPatterns.CatalogCode().IsMatch(subcategoryCode))
     {
-        return CatalogProblem.Result("catalog-code-invalid", "subcategoryCode is invalid", 400);
+        return CatalogProblem.Result(context, "catalog-code-invalid", "subcategoryCode is invalid", 400);
     }
 
     if (!TryParseActivationState(activationState, out var parsedActivationState))
     {
         return CatalogProblem.Result(
-            "catalog-activation-invalid", "Activation state is invalid", 400);
+            context, "catalog-activation-invalid", "Activation state is invalid", 400);
     }
 
     var packages = repository.ListPackages(categoryCode, subcategoryCode, parsedActivationState);
@@ -67,17 +96,18 @@ catalog.MapGet("/packages", IResult (
 });
 
 catalog.MapGet("/packages/{packageCode}", IResult (
+    HttpContext context,
     string packageCode,
     CatalogRepository repository) =>
 {
     if (!CatalogPatterns.CatalogCode().IsMatch(packageCode))
     {
-        return CatalogProblem.Result("catalog-code-invalid", "packageCode is invalid", 400);
+        return CatalogProblem.Result(context, "catalog-code-invalid", "packageCode is invalid", 400);
     }
 
     return repository.GetPackage(packageCode) is { } package
         ? Results.Ok(package)
-        : CatalogProblem.Result("catalog-package-not-found", "Catalog package not found", 404);
+        : CatalogProblem.Result(context, "catalog-package-not-found", "Catalog package not found", 404);
 });
 
 catalog.MapGet(
@@ -86,6 +116,7 @@ catalog.MapGet(
     // Framework binding failures produce a text/plain diagnostic in Development and a bare empty
     // 400 in Production, so the error a client sees would depend on the environment.
     IResult (
+        HttpContext context,
         string authority,
         string formId,
         string editionDate,
@@ -94,18 +125,18 @@ catalog.MapGet(
 {
     if (authority.Length is 0 or > 160)
     {
-        return CatalogProblem.Result("catalog-authority-invalid", "authority is invalid", 400);
+        return CatalogProblem.Result(context, "catalog-authority-invalid", "authority is invalid", 400);
     }
 
     if (!CatalogPatterns.FormId().IsMatch(formId))
     {
-        return CatalogProblem.Result("catalog-form-id-invalid", "formId is invalid", 400);
+        return CatalogProblem.Result(context, "catalog-form-id-invalid", "formId is invalid", 400);
     }
 
     if (!CatalogPatterns.SchemaVersion().IsMatch(schemaVersion))
     {
         return CatalogProblem.Result(
-            "catalog-schema-version-invalid", "schemaVersion is invalid", 400);
+            context, "catalog-schema-version-invalid", "schemaVersion is invalid", 400);
     }
 
     if (!DateOnly.TryParseExact(
@@ -113,12 +144,12 @@ catalog.MapGet(
             out var parsedEditionDate))
     {
         return CatalogProblem.Result(
-            "catalog-edition-date-invalid", "editionDate must be an ISO 8601 date", 400);
+            context, "catalog-edition-date-invalid", "editionDate must be an ISO 8601 date", 400);
     }
 
     return repository.GetSchema(authority, formId, parsedEditionDate, schemaVersion) is { } schema
         ? Results.Ok(schema)
-        : CatalogProblem.Result("catalog-schema-not-found", "Catalog schema not found", 404);
+        : CatalogProblem.Result(context, "catalog-schema-not-found", "Catalog schema not found", 404);
 });
 
 app.Run();

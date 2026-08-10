@@ -25,8 +25,187 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - Rewrote `README.md` so it covers only repository purpose, layout, requirements, quick start,
   configuration overview, conventions, and navigation.
 
+### Added
+
+- Repository governance files, all but one of them. `.github/dependabot.yml` watches NuGet, pip,
+  Docker, and GitHub Actions. The last two are load-bearing rather than optional here: every
+  container base image is pinned by digest and every action by commit SHA, so until now nothing
+  proposed those bumps and the pins went stale silently. `.github/pull_request_template.md` is a
+  short checklist of the invariants a change is actually read against — no credentials or applicant
+  identifiers, content-free telemetry, no processing-zone database route, no automated activation,
+  `enableProvisioning` still `false`, and new dependencies pinned. `.github/SECURITY.md` routes
+  reports to GitHub's private advisory flow and names the guarantee classes worth reporting, while
+  scoping out the gaps `REVIEW.md` and `TODO.md` already track. `.github/CONTRIBUTING.md` covers
+  where work is tracked, the commands CI runs, and the two conventions that are easy to miss —
+  verify a fix by breaking it, and record a finding rather than absorbing it into the current
+  change.
+
+  These four sit under `.github/` rather than the repository root. GitHub reads `SECURITY.md` and
+  `CONTRIBUTING.md` from either location, and `.github/` keeps the root at the four markdown files
+  the Documentation Standards allow.
+
+- Apache License 2.0, in a `LICENSE` byte-identical to the canonical text, with the copyright notice
+  in `NOTICE` as the Apache Software Foundation's own guidance directs. A public repository with no
+  licence grants nothing while looking merely unfinished; this states the terms.
+
 ### Fixed
 
+- Policy-bearing baselines are parameters instead of literals, so `dev` and `pilot` can differ
+  without editing Bicep. Twenty-two values moved: Log Analytics retention, blob and container soft
+  delete, Key Vault and Managed HSM soft delete, the SQL SKU with its capacity, minimum capacity and
+  auto-pause delay, the Cosmos autoscale ceiling, both zone-redundancy flags, the audit and default
+  storage redundancy, the Managed HSM SKU, Service Bus capacity and partitions, and the messaging
+  duplicate-detection window, lock duration, delivery count, and both TTLs. Every default reproduces
+  exactly the literal it replaced — this made the baselines adjustable, it did not adjust them, and
+  a check asserts each default against the value it came from.
+
+  AZD substitutes into `infra/main.parameters.json` textually and that file must stay valid JSON,
+  because `tools/validate_foundation.py` parses it. Every substituted value therefore arrives as a
+  string whatever it represents. The parameters are declared as strings at that boundary and
+  converted once in `infra/main.bicep`; the modules take properly typed parameters carrying the
+  range and allowed-value constraints, so an out-of-range value is rejected naming the parameter.
+  Each was probed: 5000 retention days, a one-day Key Vault window, 100 RU/s, a Service Bus capacity
+  of 3, and an invented storage SKU are all refused, while a valid override compiles.
+
+  The four parameter groups are named for the decision that gates their values — retention, capacity,
+  resilience, messaging — rather than for the module that consumes them, so what unblocks a change is
+  visible from the parameter list. The values themselves remain pending `REVIEW.md` **R-03** and
+  **R-11** and `TODO.md` item 3.2, which is now a decision about numbers rather than a code change.
+
+  Five values deliberately stayed literals, recorded with reasons on the Configuration Contract wiki
+  page: blob versioning, Key Vault and HSM purge protection, Cosmos `Session` consistency, the
+  hierarchical partition key, and the shared-key, local-auth, public-access, and TLS settings.
+  Making those adjustable would turn a guarantee into an option.
+- A push to a branch with an open pull request no longer runs every workflow twice. Both workflows
+  trigger on an unfiltered `pull_request` and an unfiltered `push`, so one commit produced four
+  workflow runs and sixteen check runs where eight carry the same signal — double the CodeQL and
+  Trivy minutes on every push. A `guard` job now asks whether the pushed commit already has an
+  **open** pull request and, if so, skips the rest of the workflow; the `pull_request` run covers
+  that commit. The shared decision lives in `.github/actions/duplicate-run-guard`, because its
+  correctness rests on two details that are easy to get wrong when copied. Filtering on the open
+  state is what keeps a push to the default branch running: after a merge, GitHub still associates
+  the commit with the pull request that introduced it, now closed, and treating that as coverage
+  would stop refreshing the CodeQL baseline the security tab reads from. Failing open is what keeps
+  a transient API error costing a duplicate run rather than a commit that silently went
+  unvalidated. `dependency-review` is deliberately not gated on the guard — it runs only on
+  `pull_request`, which is never the duplicate, and depending on the guard would let a guard failure
+  suppress it.
+
+  A `concurrency` group keyed on the commit SHA is the more obvious answer and is the wrong one: it
+  puts both runs in one group, so the second to start cancels the first, and which one starts first
+  is a race. Roughly half the time the push run would cancel the `pull_request` run, taking
+  `dependency-review` with it and reporting "cancelled" on the pull request's checks.
+- Bicep parameters, naming, and API versions are consistent, and the failures they permitted now
+  fail at parameter validation instead of mid-deployment. Every parameter is environment-substituted
+  by AZD, and an unset variable substitutes to the empty string, which ARM treats as supplied — so
+  an empty string silently overrode a default rather than falling back to it. Each string parameter,
+  including all five subnet prefixes, now carries a minimum length. `environmentName` gained length
+  bounds and is lowercased where it composes a resource name, because it flows into
+  `sql-${name}-${suffix}` and Azure SQL server names permit only lowercase letters, digits, and
+  hyphens: `AZURE_ENV_NAME=Dev` previously failed after the resource group and network had already
+  deployed. `subnetPrefixes` is a user-defined type rather than an untyped `object`, so a misspelled
+  key is a compile error naming the key instead of a failure deep inside the network module. The
+  Service Bus namespace was the only globally scoped resource named without a `uniqueString` suffix
+  and now matches its Key Vault, Cosmos, SQL, and storage siblings, so deployment no longer depends
+  on whether anyone else has already taken the plain name it resolved to. The module's `name`
+  parameter still feeds that suffix — it is kept out of the literal stem so an environment name
+  legal in Bicep but illegal in a global DNS label cannot reach one, the same reasoning
+  `data.bicep` applies to its own `compactName`. Which of that file's two conventions should win
+  repository-wide is `REVIEW.md` **R-05**. Both queues set `deadLetteringOnMessageExpiration`
+  with no TTL, which meant the default was effectively infinite and the dead-letter policy could
+  never fire; they now carry an explicit seven-day window pending `REVIEW.md` **R-11**. The SQL
+  database and the Cosmos database and container are tagged — the remaining untagged resources are
+  ARM proxy types whose definitions have no `tags` property at all, which was confirmed rather than
+  assumed. Service Bus and SQL moved off preview API versions to GA, leaving no preview pin anywhere
+  in `infra/`. `infra/main.bicep` no longer names a symbolic resource `resourceGroup`, shadowing the
+  built-in function.
+- Runtime application settings are inventoried and checked. `ACQUISITION_SCHEDULE`,
+  `DURABLE_TASK_HUB_NAME`, and `PORT` are consumed by the services but appeared in no
+  machine-checked inventory — the existing `.env.example` parity rule covers only the Bicep
+  parameter half of the configuration contract, and two of the three are required for the Functions
+  host to start at all. They now have their own section in `.env.example`: every `%NAME%` binding in
+  `src/functions` must be declared there, and every name declared there must appear in `src/`, so
+  neither an unbound setting nor a stale entry survives. The presence check is a literal search
+  rather than a scan for `os.environ`, because a value read through an indirection would otherwise
+  be reported as unused.
+- The processing worker's health listener no longer holds threads open indefinitely, disclose the
+  interpreter version, or answer one endpoint in two content types. Requests now time out,
+  `ThreadingHTTPServer` shuts down on SIGTERM so container stop lets in-flight probes finish, the
+  `Server` header is the service name rather than `BaseHTTP/0.6 Python/3.12.x`, and an unknown path
+  returns a JSON 404 instead of an HTML error page. That 404 carries a real document rather than
+  an empty payload, because `Content-Type: application/json` with nothing after it is a
+  contradiction that breaks any client parsing every response unconditionally; the body uses the
+  same envelope as a successful probe and never echoes the requested path. `PORT` is validated
+  rather than passed straight to `int()`, which previously crashed at startup with an unhandled
+  `ValueError` on a non-numeric value.
+- The prohibited-input rule reports a malformed contract instead of dying on one. Every shape it
+  reads is type-checked first: a path item, a `parameters` value, and each declaration within it.
+  A non-object entry previously raised `AttributeError` or `TypeError` out of the collector, so a
+  rule whose entire purpose is to surface a contract violation ended CI on a traceback rather
+  than the ERROR line the log is scanned for. A `parameters` value set to an object was worse
+  than a crash — it was iterated as its keys, collecting nothing while looking like a clean pass.
+- The prohibited-input rule now sees every parameter declaration. It collected names from operation
+  objects only, so a `parameters` list declared at path-item level — a documented OpenAPI construct
+  that applies to every operation beneath it — was invisible, and a `caseId` declared that way
+  walked past the rule that exists to keep person, case, and eligibility identifiers out of the
+  catalog API. A `$ref` parameter has no `name`, so the old code raised `KeyError` and CI failed
+  with a traceback rather than a diagnosis; such declarations are now rejected, because a gate that
+  cannot read a declaration must not pass it. Request bodies are rejected outright, since no catalog
+  operation declares one.
+- Structural drift in the contract now produces a diagnosis rather than a traceback: the remaining
+  direct dictionary indexing in the validator is guarded. Each check owns its failures instead of
+  appending to a module-level global, so a check can run twice, or alone, without inheriting
+  another's results — which is why these functions previously had no unit tests.
+- Request logging no longer emits the URL. ASP.NET Core's `Hosting.Diagnostics` logs the full
+  request URL including the query string at `Information`, on by default, which the content-free
+  telemetry constraint does not allow. That category and `Microsoft.AspNetCore.Routing` are raised
+  to `Warning`; the service logs every rejection itself with a correlation identifier and no request
+  content, so the signal worth keeping is kept. A test asserts that no log from *any* category
+  carries a path, query value, or route value — measured by capturing at `Trace`, so removing the
+  filters makes the suppressed logging reappear and fails the test.
+- The acquisition sweep is a singleton and reports what the publisher accepted. The timer trigger
+  called `start_new` with no instance ID, so Durable Functions minted a fresh GUID per firing and a
+  sweep running longer than the schedule interval — or a `use_monitor` catch-up landing on a normal
+  firing — started a second sweep proposing the same editions to the same downstream. It now uses a
+  fixed instance ID and skips the start when a run is already `Running`, `Pending`, or
+  `ContinuedAsNew`. The publish activity is retried on transient failure; the proposal activity
+  deliberately is not, because a scope-drift rejection is deterministic and must fail closed on the
+  first attempt. The orchestration result now carries `acceptedProposalCount` and `published` rather
+  than discarding them, so a publisher accepting three of four proposals cannot report success for
+  all four.
+- The Core API's `correlationId` is now findable. It was a fresh `Guid.NewGuid()` per response,
+  written nowhere and derived from nothing, so the identifier a user reported to support could not
+  be located in any log or trace. It is now derived from the ambient W3C trace identifier — sixteen
+  bytes, exactly a GUID, so the contract's `format: uuid` is unchanged while the value is something
+  that exists in the trace backend — and each problem is logged once at construction. The service
+  previously performed no logging at all. The log records the problem type, status, and correlation
+  identifier only; a test asserts these logs carry no path, query string, or route value.
+- `/ready` reports readiness rather than a literal. It answered from a constant and never resolved
+  `CatalogRepository`, so it could not detect the one way the catalog actually breaks: the fixture
+  is built in a static constructor that throws on an unrecognised form number, which makes every
+  `/v1/catalog/*` route return 500 while a literal probe stays green. Readiness now resolves the
+  repository and returns 503 when it cannot be built, with `/health` left as pure liveness so an
+  orchestrator does not restart a process that is running correctly.
+- The secret scan matches an Azure storage connection string in any key ordering. Connection
+  strings are unordered key/value pairs, and the rule required one specific ordering, so the same
+  credential written any other way passed the scan. Added rules for a bare storage account key and
+  for a shared-access signature — the shapes that matter most in a repository whose invariant is
+  that `allowSharedKeyAccess` is false everywhere and access is managed-identity only.
+- The Core API build context is an allowlist. `src/core-api/Dockerfile` does `COPY . ./` while
+  `.dockerignore` excluded only build output, so a developer's local `appsettings.Development.json`,
+  `.env`, or certificate sitting in that directory would have been copied into a build layer. The
+  file now denies everything and re-includes only `*.cs` and `*.csproj`, so new source files are
+  picked up automatically and anything else has to be allowed deliberately.
+- The acquisition contract rejects an unknown key instead of ignoring it.
+  `propose_acquisition_batch` read two keys with `.get()` and ignored everything else, while its
+  sibling in the processing zone computed an exact key-set difference and had a test proving an
+  injected `approve` key fails closed — two contract modules taking opposite positions on the same
+  question at the same kind of boundary. The request is now checked as a whole shape. This matters
+  beyond consistency: the dict is the Durable Functions orchestration input, which is persisted to
+  the task hub and replayed, so a personal or case field reaching this function would be written to
+  durable storage. `host.json`'s `traceInputsAndOutputs: false` suppresses tracing, not history.
+  `requestedAt` is required and must parse as ISO 8601, and a test reads the timer trigger's
+  `client_input` keys out of `function_app.py` so the caller and the contract cannot drift apart.
 - The processing zone's request contract is validated rather than prefix-matched. The blob URIs
   that bound which single object the isolated worker may touch were checked only for an `https://`
   prefix, which accepted a URI with no host at all, an arbitrary external host, a shared-access

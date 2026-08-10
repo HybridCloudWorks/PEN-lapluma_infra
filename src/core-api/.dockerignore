@@ -1,4 +1,9 @@
-bin/
-obj/
-*.user
-*.suo
+# Deny everything, then allow only what the build needs.
+#
+# The Dockerfile does `COPY . ./`, so an allowlist is the difference between "the build receives
+# this directory's source" and "the build receives whatever a developer happens to have here" — a
+# local appsettings.Development.json, a .env, or a certificate would otherwise land in a build
+# layer. New .cs files are picked up automatically; anything else has to be allowed deliberately.
+*
+!*.cs
+!*.csproj
