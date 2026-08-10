@@ -27,6 +27,15 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Runtime application settings are inventoried and checked. `ACQUISITION_SCHEDULE`,
+  `DURABLE_TASK_HUB_NAME`, and `PORT` are consumed by the services but appeared in no
+  machine-checked inventory — the existing `.env.example` parity rule covers only the Bicep
+  parameter half of the configuration contract, and two of the three are required for the Functions
+  host to start at all. They now have their own section in `.env.example`: every `%NAME%` binding in
+  `src/functions` must be declared there, and every name declared there must appear in `src/`, so
+  neither an unbound setting nor a stale entry survives. The presence check is a literal search
+  rather than a scan for `os.environ`, because a value read through an indirection would otherwise
+  be reported as unused.
 - The processing worker's health listener no longer holds threads open indefinitely, disclose the
   interpreter version, or answer one endpoint in two content types. Requests now time out,
   `ThreadingHTTPServer` shuts down on SIGTERM so container stop lets in-flight probes finish, the

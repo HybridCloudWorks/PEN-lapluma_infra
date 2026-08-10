@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.5 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.4 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -449,29 +449,6 @@ close that gap.
   shadowing the built-in function. It is legal at subscription scope and compiles, but reads as a
   mistake — rename it while you are in the file. The linter runs at `error` for twenty rules, so
   removing the last use of a parameter will fail the build under `no-unused-params`.
-
-### 4.5 — Inventory the runtime app settings the validator cannot see
-
-- **Priority:** P2
-- **Description:** Code review finding **F-18**. `ACQUISITION_SCHEDULE`, `DURABLE_TASK_HUB_NAME`,
-  and `PORT` are consumed by the reviewed code and appear in no machine-checked inventory.
-  `validate_env_example` enforces bidirectional parity between `.env.example` and
-  `infra/main.parameters.json`, which structurally covers only the Bicep parameter half of the
-  configuration contract. All three are documented on the Configuration Contract wiki page, which
-  is unpublished and unverified by any tool. Two of the three are required for the Functions host to
-  start at all. `worker.py` also parses `PORT` with no guard, so a non-numeric value crashes at
-  startup with a traceback.
-- **Dependencies:** `REVIEW.md` **R-16** for the `ACQUISITION_SCHEDULE` value, not for the
-  inventory or the validation.
-- **Recommended action:** Extend the validator to scan `%NAME%` references under `src/functions/`
-  and `os.environ` reads under `src/`, and require each to appear in a declared inventory. Guard the
-  `PORT` parse with an explicit range check.
-- **Status:** Not started
-- **Notes for future engineers:** Adding these three to `.env.example` as-is will trip the existing
-  parity check, which requires every declared name to be substituted by a Bicep parameter. Either
-  give app settings their own section the parity check skips, or introduce a separate inventory
-  file — the code review proposed `CHECKLIST.md`, which the Documentation Standards wiki page does
-  not currently permit, so that is a documentation-model decision before it is an engineering one.
 
 ---
 

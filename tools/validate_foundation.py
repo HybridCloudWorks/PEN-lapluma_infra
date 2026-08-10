@@ -293,6 +293,32 @@ def validate_azure_interlock() -> Failures:
     return failures
 
 
+APP_SETTINGS_MARKER = "# --- Application settings ---"
+
+
+def scan_binding_placeholders(root: Path) -> set[str]:
+    """Every %NAME% the Functions host must resolve before it will start."""
+    names: set[str] = set()
+    for path in (root / "src/functions").rglob("*"):
+        if path.is_file() and path.suffix in {".py", ".json"}:
+            names |= set(re.findall(r"%([A-Z][A-Z0-9_]*)%", path.read_text(encoding="utf-8")))
+    return names
+
+
+def mentioned_in_source(root: Path, name: str) -> bool:
+    """Whether a setting name appears in the services at all.
+
+    Deliberately a literal search rather than a scan for `os.environ`: a value can be read through
+    an indirection, and a rule that only recognises one access form reports a live setting as
+    stale.
+    """
+    for path in (root / "src").rglob("*"):
+        if path.is_file() and path.suffix in {".py", ".json"}:
+            if name in path.read_text(encoding="utf-8"):
+                return True
+    return False
+
+
 def validate_env_example() -> Failures:
     failures = Failures()
     require = failures.require
@@ -306,15 +332,36 @@ def validate_env_example() -> Failures:
 
     declaration = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
     documented: dict[str, str] = {}
+    app_settings: dict[str, str] = {}
+    in_app_settings = False
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         stripped = line.strip()
+        if stripped == APP_SETTINGS_MARKER:
+            in_app_settings = True
+            continue
         if not stripped or stripped.startswith("#"):
             continue
         match = declaration.match(stripped)
         if match is None:
             require(False, f".env.example line {number} is neither a comment nor a NAME= declaration")
             continue
-        documented[match.group(1)] = match.group(2).strip()
+        target = app_settings if in_app_settings else documented
+        target[match.group(1)] = match.group(2).strip()
+
+    # Application settings are checked against the services, not against the Bicep parameters.
+    bound = scan_binding_placeholders(ROOT)
+    undeclared = sorted(bound - app_settings.keys())
+    require(
+        not undeclared,
+        f".env.example does not declare app settings the services bind: {', '.join(undeclared)}",
+    )
+    stale = sorted(name for name in app_settings if not mentioned_in_source(ROOT, name))
+    require(not stale, f".env.example declares app settings nothing uses: {', '.join(stale)}")
+    populated_settings = sorted(name for name, value in app_settings.items() if value)
+    require(
+        not populated_settings,
+        f".env.example must carry no value: {', '.join(populated_settings)}",
+    )
 
     missing = sorted(referenced - documented.keys())
     require(not missing, f".env.example is missing parameter variables: {', '.join(missing)}")
