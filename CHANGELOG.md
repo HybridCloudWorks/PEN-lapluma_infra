@@ -27,6 +27,23 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- Core API error responses now conform to the published contract. Every problem document is served
+  as `application/problem+json` rather than `application/json`, and its `status` is derived from the
+  same value as the HTTP status so the two cannot disagree. A malformed `editionDate` previously
+  failed framework route binding, which returns a plain-text diagnostic in Development and a bare
+  empty 400 in Production — the error a client saw depended on the environment. The route now binds
+  the value as a string and parses it, so the response is a problem document everywhere, and
+  `contracts/catalog.openapi.json` declares the 400 the route can actually return.
+- Catalog codes are validated against the patterns the contract declares. A malformed
+  `categoryCode` previously returned 200 with an empty list, indistinguishable from a category that
+  legitimately has no packages; it now returns 400. With inputs validated, the lookups compare
+  ordinally rather than case-insensitively, matching the contract's uppercase-only declaration.
+- `CatalogRepository` asserts package-code uniqueness once at startup instead of throwing from
+  `SingleOrDefault` on a request, and the service version is a single constant pinned by test to
+  `info.version` in the contract rather than a literal repeated per endpoint.
+- Removed the global `JsonStringEnumConverter`. Type-level attributes take precedence over a
+  globally registered converter, so it never applied to any existing enum while making a new enum
+  added without those attributes look handled — it would have serialised in PascalCase.
 - The catalog fixture parser now rejects a form declared more than once. Classifications are keyed
   by form number, so a second declaration of the same form silently replaced the first and hid
   whatever it said.

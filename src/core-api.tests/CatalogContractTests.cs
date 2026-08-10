@@ -58,6 +58,7 @@ public sealed class CatalogContractTests
         // Three copies of each enum exist — the C# type, the OpenAPI schema, and the iOS client.
         // This pins the two that live in this repository to each other.
         var declared = enumType.GetFields(BindingFlags.Public | BindingFlags.Static)
+            .OrderBy(field => field.MetadataToken)   // GetFields ordering is not guaranteed
             .Select(field => field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name
                              ?? field.Name)
             .ToArray();
@@ -87,7 +88,31 @@ public sealed class CatalogContractTests
         Assert.Empty(missing);
     }
 
-    private static JsonElement OpenApiSchemas()
+    [Fact]
+    public void The_service_version_matches_the_contract_version()
+    {
+        // One constant now, rather than a literal repeated per endpoint. This pins it to the
+        // contract so the two cannot drift silently.
+        Assert.Equal(ServiceMetadata.Version, OpenApiInfo().GetProperty("version").GetString());
+    }
+
+    [Theory]
+    [InlineData("CatalogCode", "^[A-Z][A-Z0-9_]{1,63}$")]
+    [InlineData("FormId", "^[A-Z0-9][A-Z0-9-]{0,31}$")]
+    [InlineData("SchemaVersion", "^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")]
+    public void Input_patterns_match_the_published_contract(string schemaName, string expected)
+    {
+        // The implementation validates against these; if the contract's pattern changes and the
+        // implementation's does not, requests the contract permits would be rejected.
+        Assert.Equal(expected, OpenApiSchemas().GetProperty(schemaName).GetProperty("pattern").GetString());
+    }
+
+    private static JsonElement OpenApiInfo() => OpenApiRoot().GetProperty("info").Clone();
+
+    private static JsonElement OpenApiSchemas() =>
+        OpenApiRoot().GetProperty("components").GetProperty("schemas").Clone();
+
+    private static JsonElement OpenApiRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null &&
@@ -98,8 +123,8 @@ public sealed class CatalogContractTests
 
         Assert.NotNull(directory);
         var path = Path.Combine(directory!.FullName, "contracts", "catalog.openapi.json");
-        return JsonDocument.Parse(File.ReadAllText(path))
-            .RootElement.GetProperty("components").GetProperty("schemas");
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.Clone();
     }
 
     private static FormPackage PackageWith(IReadOnlyList<CatalogForm> forms) =>

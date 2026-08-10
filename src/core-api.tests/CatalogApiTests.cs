@@ -18,8 +18,11 @@ public sealed class CatalogApiTests : IClassFixture<WebApplicationFactory<global
 
     private HttpClient Client() => factory.CreateClient();
 
-    private static async Task<JsonElement> ReadJson(HttpResponseMessage response) =>
-        JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+    private static async Task<JsonElement> ReadJson(HttpResponseMessage response)
+    {
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.Clone();
+    }
 
     [Theory]
     [InlineData("/health", "ok")]
@@ -84,14 +87,17 @@ public sealed class CatalogApiTests : IClassFixture<WebApplicationFactory<global
         // Package activation is derived from the weakest child form, never stored. FAFSA's only
         // form is UNAVAILABLE, so its package is too; the other three are CATALOG_ONLY.
         var catalogOnly = await Client().GetAsync("/v1/catalog/packages?activationState=CATALOG_ONLY");
+        Assert.Equal(HttpStatusCode.OK, catalogOnly.StatusCode);
         Assert.Equal(
             new[] { "ADJUSTMENT_I485_I864", "FAMILY_I130", "PASSPORT_DS11" },
             PackageCodes(await ReadJson(catalogOnly)));
 
         var unavailable = await Client().GetAsync("/v1/catalog/packages?activationState=UNAVAILABLE");
+        Assert.Equal(HttpStatusCode.OK, unavailable.StatusCode);
         Assert.Equal(new[] { "FINANCIAL_AID_FAFSA" }, PackageCodes(await ReadJson(unavailable)));
 
         var pilot = await Client().GetAsync("/v1/catalog/packages?activationState=PILOT");
+        Assert.Equal(HttpStatusCode.OK, pilot.StatusCode);
         Assert.Empty((await ReadJson(pilot)).GetProperty("data").EnumerateArray());
     }
 
@@ -115,10 +121,76 @@ public sealed class CatalogApiTests : IClassFixture<WebApplicationFactory<global
         var response = await Client().GetAsync($"/v1/catalog/packages?activationState={value}");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(ProblemContentType, response.Content.Headers.ContentType?.MediaType);
         var body = await ReadJson(response);
         Assert.Equal("urn:lapluma:problem:catalog-activation-invalid", body.GetProperty("type").GetString());
         Assert.Equal(400, body.GetProperty("status").GetInt32());
         Assert.NotEqual(Guid.Empty, body.GetProperty("correlationId").GetGuid());
+    }
+
+    [Theory]
+    [InlineData("/v1/catalog/packages?categoryCode=federal")]
+    [InlineData("/v1/catalog/packages?categoryCode=X")]
+    [InlineData("/v1/catalog/packages?subcategoryCode=has-a-hyphen")]
+    [InlineData("/v1/catalog/packages/family_i130")]
+    public async Task A_code_that_breaks_the_declared_pattern_is_rejected(string path)
+    {
+        // Previously a malformed code returned 200 with an empty list — indistinguishable from a
+        // category that legitimately has no packages.
+        var response = await Client().GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(ProblemContentType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "urn:lapluma:problem:catalog-code-invalid",
+            (await ReadJson(response)).GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task A_malformed_edition_date_returns_a_problem_document_not_an_empty_body()
+    {
+        // This fails route-value binding before any handler runs. Without the status-code-pages
+        // fallback it is a bare 400 with no body, no type, and nothing to correlate.
+        var response = await Client().GetAsync(
+            "/v1/catalog/authorities/USCIS/forms/I-130/editions/not-a-date/schemas/v1");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(ProblemContentType, response.Content.Headers.ContentType?.MediaType);
+        var body = await ReadJson(response);
+        Assert.Equal("urn:lapluma:problem:catalog-edition-date-invalid", body.GetProperty("type").GetString());
+        Assert.Equal(400, body.GetProperty("status").GetInt32());
+        Assert.NotEqual(Guid.Empty, body.GetProperty("correlationId").GetGuid());
+    }
+
+    [Theory]
+    [InlineData("/v1/catalog/authorities/USCIS/forms/i-130/editions/2024-04-01/schemas/v1",
+        "catalog-form-id-invalid")]
+    [InlineData("/v1/catalog/authorities/USCIS/forms/I-130/editions/2024-04-01/schemas/!!",
+        "catalog-schema-version-invalid")]
+    public async Task Schema_route_parameters_are_validated(string path, string expectedType)
+    {
+        var response = await Client().GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal($"urn:lapluma:problem:{expectedType}",
+            (await ReadJson(response)).GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task The_body_status_always_matches_the_http_status()
+    {
+        foreach (var path in new[]
+                 {
+                     "/v1/catalog/packages?activationState=NOPE",
+                     "/v1/catalog/packages/NO_SUCH_PACKAGE",
+                     "/v1/catalog/authorities/USCIS/forms/I-130/editions/2024-04-01/schemas/v1",
+                 })
+        {
+            var response = await Client().GetAsync(path);
+            var body = await ReadJson(response);
+            Assert.Equal((int)response.StatusCode, body.GetProperty("status").GetInt32());
+            Assert.Equal(ProblemContentType, response.Content.Headers.ContentType?.MediaType);
+        }
     }
 
     [Fact]
@@ -145,6 +217,7 @@ public sealed class CatalogApiTests : IClassFixture<WebApplicationFactory<global
         var response = await Client().GetAsync("/v1/catalog/packages/NO_SUCH_PACKAGE");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(ProblemContentType, response.Content.Headers.ContentType?.MediaType);
         var body = await ReadJson(response);
         Assert.Equal("urn:lapluma:problem:catalog-package-not-found", body.GetProperty("type").GetString());
         Assert.Equal(404, body.GetProperty("status").GetInt32());
@@ -159,6 +232,7 @@ public sealed class CatalogApiTests : IClassFixture<WebApplicationFactory<global
             "/v1/catalog/authorities/USCIS/forms/I-130/editions/2024-04-01/schemas/v1");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(ProblemContentType, response.Content.Headers.ContentType?.MediaType);
         var body = await ReadJson(response);
         Assert.Equal("urn:lapluma:problem:catalog-schema-not-found", body.GetProperty("type").GetString());
     }
@@ -188,6 +262,8 @@ public sealed class CatalogApiTests : IClassFixture<WebApplicationFactory<global
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(4, (await ReadJson(response)).GetProperty("data").GetArrayLength());
     }
+
+    private const string ProblemContentType = "application/problem+json";
 
     private static string[] PackageCodes(JsonElement body) =>
         body.GetProperty("data").EnumerateArray()

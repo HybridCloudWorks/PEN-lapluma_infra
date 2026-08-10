@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.9 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.8 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.8 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.7 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
 
@@ -528,39 +528,7 @@ close that gap.
 - **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
   subnet, so getting this right before the first provisioning run avoids a rebuild.
 
-### 4.4 — Bring the Core API into line with its published contract
-
-- **Priority:** P2
-- **Description:** Code review findings **F-11**, **F-12**, **F-27**, **F-28**, and **F-29**. Error
-  responses are served as `application/json` while `contracts/catalog.openapi.json` declares
-  `application/problem+json`, and a malformed `editionDate` fails route binding before user code
-  runs, producing an undeclared 400 with an empty body — no `type`, no `correlationId`, nothing a
-  client can report. The contract constrains every input with a pattern or length; the
-  implementation enforces one of them, so a malformed `categoryCode` returns a successful empty
-  catalog indistinguishable from a legitimately empty one, and `ListPackages` compares
-  case-insensitively while the contract declares uppercase-only. The version string `"0.2.0"` is
-  duplicated as a literal and tied to neither the assembly nor the OpenAPI `info.version`. A global
-  `JsonStringEnumConverter` is registered but has no effect, because every enum carries a type-level
-  attribute that takes precedence — a future enum added without those attributes would silently
-  serialise in PascalCase. `GetPackage` uses `SingleOrDefault` with a case-insensitive comparison,
-  which throws on duplicate codes rather than failing diagnosably.
-- **Dependencies:** None. The .NET test project exists, so each fix here is verifiable.
-- **Recommended action:** Set `application/problem+json` explicitly and register a problem-details
-  fallback so binding failures get a body; declare the 400 on the schema route. Validate the
-  declared patterns at the boundary and then drop `OrdinalIgnoreCase`. Introduce a single version
-  constant. Remove the redundant global converter so a missing attribute fails visibly. Assert
-  package-code uniqueness at startup instead of throwing per request. Extend
-  `src/core-api.tests/CatalogApiTests.cs` with the **T-05** media-type assertion as part of the
-  fix: the existing tests deliberately assert status code and body shape but not `Content-Type`,
-  because every error response is served as `application/json` today and asserting the contract's
-  `application/problem+json` would fail until this item lands. **T-07** is already covered by
-  `CatalogContractTests.Enum_wire_names_match_the_published_contract`.
-- **Status:** Not started
-- **Notes for future engineers:** Confirm with the Swift client owner that no caller sends lowercase
-  codes before tightening the comparison. The validator inspects the contract's path set and schema
-  names, not the per-operation response map, so adding a 400 does not break CI.
-
-### 4.5 — Harden the foundation validator
+### 4.4 — Harden the foundation validator
 
 - **Priority:** P2
 - **Description:** Code review findings **F-05** and **F-24**. The prohibited-input rule collects
@@ -581,7 +549,7 @@ close that gap.
 - **Notes for future engineers:** The prohibited-input rule is the one keeping person, case, and
   eligibility parameters out of the catalog API. Widening what it can see is the point of this item.
 
-### 4.6 — Resolve Bicep parameter, naming, and API-version inconsistencies
+### 4.5 — Resolve Bicep parameter, naming, and API-version inconsistencies
 
 - **Priority:** P2
 - **Description:** Code review findings **F-15**, **F-16**, **F-20**, **F-21**, and **F-22**. Only
@@ -610,7 +578,7 @@ close that gap.
   mistake — rename it while you are in the file. The linter runs at `error` for twenty rules, so
   removing the last use of a parameter will fail the build under `no-unused-params`.
 
-### 4.7 — Inventory the runtime app settings the validator cannot see
+### 4.6 — Inventory the runtime app settings the validator cannot see
 
 - **Priority:** P2
 - **Description:** Code review finding **F-18**. `ACQUISITION_SCHEDULE`, `DURABLE_TASK_HUB_NAME`,
@@ -633,7 +601,7 @@ close that gap.
   file — the code review proposed `CHECKLIST.md`, which the Documentation Standards wiki page does
   not currently permit, so that is a documentation-model decision before it is an engineering one.
 
-### 4.8 — Harden the processing worker health listener
+### 4.7 — Harden the processing worker health listener
 
 - **Priority:** P3
 - **Description:** Code review finding **F-23**. `BaseHTTPRequestHandler.timeout` defaults to
