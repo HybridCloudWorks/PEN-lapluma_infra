@@ -7,8 +7,14 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
-- Pinned all three container base images by digest: `mcr.microsoft.com/dotnet/sdk:9.0` and
-  `mcr.microsoft.com/dotnet/aspnet:9.0` in `src/core-api/Dockerfile`, and `python:3.12-slim` in
+- Moved the Core API from .NET 9 to **.NET 10**. `LaPluma.CoreApi.csproj` targets `net10.0`, the
+  Dockerfile builds on `dotnet/sdk:10.0` and runs on `dotnet/aspnet:10.0`, and CI installs the
+  10.0.x SDK. .NET 9 is a Standard Term Support release whose support window has closed; .NET 10 is
+  the current Long Term Support release, which suits a pilot that must stay patchable. The README,
+  `TODO.md` item 5.1, and the Architecture Overview and Azure Deployment Plan wiki pages were
+  updated to match, so the stated stack and the built stack agree.
+- Pinned all three container base images by digest: `mcr.microsoft.com/dotnet/sdk:10.0` and
+  `mcr.microsoft.com/dotnet/aspnet:10.0` in `src/core-api/Dockerfile`, and `python:3.12-slim` in
   `src/document-processing/Dockerfile`. Two builds of the same commit now resolve the same base
   layers. Each pin keeps its tag alongside the digest for readability; the digest is what resolves.
 - Removed the `main` and `codex/**` branch filter from the foundation validation workflow's `push`
@@ -21,6 +27,28 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The catalog fixture parser now rejects a form declared more than once. Classifications are keyed
+  by form number, so a second declaration of the same form silently replaced the first and hid
+  whatever it said.
+- The catalog priority and fill-mode rules in `tools/validate_foundation.py` now bind each
+  classification to the form it is declared on. They previously asserted that a literal such as
+  `FormArtifactKind.ExternalWorkflow` appeared somewhere in `CatalogRepository.cs`, which passed
+  just as happily when the classifications were swapped between forms — the validator reported
+  success on a tree where FAFSA had become an automatically fillable official PDF. The
+  retired-form check now covers `src/functions/acquisition_contract.py` as well as the catalog
+  fixture; it previously read only the fixture, so restoring `N-400` or `I-765` to the acquisition
+  scope passed unnoticed.
+- A `FormPackage` with no forms now derives `UNAVAILABLE` rather than `PILOT`. The derivation is a
+  chain of `Any` calls expressing "a package is only as activated as its weakest form"; for an
+  empty list every one of them is false and the expression fell through to the most permissive
+  state, the one that permits case creation.
+- The Log Analytics workspace now sets `features.disableLocalAuth: true`. Application Insights
+  already disabled local auth, but the workspace that stores what it ingests did not, so the
+  telemetry and audit store still accepted the legacy workspace-key ingestion path.
+- Split `test_unanchored_or_unconfirmed_proposal_fails_closed`, which violated two invariants at
+  once and asserted only that some `ValueError` was raised. The polygon check short-circuited, so
+  the human-confirmation invariant it was named for could be deleted outright with the suite still
+  green. Each invariant now has its own test, matched on message.
 - The validator's secret scan no longer walks generated output. It previously read every file under
   the repository root except its own source, so compiling the validator wrote a `.pyc` containing its
   own pattern literals and the next run failed as though a storage connection string had leaked.
@@ -29,6 +57,12 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Added
 
+- `.github/workflows/security-scanning.yml`, running CodeQL for C# and Python, dependency review on
+  pull requests, a Trivy scan of both container images, and a Trivy scan of the ARM template the
+  Bicep compiles to, plus a weekly schedule so a newly published advisory surfaces without waiting
+  for the next commit. Every action is pinned by commit SHA. Both Trivy jobs report to code scanning
+  without failing the build until their baseline is triaged; that threshold, and the secret-scanning
+  and push-protection repository settings, remain open under `TODO.md` item **2.5**.
 - `bicepconfig.json`, setting twenty security-relevant linter rules to `error`, including
   `no-hardcoded-location`, `secure-parameter-default`, and `no-unused-params`. The Bicep CI step now
   fails on any diagnostic, so a rule left at warning level cannot pass silently. CI pins the Bicep

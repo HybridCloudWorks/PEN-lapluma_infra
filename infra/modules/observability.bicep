@@ -12,6 +12,10 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
     retentionInDays: 365
     features: {
       enableLogAccessUsingOnlyResourcePermissions: true
+      // The workspace stores what Application Insights ingests, so it needs the same posture.
+      // Without this it keeps accepting the legacy workspace-ID-plus-shared-key ingestion path,
+      // against the no-local-auth invariant every other service here implements.
+      disableLocalAuth: true
     }
   }
 }
