@@ -365,31 +365,7 @@ close that gap.
 - **Notes for future engineers:** The drill evidence itself must be content-free and pseudonymized —
   it lands in the audit account, which is subject to the immutability policy from item 2.4.
 
-### 3.7 — Instrument the Core API and make readiness mean something
-
-- **Priority:** P1
-- **Description:** Code review findings **F-13** and **F-14**. `src/core-api/Program.cs` performs
-  no logging at all — there is no `ILogger` anywhere in the service — and the `correlationId` in
-  every problem response is a fresh `Guid.NewGuid()` that is never written anywhere and is not
-  derived from `Activity.Current` or `HttpContext.TraceIdentifier`. The identifier a user reports
-  to support cannot be found in any log or trace. Separately, `/ready` returns a static literal and
-  never resolves `CatalogRepository`, so it cannot detect the one way the catalog can actually be
-  broken: `CatalogRepository.Form` throws on an unrecognised form number from a static initialiser,
-  which would make every `/v1/catalog/*` route return 500 forever while `/health` and `/ready` stay
-  green.
-- **Dependencies:** 1.4 for where the telemetry lands. The .NET test project exists.
-- **Recommended action:** Register `AddProblemDetails`, derive the correlation ID from
-  `Activity.Current?.TraceId` falling back to `HttpContext.TraceIdentifier`, and log each problem
-  once at construction. Have `/ready` resolve the repository and return 503 when the catalog cannot
-  initialise, keeping `/health` as pure liveness. Consider moving the `Form` guard out of the static
-  initialiser so the failure is loud at startup rather than deferred to the first request.
-- **Status:** Not started
-- **Notes for future engineers:** Content-free telemetry applies to these logs: correlation IDs
-  only, never a path, query string, route value, or document identifier.
-  `src/document-processing/worker.py` already suppresses all request logging for exactly this
-  reason — follow that precedent. Note this is application telemetry, which 3.1 does not cover.
-
-### 3.8 — Make the acquisition orchestration singleton and resilient
+### 3.7 — Make the acquisition orchestration singleton and resilient
 
 - **Priority:** P2
 - **Description:** Code review findings **F-10** and **F-31**. The timer trigger calls
@@ -409,6 +385,39 @@ close that gap.
   `document-processing` queue has duplicate detection with a one-hour window, but it keys on
   `MessageId`, which the not-yet-written publisher must set deliberately; record that requirement
   on 5.4 rather than relying on it. `activatedEditionCount: 0` stays regardless.
+
+### 3.8 — Stop the framework's request logging from emitting query strings
+
+- **Priority:** P2
+- **Description:** Discovered while instrumenting the Core API. The service's own problem logs are
+  content-free and tested to be so, but ASP.NET Core's built-in request logging is not.
+  `Microsoft.AspNetCore.Hosting.Diagnostics` emits the full URL including the query string at
+  `Information`, which is on by default with no `appsettings.json` present. Captured from a test
+  run against the real pipeline:
+
+  ```
+  [Microsoft.AspNetCore.Hosting.Diagnostics] Request starting HTTP/1.1 GET
+    http://localhost/v1/catalog/packages?activationState=MARKER_VALUE
+  ```
+
+  `Microsoft.AspNetCore.Routing.*` additionally logs the matched path. The content-free telemetry
+  constraint is stated absolutely, and this is application telemetry, so 3.1's diagnostic settings
+  do not cover it. Severity is limited today because the catalog contract accepts no `userId`,
+  `personId`, `caseId`, `documentId`, `eligibility`, or `facts` parameter and
+  `tools/validate_foundation.py` enforces that — so nothing applicant-identifying can currently
+  reach a query string. It stops being limited the moment an endpoint outside the catalog exists.
+- **Dependencies:** None. 1.4 determines where the telemetry lands, not what it contains.
+- **Recommended action:** Decide what request-level telemetry this service should emit, then
+  configure it deliberately rather than inheriting the default. Options: raise the log level for
+  `Microsoft.AspNetCore.Hosting.Diagnostics` and `Microsoft.AspNetCore.Routing` and rely on the
+  service's own logging, or add `UseHttpLogging` with an explicit field set that excludes the query
+  string. Extend `CatalogTelemetryTests` to assert across *all* log categories rather than only
+  `CatalogProblem.LogCategory`, which is the scope those tests deliberately have today.
+- **Status:** Not started
+- **Notes for future engineers:** Do not simply set `Microsoft.AspNetCore` to `Warning` and move
+  on — that also silences genuinely useful startup and failure diagnostics. The processing worker's
+  precedent (`worker.py` suppresses all request logging) is defensible there because its only
+  endpoints are probes; the Core API serves a real API surface and needs some request-level signal.
 
 ---
 
