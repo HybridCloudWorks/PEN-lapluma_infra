@@ -473,6 +473,10 @@ def validate_workflow_action_pins() -> Failures:
 PYTHON_VERSION_SOURCES = (
     ("src/document-processing/Dockerfile", re.compile(r"FROM python:(\d+\.\d+)-slim")),
     (".github/workflows/foundation-validation.yml", re.compile(r"python-version:\s*'(\d+\.\d+)'")),
+    # The function host. Until the hosting layer existed there was nothing here to check, and the
+    # runtime could have drifted from the image and the requirements that constrain it.
+    ("infra/modules/compute.bicep", re.compile(r"param functionsPythonVersion string = '(\d+\.\d+)'")),
+    ("infra/main.bicep", re.compile(r"param functionsPythonVersion string = '(\d+\.\d+)'")),
     ("src/document-processing/worker.py", re.compile(r"Python (\d+\.\d+)")),
     ("README.md", re.compile(r"Python (\d+\.\d+)")),
     ("wiki/Architecture-Overview.md", re.compile(r"Python (\d+\.\d+)")),
@@ -511,6 +515,107 @@ def validate_python_version_agreement() -> Failures:
     return failures
 
 
+# A resource that turns off public access is unreachable until a private endpoint replaces it. This
+# maps each such resource to the module output its endpoint is wired from. Both directions are
+# checked: a resource missing from this map fails, and a map entry that main.bicep does not use in
+# its privatelink targets fails. Adding a locked-down service without an endpoint therefore cannot
+# pass, which is the failure the foundation shipped with.
+PRIVATE_ACCESS_EXPECTATIONS = {
+    ("data.bicep", "sqlServer"): "sqlServerId",
+    ("data.bicep", "cosmos"): "cosmosId",
+    ("data.bicep", "storageAccounts"): "storageAccountIds",
+    ("messaging.bicep", "serviceBus"): "serviceBusId",
+    ("security.bicep", "keyVault"): "keyVaultId",
+    ("security.bicep", "managedHsm"): "managedHsmId",
+    ("compute.bicep", "registry"): "registryId",
+    ("compute.bicep", "functionsStorage"): "functionsStorageId",
+    # Azure Monitor is reached through one endpoint on the private link scope rather than one per
+    # component, so both the workspace and the component map to the scope.
+    ("observability.bicep", "workspace"): "privateLinkScopeId",
+    ("observability.bicep", "applicationInsights"): "privateLinkScopeId",
+    # No public access to disable: the function app is reached through its own inbound restriction.
+    ("compute.bicep", "functionApp"): None,
+}
+
+RESOURCE_DECLARATION = re.compile(r"^resource (\w+) '([^']+)'", re.MULTILINE)
+PUBLIC_ACCESS_DISABLED = re.compile(
+    r"publicNetworkAccess(?:ForIngestion|ForQuery)?:\s*(?:'Disabled'|monitorPublicNetworkAccess)"
+)
+
+
+def resources_disabling_public_access(module: Path) -> set[str]:
+    """Symbolic names in one module whose declaration turns public network access off."""
+    text = module.read_text(encoding="utf-8")
+    declarations = list(RESOURCE_DECLARATION.finditer(text))
+    disabled: set[str] = set()
+    for index, match in enumerate(declarations):
+        end = declarations[index + 1].start() if index + 1 < len(declarations) else len(text)
+        if PUBLIC_ACCESS_DISABLED.search(text[match.start():end]):
+            disabled.add(match.group(1))
+    return disabled
+
+
+def validate_private_endpoint_coverage() -> Failures:
+    """Every service that disables public access has a private endpoint wired to it."""
+    failures = Failures()
+    main = (ROOT / "infra/main.bicep").read_text(encoding="utf-8")
+
+    # Only the privatelink module's target list counts. A reference anywhere else in main.bicep is
+    # not an endpoint, and matching on it would let this rule pass on an unrelated mention.
+    start = main.find("module privatelink ")
+    end = main.find("\nmodule ", start + 1) if start != -1 else -1
+    targets = main[start:end if end != -1 else len(main)] if start != -1 else ""
+    failures.require(bool(targets), "infra/main.bicep declares no privatelink module")
+
+    for module in sorted((ROOT / "infra/modules").glob("*.bicep")):
+        for symbol in sorted(resources_disabling_public_access(module)):
+            key = (module.name, symbol)
+            if key not in PRIVATE_ACCESS_EXPECTATIONS:
+                failures.require(
+                    False,
+                    f"{module.name} resource '{symbol}' disables public network access but no "
+                    "private endpoint is recorded for it in PRIVATE_ACCESS_EXPECTATIONS",
+                )
+                continue
+            output = PRIVATE_ACCESS_EXPECTATIONS[key]
+            if output is None:
+                continue
+            failures.require(
+                f".outputs.{output}" in targets,
+                f"{module.name} resource '{symbol}' disables public network access, but "
+                f"main.bicep's privatelink targets never use '{output}'",
+            )
+    return failures
+
+
+def validate_ai_zone_has_no_data_plane_role() -> Failures:
+    """The AI zone holds no authoritative data-plane role, and that is checked rather than asserted.
+
+    security.bicep creates an AI identity and the design gives it nothing. A role assignment added
+    for it later would be a trust-zone change disguised as a convenience.
+    """
+    failures = Failures()
+    rbac = ROOT / "infra/modules/rbac.bicep"
+    if not rbac.is_file():
+        failures.require(False, "infra/modules/rbac.bicep is missing")
+        return failures
+
+    text = rbac.read_text(encoding="utf-8")
+    for forbidden in ("aiPrincipalId", "aiIdentity"):
+        # Comments explain the absence, so only a real reference counts.
+        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
+        failures.require(
+            forbidden not in code,
+            f"rbac.bicep references '{forbidden}': the AI zone must hold no data-plane role",
+        )
+
+    failures.require(
+        "sqlRoleAssignments" not in text.split("Processing zone")[-1].split("Functions zone")[0],
+        "the processing zone must never receive a Cosmos or SQL role",
+    )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -519,6 +624,8 @@ def main() -> int:
         *validate_env_example(),
         *validate_workflow_action_pins(),
         *validate_python_version_agreement(),
+        *validate_private_endpoint_coverage(),
+        *validate_ai_zone_has_no_data_plane_role(),
         *validate_no_sensitive_values(),
     ]
     if failures:

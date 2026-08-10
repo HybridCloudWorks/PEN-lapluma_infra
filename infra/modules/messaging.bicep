@@ -113,3 +113,4 @@ output namespaceName string = serviceBus.name
 output acquisitionQueueName string = acquisitionQueue.name
 output processingQueueName string = processingQueue.name
 output eventsTopicName string = eventsTopic.name
+output serviceBusId string = serviceBus.id
