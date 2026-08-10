@@ -429,12 +429,52 @@ def validate_no_sensitive_values() -> Failures:
     return failures
 
 
+CODEQL_REFERENCE = re.compile(r"uses:\s*(github/codeql-action/[A-Za-z-]+)@([0-9a-f]{40})")
+UNPINNED_ACTION = re.compile(r"uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+)@(?!\s*[0-9a-f]{40}\b)(\S+)")
+
+
+def validate_workflow_action_pins() -> Failures:
+    """Third-party actions are pinned by commit SHA, and CodeQL's are pinned to one SHA.
+
+    The sub-actions of github/codeql-action are one product released as a set. Bumping init without
+    analyze produces `CodeQL job status was configuration error` rather than a version warning, and
+    an upload-sarif left behind on the previous major is the same mismatch with no obvious symptom.
+    Dependabot raises one pull request per sub-action, so this arrangement is what it proposes by
+    default and would recur on every release.
+    """
+    failures = Failures()
+    workflows = sorted((ROOT / ".github").rglob("*.yml"))
+
+    codeql: dict[str, set[str]] = {}
+    for path in workflows:
+        text = path.read_text(encoding="utf-8")
+        for action, sha in CODEQL_REFERENCE.findall(text):
+            codeql.setdefault(sha, set()).add(action)
+        for action, ref in UNPINNED_ACTION.findall(text):
+            # Repository-local composite actions are read from the checked-out tree, not resolved
+            # from a remote ref, so there is nothing to pin.
+            if action.startswith("./"):
+                continue
+            failures.require(
+                False,
+                f"{path.relative_to(ROOT)} pins {action} to {ref!r}; use a full commit SHA",
+            )
+
+    failures.require(
+        len(codeql) <= 1,
+        "github/codeql-action sub-actions must share one commit SHA, found "
+        + "; ".join(f"{sha[:12]} -> {', '.join(sorted(names))}" for sha, names in sorted(codeql.items())),
+    )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
         *validate_priority_and_modes(),
         *validate_azure_interlock(),
         *validate_env_example(),
+        *validate_workflow_action_pins(),
         *validate_no_sensitive_values(),
     ]
     if failures:
