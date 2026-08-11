@@ -28,6 +28,13 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   gate that could never fire. The two invocations now share a cache volume, so the second one reuses
   the vulnerability database rather than downloading it again.
 
+  The triage the item asked for has an answer, with evidence rather than assumption: the first
+  enforcing run scanned 97 Ubuntu packages and three .NET dependency manifests in the Core API image
+  and reported **zero** fixable CRITICAL or HIGH findings, with the same result for the processing
+  worker and for the compiled ARM template. The baseline is genuinely empty, which is what makes
+  turning enforcement on safe rather than merely brave. The job log now prints that summary table on
+  every run, so the next person does not have to re-derive it.
+
   The open question of whether the weekly scheduled run should also open an issue is now answered
   no, and enforcement is the reason. A scheduled run that only wrote to the Security tab was easy to
   miss; one that *fails* is notified to the repository owner by GitHub already, so an issue-opening
