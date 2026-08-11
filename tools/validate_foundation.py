@@ -733,6 +733,49 @@ def validate_functions_subnet_delegation() -> Failures:
     return failures
 
 
+SUBSCRIPTION_DECLARATION = re.compile(
+    r"^resource (\w+) 'Microsoft\.ServiceBus/namespaces/topics/subscriptions@",
+    re.MULTILINE,
+)
+
+
+def validate_subscriptions_dead_letter() -> Failures:
+    """Every Service Bus subscription dead-letters on message expiration.
+
+    `deadLetteringOnMessageExpiration` belongs to the subscription, not to the topic — Bicep's
+    `SBTopicProperties` rejects it — so the `domain-events` topic cannot set it once on behalf of
+    everything beneath it. Each subscription has to set it individually, and a subscription that
+    forgets discards expired messages with no trace.
+
+    This rule matches nothing today, because `domain-events` has no subscriber yet. That is
+    deliberate rather than an oversight: the failure it guards against arrives with the first
+    subscription somebody adds, which is precisely the moment nobody is thinking about a fourteen-day
+    TTL. A rule written then would have to be remembered; a rule written now cannot be forgotten.
+
+    Its vacuous pass is therefore expected and is recorded here so a future reader does not mistake
+    silence for coverage — the mutation that proves it works is adding a subscription without the
+    flag, not removing one.
+    """
+    failures = Failures()
+    module = ROOT / "infra/modules/messaging.bicep"
+    text = module.read_text(encoding="utf-8")
+
+    for block in text.split("resource ")[1:]:
+        header = block.split("\n", 1)[0]
+        if "'Microsoft.ServiceBus/namespaces/topics/subscriptions@" not in header:
+            continue
+        symbol = header.split(" ", 1)[0]
+        body = block.split("\n}", 1)[0]
+        failures.require(
+            "deadLetteringOnMessageExpiration: true" in body,
+            f"messaging.bicep declares subscription '{symbol}' without "
+            "deadLetteringOnMessageExpiration: true; an expired message would be discarded with no "
+            "trace. The property belongs to the subscription, not the topic, so the topic cannot "
+            "set it on your behalf",
+        )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -745,6 +788,7 @@ def main() -> int:
         *validate_ai_zone_has_no_data_plane_role(),
         *validate_diagnostic_coverage(),
         *validate_functions_subnet_delegation(),
+        *validate_subscriptions_dead_letter(),
         *validate_no_sensitive_values(),
     ]
     if failures:

@@ -20,10 +20,30 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   is a base-image bump. The infrastructure scan has no equivalent filter, deliberately: every
   misconfiguration Trivy reports against the compiled ARM is one this repository wrote.
 
+  The gate re-runs the scan rather than converting the JSON, and the reason is worth recording
+  because the first version got it wrong. That version gated with `trivy convert --exit-code 1`, and
+  its own CI log said `[convert] To display the summary table, enable the scanners used during JSON
+  report generation` — convert had lost the scanner metadata, rendered nothing, and therefore had
+  nothing to fail on. Every job went green, which looked like a clean baseline and was actually a
+  gate that could never fire. The two invocations now share a cache volume, so the second one reuses
+  the vulnerability database rather than downloading it again.
+
   The open question of whether the weekly scheduled run should also open an issue is now answered
   no, and enforcement is the reason. A scheduled run that only wrote to the Security tab was easy to
   miss; one that *fails* is notified to the repository owner by GitHub already, so an issue-opening
   job would duplicate the notification and add `issues: write` to a security workflow for no gain.
+
+- Guarded the `domain-events` dead-letter requirement before the first subscriber exists.
+  `validate_subscriptions_dead_letter` fails any Service Bus topic subscription declared without
+  `deadLetteringOnMessageExpiration: true`. The property belongs to the subscription rather than the
+  topic —
+  Bicep's `SBTopicProperties` rejects it — so the topic cannot set it once on behalf of everything
+  beneath it, and a subscription that forgets discards expired messages with no trace.
+
+  The rule matches nothing today, and that is the point rather than an oversight: the failure
+  arrives with the first subscription somebody adds, which is exactly the moment nobody is thinking
+  about a fourteen-day TTL. A rule written then would have to be remembered. Its vacuous pass is
+  documented in the rule's own docstring so a future reader does not mistake silence for coverage.
 
 - Recorded which Functions hosting SKU the `snet-functions` delegation assumes, and made the two
   agree by rule rather than by memory. `infra/modules/network.bicep` now carries the reasoning, and
