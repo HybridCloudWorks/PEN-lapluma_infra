@@ -386,11 +386,17 @@ place. What remains is the edge, which cannot be modelled until an address range
   `Microsoft.ServiceBus/namespaces/topics/subscriptions`, and `SBTopicProperties` rejects it. A
   message that reaches the TTL today would be discarded with no trace, if anything were subscribed.
 - **Dependencies:** None. It becomes real the moment a subscription exists.
-- **Recommended action:** Every subscription added to `domain-events` must set
-  `deadLetteringOnMessageExpiration: true`. Add the first subscription and the rule together.
-- **Status:** Not started
+- **Recommended action:** Nothing to do until a subscriber exists. The requirement is now enforced
+  rather than remembered: `validate_subscriptions_dead_letter` in `tools/validate_foundation.py`
+  fails any subscription declared without `deadLetteringOnMessageExpiration: true`, so the first one
+  added cannot omit it.
+- **Status:** Guarded, pending a subscriber. The rule that was the substance of this item exists;
+  the subscription it applies to does not, and creating one belongs to whichever item introduces a
+  projection worker.
 - **Notes for future engineers:** `infra/modules/messaging.bicep` carries a comment on the topic
-  marking the spot. The queues already set the flag, so the pattern to copy is directly above.
+  marking the spot. The queues already set the flag, so the pattern to copy is directly above. The
+  validator rule matches nothing today, deliberately — do not delete it as dead code, because the
+  moment it has something to match is the moment it earns its place.
 
 ### 5.5 — Implement the UPL classifier and its fail-closed gate
 
