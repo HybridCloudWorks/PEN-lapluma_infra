@@ -38,10 +38,17 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   value would have been wrong for `dev` anyway.
 
   It is now a `dataClassification` parameter constrained by `@allowed` to `synthetic` or
-  `production-sensitive-pii`, defaulting to `synthetic` and applied as the tag on every resource. The
-  default is the restrictive claim deliberately: declaring an environment able to hold real
-  participant data should be a deliberate act, and a typo fails at parameter submission rather than
-  mislabelling the estate.
+  `production-sensitive-pii`, applied as the tag on every resource, and **required in practice**:
+  `infra/main.parameters.json` always supplies a value, so an unset `LAPLUMA_DATA_CLASSIFICATION`
+  substitutes an empty string and the deployment fails at submission naming the parameter. That is
+  the same fail-closed convention every other variable in that file uses, and it is the right one
+  here — an environment's data classification should be stated by whoever authorizes it, not
+  inherited from a template default. The `synthetic` default covers only a direct `az deployment`
+  that omits the parameter file, where the restrictive claim is the safe landing.
+
+  The hard-coded `data-classification: sensitive-pii` entry in the `tags` parameter is gone. It was
+  already dead — `union` let the new parameter overwrite it — and its value was not even in the
+  allowed set, so it was a misleading second source of truth for the same tag.
 
   What it does not do is stated on the wiki page too — a tag is a declaration and a governance
   filter, not an access control. It is what makes the restore and deletion drills runnable, because

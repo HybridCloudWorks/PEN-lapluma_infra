@@ -18,9 +18,13 @@ Two decisions that do not depend on knowing *which* tenant or subscription, and 
 settled ahead of the gate.
 
 **One subscription, three resource groups.** All three environments share a subscription and are
-separated by resource group and the `environment` tag — which is what `infra/main.bicep` already
-does, creating `rg-<prefix>-<environment>` per environment. One authorization to obtain, one cost
-centre to report against.
+separated by resource group — which is what `infra/main.bicep` already does, creating one group per
+environment named `rg-{prefix}-{environment}`. One authorization to obtain, one cost centre to
+report against.
+
+The environment is identifiable from the `azd-env-name` tag, which every resource carries. A
+dedicated `environment` tag holding just `dev`, `staging` or `pilot` is proposed under `REVIEW.md`
+R-05 and is **not applied today** — worth knowing before writing a governance query against it.
 
 The cost is blast radius, and it should be stated rather than glossed: a subscription-level
 misconfiguration, policy assignment, or role grant reaches all three environments, and `pilot` is
@@ -43,10 +47,15 @@ and the proposal to run `dev` without a Managed HSM pool rests on `dev` protecti
 needs one.
 
 It is expressed as the `dataClassification` parameter, constrained by an `@allowed` list to
-`synthetic` or `production-sensitive-pii`, defaulting to `synthetic`. The default is the restrictive
-claim on purpose: declaring an environment able to hold real participant data should be a deliberate
-act rather than something inherited, and a typo fails at parameter submission rather than tagging the
-estate wrongly.
+`synthetic` or `production-sensitive-pii`. Through AZD it is effectively **required**: the parameter
+file always supplies a value, so leaving `LAPLUMA_DATA_CLASSIFICATION` unset substitutes an empty
+string and the deployment fails at submission naming the parameter. That is the same fail-closed
+convention every other variable uses, and it is the right one here — an environment's data
+classification should be stated by whoever authorizes it, not inherited from a template default.
+
+The `synthetic` default covers only a direct `az deployment` that omits the parameter file entirely,
+where landing on the restrictive claim is the safe outcome. Either way a typo fails at submission
+rather than tagging the estate wrongly.
 
 What this does *not* do is stop somebody uploading a real document to `dev`. The tag is a
 declaration and a governance filter, not an access control. The control that would enforce it is the
