@@ -7,6 +7,29 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- Added drafted proposals to `REVIEW.md`. Thirteen of the seventeen blockers now carry a
+  **Proposed answer** — a concrete draft the named owner can approve, amend, or reject in one
+  reading, rather than a policy they have to author from nothing. Several of these items had been
+  open not because the decision was hard but because the writing was, and a decision is a much
+  smaller task than a blank page. Each proposal states what it costs to accept and names the row
+  most worth arguing with, so a rejection is as easy to give as an approval.
+
+  Four items carry no proposal, deliberately: R-01 (tenant and subscription IDs), R-02 (a written
+  authorization), R-10's object IDs, and R-17 (a repository permission) turn on facts and grants
+  only their owner holds. The same rule runs through every proposal that does exist — where a real
+  identifier is needed it states the identifier's *shape* and stops, because a plausible invented
+  GUID or hostname is worse than a blank field: a blank is visibly unanswered and an invention is
+  not.
+
+  Two of the proposals correct the framing of their own item. R-09's egress section records that
+  `src/functions/acquisition_contract.py` performs no upstream fetch today, so the functions-zone
+  allowlist is a prerequisite for work not yet written rather than a live gap — but the
+  `DenyInternet` rule will block the first fetch at runtime rather than at review, so the list has
+  to be approved before that work starts. R-16 notes the same thing about the acquisition schedule.
+  R-12 declines to pin a Document Intelligence API version at all: this repository cannot reach the
+  service to confirm the current GA string, and a version pinned from memory would be exactly the
+  confident unverified value that item exists to prevent.
+
 - Moved the Core API from .NET 9 to **.NET 10**. `LaPluma.CoreApi.csproj` targets `net10.0`, the
   Dockerfile builds on `dotnet/sdk:10.0` and runs on `dotnet/aspnet:10.0`, and CI installs the
   10.0.x SDK. .NET 9 is a Standard Term Support release whose support window has closed; .NET 10 is
@@ -26,6 +49,37 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   configuration overview, conventions, and navigation.
 
 ### Added
+
+- Five architecture decision records, staged in `wiki/` with an index page and linked from the
+  Architecture Overview: AZD with Bicep over Terraform, three Container Apps environments over one
+  with internal isolation, Azure SQL authoritative with Cosmos as rebuildable projections, Service
+  Bus Premium over Standard, and Managed HSM over Key Vault-managed keys. Each of these was
+  previously documented only as a conclusion, which leaves a future engineer unable to tell whether
+  a constraint is load-bearing or incidental — and the usual result of that is a constraint removed
+  by someone who assumed it was arbitrary.
+
+  Each record names the option that was nearly chosen and says what would have to change for it to
+  win, because that is the part a future engineer is actually looking for. Two are worth reading
+  even if the decision is not in question: Service Bus Premium is a *network* decision rather than a
+  throughput one — Standard cannot take a private endpoint, so the tier is what keeps the processing
+  zone's egress allowlist empty — and Managed HSM over Key Vault Premium is the closest call in the
+  set, with the record written so it can be argued against rather than merely cited.
+
+- Four operational runbooks, staged in `wiki/` with an index page: incident response, on-call
+  procedure, restore drill, and deletion drill. Each carries a banner stating that no step in it has
+  ever been executed, because no environment exists to execute it against — every command is written
+  against the resource shapes declared in `infra/`, and every timing figure is an intention rather
+  than a measurement. They are written now because the alternative is authoring them during the
+  first incident.
+
+  The on-call page spends its first section on what on-call is explicitly *not* authorized to do —
+  approve deployments, change retention windows, activate a form edition, read case content to
+  diagnose a problem, lock an immutability policy, or touch HSM key material. An under-specified
+  rotation ends with somebody at 02:00 making a decision they were never given authority for. The
+  deletion drill leads with the two stores every erasure check forgets: blob versions, which survive
+  deleting the current blob, and delivery links issued before erasure. Its strongest verification
+  step is only available because of ADR 0003 — drop the Cosmos projection, rebuild it from
+  post-erasure SQL, and confirm the rebuild produces nothing about the participant.
 
 - Repository governance files, all but one of them. `.github/dependabot.yml` watches NuGet, pip,
   Docker, and GitHub Actions. The last two are load-bearing rather than optional here: every
@@ -50,14 +104,176 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- The catalog has an authoritative source. `CatalogRepository` was an in-memory fixture registered
+  as a singleton with nothing behind it; `ICatalogSource` now has two implementations, and the
+  SQL-backed one is the **default**. The fixture is opt-in, because a deployment that failed to
+  configure its database serving a plausible hard-coded catalog is worse than an outage — nothing in
+  the response would say so. An unrecognised source value is refused rather than guessed.
+
+  The interface is asynchronous throughout, since one implementation talks to a database over a
+  private endpoint and a synchronous one would have blocked a request thread. `src/core-api/Sql/001_catalog_schema.sql`
+  carries the schema, with the contract's enumerations as `CHECK` constraints and `https://` enforced
+  on every URL column — the API is not the only thing that will ever write those tables. Package
+  activation is deliberately not stored: it is derived from the weakest form, and a stored copy could
+  disagree with the forms it summarises.
+
+  Wire names are read off the enums' own `JsonStringEnumMemberName` attributes rather than restated
+  in a second mapping, so the database, the JSON contract, and the C# member names cannot drift
+  apart. A value outside the contract raises instead of defaulting, because defaulting would
+  classify an unknown artifact as an official PDF.
+
+  **None of the SQL or Cosmos code has ever executed a query.** No environment has been provisioned,
+  so it compiles, it is reviewed, and that is the whole of the assurance behind it. The types say so
+  in their own documentation, and `TODO.md` 5.2 is now the integration test that will be its first
+  real exercise. What *is* tested is everything that does not need a database: which source a
+  configuration selects, that SQL is the default, that a missing server fails at startup, that the
+  connection string carries no password and authenticates with Entra, and the whole wire-name map.
+
+  Writing those tests found a real bug. The options were registered through a factory closure, so a
+  deployment missing its server name would have started, passed its liveness probe, stayed in
+  rotation, and failed every catalog call — while the comment beside it claimed it failed at
+  startup. It is built eagerly now.
+- The acquisition orchestration publishes. `publish_acquisition_proposals` returned metadata and
+  sent nothing; the Durable activity now carries an identity-based Service Bus output binding to
+  the `catalog-acquisition` queue, and the function app is configured with the namespace and its
+  managed identity rather than a connection string — the namespace sets `disableLocalAuth`, so a
+  shared-access key would be refused even if one were configured.
+
+  The publisher takes a `send` seam. The activity passes the output binding, the tests pass a
+  recorder, and passing nothing keeps the offline path deterministic. That is not a convenience:
+  without it the module could not be tested at all without the runtime it is deferred behind, which
+  is the same reason the orchestration's shape is asserted by parsing `function_app.py` with `ast`.
+
+  Three invariants are enforced rather than described. A proposal carrying a key outside
+  `PUBLISHABLE_KEYS` is refused rather than published — the message lands on a queue another
+  component reads, so an extra key is a contract change made by accident, and an applicant
+  identifier arriving there would be published rather than merely logged. Only `PROPOSED` items may
+  be published, so nothing that already claims an outcome can route around the two-person approval.
+  A send failure propagates rather than being swallowed, so the orchestrator's bounded retry sees
+  it and the accepted count never describes a publish that did not happen.
+
+  The binding collects into a list and sets it once, because a Functions output binding is written
+  when the function returns: either the contract check raises and nothing is set, or every message
+  goes together. There is no partial publish to observe.
+- Every resource that can emit diagnostics now routes them to the Log Analytics workspace. Not one
+  resource in the network, security, messaging, data, or compute modules had a `diagnosticSettings`
+  child: no SQL security log, no Key Vault access log, no Managed HSM audit trail, no Service Bus
+  operational log, and no NSG rule evaluation reached the workspace that was built to receive them.
+  Nineteen declarations, expanding to twenty-five settings once the storage loops unroll.
+
+  `allLogs` rather than an enumerated category list, deliberately. A list has to be revised whenever
+  Azure adds a category, and the failure mode of a stale list is silence — the category never
+  arrives and nothing says so. Where a type genuinely differs, it is stated: storage accounts emit
+  metrics only and their blob services carry the access logs, and network security groups emit no
+  metrics at all.
+
+  The settings are written out per resource rather than looped over an array of symbols, because a
+  diagnostic setting's scope has to be resolvable at the start of the deployment and a resource
+  symbol is not. That is a Bicep constraint, not a stylistic choice, and the comment says so.
+- A check that a resource which can emit diagnostics has somewhere to emit them. Adding a storage
+  account, a vault, an environment, or a namespace without a diagnostic setting now fails, which is
+  how the gap it found on its first run was caught: the function host's storage account had metrics
+  wired but its blob service — where access to the deployment container actually shows up — had
+  nothing. The rule only counts a `scope:` inside a `diagnosticSettings` declaration, so a role
+  assignment scoped to the same resource does not satisfy it; that case is mutation-tested, because
+  it is the way the rule would otherwise have passed while checking nothing.
+- The Core API is no longer anonymous. Every catalog endpoint accepted every request; the design
+  terminates JWT validation at the API Management edge, and a service whose only protection is an
+  upstream gateway fails open the moment anything reaches it directly — which, inside the core
+  subnet, plenty can. `src/core-api/CatalogAuthentication.cs` adds bearer validation and a policy
+  applied to the `/v1/catalog` group, so a route added later inherits it instead of having to
+  remember it. `/health` and `/ready` stay anonymous: an orchestrator holds no token, and a probe
+  that needed one would report the identity provider's health rather than this service's.
+
+  It **fails closed**. With no audience and issuer configured there is nothing to validate a token
+  against, so the policy denies outright rather than falling back to accepting whatever arrives.
+  Without that explicit deny the service would still reject unsigned tokens, but any scheme
+  registered later — a test handler, a developer's convenience shim — would sail straight through. A
+  test asserts that an authenticated caller is still refused by an unconfigured deployment.
+
+  Adding the lock broke 27 of the 49 existing tests, which is the evidence that it is real: the 22
+  that survived were the health, readiness, and contract tests that never touched the catalog. Those
+  27 now authenticate through a test scheme, because they are about catalog behaviour rather than
+  about the lock; the lock has its own tests.
+
+  One bug surfaced while writing them. `UseStatusCodePages` inspects the response on the way out, so
+  it only sees what was produced *below* it. Registered above authentication, the 401 travelled
+  outward past it and reached the client as a bare status code — every other failure carrying a
+  problem document and that one not. The middleware order is now explicit and commented, and the
+  test that caught it asserts the 401 body.
+- Network security groups carry rules. Four of the five had none at all, which left the AI zone with
+  unrestricted outbound internet access; each now carries a baseline internet deny. The processing
+  group additionally denies the `Sql` and `AzureCosmosDB` service tags and the private-endpoint
+  subnet prefix, closing code review finding **F-04**: an NSG carries an implicit
+  `AllowVnetOutBound` at priority 65000 and every private endpoint sits inside this VNet, so the
+  existing `DenyInternetEgress` never covered a processing replica reaching the database endpoints —
+  that traffic is intra-VNet and the internet rule does not apply to it. Rule structure is authored
+  here; the destination addresses for an allowlist are `REVIEW.md` **R-09** and are not invented.
+- The audit container carries a time-based immutability policy, with the window parameterized and
+  defaulting to seven years pending **R-11**, and `allowProtectedAppendWrites` so evidence appended
+  over time stays protected. Only the audit container: the other three hold working material that
+  retention and erasure policy has to be able to remove, and a policy there would collide with the
+  erasure obligation rather than support it.
+
+  The policy is created **unlocked**, and there is deliberately no parameter offering to lock it.
+  Locking is not a declarative property — ARM exposes it as an explicit action on the policy — so a
+  `lock: true` in the template would read like a guarantee and enforce nothing. It is an
+  irreversible out-of-band step for `staging` and `pilot` once R-11 ratifies the period, and never
+  for `dev`.
+- The foundation can now function once provisioning is unlocked. Four P0 gaps closed together,
+  because each was load-bearing for the next.
+
+  **Private endpoints and private DNS.** Every data service set `publicNetworkAccess: 'Disabled'`
+  while no `privateEndpoints` or `privateDnsZones` resource existed anywhere, and the
+  `snet-private-endpoints` subnet was created and left empty — provisioning would have produced a
+  set of services nothing could reach. `infra/modules/privatelink.bicep` creates twelve endpoints
+  and twelve zones with their virtual-network links. It is data-driven rather than one block per
+  service: the blocks would differ only in three strings, and a copied block is where a wrong
+  `groupId` or a zone that does not match its endpoint hides. Zones for services that do not exist
+  yet — Document Intelligence, under **R-12** — are created and linked anyway, since a zone is inert
+  until an endpoint registers a record in it.
+
+  **The workload hosting layer.** `azure.yaml` declared three services with nowhere to deploy them
+  and four delegated subnets with no consumers. `infra/modules/compute.bicep` adds three Container
+  Apps managed environments — core, processing, and AI, each bound to its own subnet, because an
+  environment is the logging and networking boundary and sharing one would collapse the trust-zone
+  split the subnets exist to express — plus the Core API app with liveness and readiness probes
+  wired to the endpoints that mean what they say, a queue-driven processing worker, a Flex
+  Consumption function app pinned to Python 3.13, and a Premium container registry with
+  managed-identity pull and no admin user. Each app carries the `azd-service-name` tag that binds it
+  to its `azure.yaml` service. The function host gets its own storage account: the four data
+  accounts hold case material under a retention obligation, and host bookkeeping does not belong
+  beside it.
+
+  **Role assignments.** Four managed identities existed with no assignment anywhere, while every
+  service had local authentication and shared keys disabled — no workload could read or write
+  anything. `infra/modules/rbac.bicep` adds thirteen assignments plus one Cosmos data-plane
+  assignment, every one scoped to a single resource rather than to the resource group, because a
+  group-scoped assignment would silently hand the processing zone the SQL and Cosmos access the
+  design exists to deny it. The processing zone gets blob **reader** on quarantine only and receiver
+  on one queue only. The AI zone gets nothing at all.
+
+  **The Application Insights ingestion deadlock.** Ingestion and query were both disabled with no
+  Azure Monitor Private Link Scope, so workloads could not send telemetry and operators could not
+  read it. The scope now exists with both access modes set to `PrivateOnly`, the workspace and the
+  component are scoped to it, and it is reached through a private endpoint resolving across the four
+  zones Azure Monitor needs. Only with that in place did the Log Analytics workspace's own public
+  ingestion and query get disabled — doing it earlier would have extended the same deadlock.
+- Three checks so those gaps cannot reopen, each verified by reproducing the failure it prevents:
+  a resource that disables public network access must have a private endpoint wired to it, and is
+  checked in both directions — a new locked-down service fails until an endpoint exists, and an
+  endpoint removed from the wiring fails too; the AI zone must hold no data-plane role, asserted
+  against the RBAC module rather than trusted to a comment; and the function host's Python version
+  joins the set that has to agree with the image, CI, and the documentation.
 - Moved the repository to **Python 3.13** and took the two `azure-functions` bumps that depended on
   it: `azure-functions` to `>=2.2.0,<3` and `azure-functions-durable` to `>=1.7.0,<2`. The 2.x line
   requires Python `>=3.13` and the 1.x line caps at `<3.13` — the ranges are disjoint, so the pin
   could not move without the interpreter. The version now reads 3.13 in the worker image, the CI
   `setup-python` step, the worker docstring, the README, and both wiki pages, which is every place
   that states it. 3.13 rather than 3.14 because it is the minimum that unblocks the SDK; whether the
-  Azure Functions runtime offers 3.13 on the chosen plan and region could not be confirmed from here
-  and is recorded against `TODO.md` item 1.2, which pins `linuxFxVersion`.
+  Azure Functions runtime offers 3.13 on the chosen plan and region could not be confirmed from here.
+  The function host now pins it in `infra/modules/compute.bicep`, so that is where the assumption
+  lives; confirm it before provisioning.
 - Three guardrails so those failures cannot return, each verified by reproducing the failure it
   prevents:
   - CI resolves `src/functions/requirements.txt` against the interpreter it tests on. Nothing

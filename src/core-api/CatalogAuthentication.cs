@@ -1,0 +1,68 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+
+namespace LaPluma.CoreApi;
+
+/// <summary>
+/// Authentication and authorization for the catalog surface.
+///
+/// The design terminates JWT validation at the API Management edge. A service whose only protection
+/// is an upstream gateway fails open the moment anything reaches it directly — and inside the core
+/// subnet, plenty can. This is the second lock, not the first.
+/// </summary>
+public static class CatalogAuthentication
+{
+    /// <summary>Applied to the catalog group. Health and readiness stay anonymous.</summary>
+    public const string PolicyName = "catalog-reader";
+
+    public const string AudienceSetting = "Authentication:Audience";
+    public const string IssuerSetting = "Authentication:Issuer";
+
+    public static IServiceCollection AddCatalogAuthentication(
+        this IServiceCollection services, IConfiguration configuration)
+    {
+        var audience = configuration[AudienceSetting];
+        var issuer = configuration[IssuerSetting];
+        var configured = !string.IsNullOrWhiteSpace(audience) && !string.IsNullOrWhiteSpace(issuer);
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                // Authority is left unset when unconfigured so the handler never reaches out for
+                // OIDC metadata it has no address for. Nothing can validate, so nothing is trusted.
+                options.Authority = configured ? issuer : null;
+                options.Audience = audience;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = issuer,
+                    ValidAudience = audience,
+                    // The default five minutes is generous for a token that never leaves a VNet.
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                };
+            });
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(PolicyName, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+
+                if (!configured)
+                {
+                    // Fail closed, and loudly. With no audience and issuer there is nothing to
+                    // validate a token against, so the safe reading of an unconfigured deployment
+                    // is "deny everything", not "accept anything". Without this the service would
+                    // still reject unsigned tokens, but any scheme registered later — a test
+                    // handler, a developer's convenience shim — would sail straight through.
+                    policy.RequireAssertion(_ => false);
+                }
+            });
+        });
+
+        return services;
+    }
+}

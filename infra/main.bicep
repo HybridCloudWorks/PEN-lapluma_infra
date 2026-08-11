@@ -31,6 +31,11 @@ type RetentionBaseline = {
 
   @minLength(1)
   hsmSoftDeleteDays: string
+
+  // Not a soft-delete window: this one is a WORM period, and once its policy is locked it cannot
+  // be shortened. Seven years proposed, pending R-11.
+  @minLength(1)
+  auditImmutabilityDays: string
 }
 
 @description('Sizing and throughput. Values pending REVIEW.md R-03.')
@@ -59,6 +64,9 @@ type CapacityBaseline = {
   // A union rather than a bare string: the module constrains this with @allowed, and mirroring the
   // constraint here keeps the boundary type-checked instead of deferring to deployment.
   hsmSkuName: 'Standard_B1' | 'Custom_B32'
+
+  // Premium is what private endpoints require, and this posture requires those.
+  registrySku: 'Basic' | 'Standard' | 'Premium'
 }
 
 @description('Redundancy. Values pending TODO 3.2 and an agreed SLO.')
@@ -162,6 +170,10 @@ param subnetPrefixes SubnetPrefixes
 @description('Required governance tags; no PII or secrets.')
 param tags object
 
+@description('Python version for the function host. tools/validate_foundation.py holds this in step with the image, CI, and the documentation.')
+@minLength(1)
+param functionsPythonVersion string = '3.13'
+
 @description('Retention windows, in days.')
 param retention RetentionBaseline = {
   logAnalyticsDays: '365'
@@ -169,6 +181,7 @@ param retention RetentionBaseline = {
   containerSoftDeleteDays: '7'
   keyVaultSoftDeleteDays: '90'
   hsmSoftDeleteDays: '90'
+  auditImmutabilityDays: '2555'
 }
 
 @description('Sizing and throughput.')
@@ -181,6 +194,7 @@ param capacity CapacityBaseline = {
   serviceBusCapacity: '1'
   serviceBusPartitions: '1'
   hsmSkuName: 'Standard_B1'
+  registrySku: 'Premium'
 }
 
 @description('Redundancy.')
@@ -212,6 +226,7 @@ var retentionDays = {
   containerSoftDelete: int(retention.containerSoftDeleteDays)
   keyVaultSoftDelete: int(retention.keyVaultSoftDeleteDays)
   hsmSoftDelete: int(retention.hsmSoftDeleteDays)
+  auditImmutability: int(retention.auditImmutabilityDays)
 }
 var sizing = {
   sqlSkuCapacity: int(capacity.sqlSkuCapacity)
@@ -225,6 +240,13 @@ var redundancy = {
   cosmosZoneRedundant: bool(resilience.cosmosZoneRedundant)
 }
 var queueMaxDeliveryCount = int(messagingBaseline.queueMaxDeliveryCount)
+
+// Composed from environment() rather than written out. The literals are correct for Azure Public
+// and wrong everywhere else, which is what no-hardcoded-env-urls exists to catch; the remaining
+// zone names below have no environment() suffix to derive them from.
+// sqlServerHostname carries its own leading dot.
+var sqlPrivateZone = 'privatelink${environment().suffixes.sqlServerHostname}'
+var blobPrivateZone = 'privatelink.blob.${environment().suffixes.storage}'
 
 var commonTags = union(tags, {
   'azd-env-name': environmentName
@@ -249,6 +271,7 @@ module network './modules/network.bicep' = if (enableProvisioning) {
     tags: commonTags
     vnetAddressPrefix: vnetAddressPrefix
     subnetPrefixes: subnetPrefixes
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 
@@ -274,6 +297,7 @@ module security './modules/security.bicep' = if (enableProvisioning) {
     keyVaultSoftDeleteRetentionDays: retentionDays.keyVaultSoftDelete
     hsmSoftDeleteRetentionDays: retentionDays.hsmSoftDelete
     hsmSkuName: capacity.hsmSkuName
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 
@@ -291,6 +315,7 @@ module messaging './modules/messaging.bicep' = if (enableProvisioning) {
     queueLockDuration: messagingBaseline.queueLockDuration
     queueMaxDeliveryCount: queueMaxDeliveryCount
     topicMessageTimeToLive: messagingBaseline.topicMessageTimeToLive
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }
 
@@ -312,8 +337,142 @@ module data './modules/data.bicep' = if (enableProvisioning) {
     sqlZoneRedundant: redundancy.sqlZoneRedundant
     cosmosMaxThroughput: sizing.cosmosMaxThroughput
     cosmosZoneRedundant: redundancy.cosmosZoneRedundant
+    auditImmutabilityDays: retentionDays.auditImmutability
     auditStorageSku: resilience.auditStorageSku
     defaultStorageSku: resilience.defaultStorageSku
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
+  }
+}
+
+module compute './modules/compute.bicep' = if (enableProvisioning) {
+  name: 'compute-foundation'
+  scope: targetResourceGroup
+  params: {
+    name: resourceBaseName
+    location: location
+    tags: commonTags
+    coreSubnetId: network!.outputs.coreSubnetId
+    processingSubnetId: network!.outputs.processingSubnetId
+    aiSubnetId: network!.outputs.aiSubnetId
+    functionsSubnetId: network!.outputs.functionsSubnetId
+    logAnalyticsWorkspaceId: observability!.outputs.workspaceId
+    applicationInsightsConnectionString: observability!.outputs.connectionString
+    coreIdentityId: security!.outputs.coreIdentityId
+    processingIdentityId: security!.outputs.processingIdentityId
+    functionsIdentityId: security!.outputs.functionsIdentityId
+    registrySku: capacity.registrySku
+    functionsPythonVersion: functionsPythonVersion
+    serviceBusFullyQualifiedNamespace: messaging!.outputs.namespaceFullyQualified
+    sqlServerFullyQualifiedName: data!.outputs.sqlServerFullyQualifiedName
+    sqlDatabaseName: data!.outputs.sqlDatabaseName
+    cosmosEndpoint: data!.outputs.cosmosEndpoint
+    diagnosticsWorkspaceId: observability!.outputs.workspaceId
+  }
+}
+
+// One module for every private endpoint and zone. Passing the targets as data keeps the endpoint,
+// its sub-resource, and the zone its record lands in on three adjacent lines, which is where a
+// mismatch between them is visible.
+module privatelink './modules/privatelink.bicep' = if (enableProvisioning) {
+  name: 'privatelink-foundation'
+  scope: targetResourceGroup
+  params: {
+    name: resourceBaseName
+    location: location
+    tags: commonTags
+    vnetId: network!.outputs.vnetId
+    subnetId: network!.outputs.privateEndpointsSubnetId
+    additionalZones: [
+      // No Document Intelligence resource exists yet — it arrives with REVIEW.md R-12 — but the
+      // zone and its link are inert without an endpoint, so creating them now costs nothing.
+      'privatelink.cognitiveservices.azure.com'
+      // Azure Monitor resolves across four zones behind its single endpoint. Only the first is
+      // named by a target above; without these three, ingestion and query resolve to nothing and
+      // the deadlock the scope exists to break stays in place.
+      'privatelink.oms.opinsights.azure.com'
+      'privatelink.ods.opinsights.azure.com'
+      'privatelink.agentsvc.azure-automation.net'
+    ]
+    targets: concat(
+      [
+        {
+          name: 'sql'
+          serviceId: data!.outputs.sqlServerId
+          groupId: 'sqlServer'
+          zone: sqlPrivateZone
+        }
+        {
+          name: 'cosmos'
+          serviceId: data!.outputs.cosmosId
+          groupId: 'Sql'
+          zone: 'privatelink.documents.azure.com'
+        }
+        {
+          name: 'servicebus'
+          serviceId: messaging!.outputs.serviceBusId
+          groupId: 'namespace'
+          zone: 'privatelink.servicebus.windows.net'
+        }
+        {
+          name: 'keyvault'
+          serviceId: security!.outputs.keyVaultId
+          groupId: 'vault'
+          zone: 'privatelink.vaultcore.azure.net'
+        }
+        {
+          name: 'hsm'
+          serviceId: security!.outputs.managedHsmId
+          groupId: 'managedhsm'
+          zone: 'privatelink.managedhsm.azure.net'
+        }
+        {
+          name: 'registry'
+          serviceId: compute!.outputs.registryId
+          groupId: 'registry'
+          zone: 'privatelink.azurecr.io'
+        }
+        {
+          name: 'functions-host-storage'
+          serviceId: compute!.outputs.functionsStorageId
+          groupId: 'blob'
+          zone: blobPrivateZone
+        }
+        {
+          // Azure Monitor reaches ingestion and query through one endpoint on the scope, not one
+          // per component, and it registers records in four zones rather than one.
+          name: 'monitor'
+          serviceId: observability!.outputs.privateLinkScopeId
+          groupId: 'azuremonitor'
+          zone: 'privatelink.monitor.azure.com'
+        }
+      ],
+      // Indexed rather than iterated, matching how the accounts themselves are declared.
+      map(range(0, length(data!.outputs.storagePurposeNames)), index => {
+        name: 'storage-${data!.outputs.storagePurposeNames[index]}'
+        serviceId: data!.outputs.storageAccountIds[index]
+        groupId: 'blob'
+        zone: blobPrivateZone
+      })
+    )
+  }
+}
+
+module rbac './modules/rbac.bicep' = if (enableProvisioning) {
+  name: 'rbac-foundation'
+  scope: targetResourceGroup
+  params: {
+    storageAccountNames: data!.outputs.storageAccountNames
+    storagePurposes: data!.outputs.storagePurposeNames
+    serviceBusNamespaceName: messaging!.outputs.namespaceName
+    processingQueueName: messaging!.outputs.processingQueueName
+    acquisitionQueueName: messaging!.outputs.acquisitionQueueName
+    keyVaultName: security!.outputs.keyVaultName
+    cosmosAccountName: data!.outputs.cosmosAccountName
+    registryName: compute!.outputs.registryName
+    functionsStorageName: compute!.outputs.functionsStorageName
+    corePrincipalId: security!.outputs.corePrincipalId
+    processingPrincipalId: security!.outputs.processingPrincipalId
+    functionsPrincipalId: security!.outputs.functionsPrincipalId
   }
 }
 

@@ -48,7 +48,8 @@
         "blobSoftDeleteDays": "${LAPLUMA_BLOB_SOFT_DELETE_DAYS}",
         "containerSoftDeleteDays": "${LAPLUMA_CONTAINER_SOFT_DELETE_DAYS}",
         "keyVaultSoftDeleteDays": "${LAPLUMA_KEY_VAULT_SOFT_DELETE_DAYS}",
-        "hsmSoftDeleteDays": "${LAPLUMA_HSM_SOFT_DELETE_DAYS}"
+        "hsmSoftDeleteDays": "${LAPLUMA_HSM_SOFT_DELETE_DAYS}",
+        "auditImmutabilityDays": "${LAPLUMA_AUDIT_IMMUTABILITY_DAYS}"
       }
     },
     "capacity": {
@@ -60,7 +61,8 @@
         "cosmosMaxThroughput": "${LAPLUMA_COSMOS_MAX_THROUGHPUT}",
         "serviceBusCapacity": "${LAPLUMA_SERVICE_BUS_CAPACITY}",
         "serviceBusPartitions": "${LAPLUMA_SERVICE_BUS_PARTITIONS}",
-        "hsmSkuName": "${LAPLUMA_HSM_SKU_NAME}"
+        "hsmSkuName": "${LAPLUMA_HSM_SKU_NAME}",
+        "registrySku": "${LAPLUMA_REGISTRY_SKU}"
       }
     },
     "resilience": {
@@ -79,6 +81,9 @@
         "queueMaxDeliveryCount": "${LAPLUMA_QUEUE_MAX_DELIVERY_COUNT}",
         "topicMessageTimeToLive": "${LAPLUMA_TOPIC_MESSAGE_TTL}"
       }
+    },
+    "functionsPythonVersion": {
+      "value": "${LAPLUMA_FUNCTIONS_PYTHON_VERSION}"
     }
   }
 }

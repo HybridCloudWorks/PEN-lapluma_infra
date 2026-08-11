@@ -1,6 +1,12 @@
+import ast
+import json
 import unittest
+from pathlib import Path
 
 from acquisition_contract import (
+    CONTRACT_VERSION,
+    PRIORITY_FORM_IDS,
+    PUBLISHABLE_KEYS,
     REQUIRED_REQUEST_KEYS,
     propose_acquisition_batch,
     publish_acquisition_proposals,
@@ -189,3 +195,104 @@ class OrchestrationShapeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PublishTests(unittest.TestCase):
+    """The publisher path, exercised through the seam rather than against a broker."""
+
+    def _proposals(self) -> list[dict]:
+        return propose_acquisition_batch(
+            {
+                "contractVersion": CONTRACT_VERSION,
+                "requestedAt": "2026-01-01T00:00:00+00:00",
+                "priorityForms": PRIORITY_FORM_IDS,
+            }
+        )
+
+    def test_without_a_sender_nothing_is_published(self) -> None:
+        # The offline default. Tests and local runs must not need a broker, and must not report a
+        # publish that did not happen.
+        result = publish_acquisition_proposals(self._proposals())
+
+        self.assertFalse(result["published"])
+        self.assertEqual(result["acceptedProposalCount"], len(PRIORITY_FORM_IDS))
+
+    def test_with_a_sender_every_proposal_is_published_once(self) -> None:
+        sent: list[str] = []
+
+        result = publish_acquisition_proposals(self._proposals(), sent.append)
+
+        self.assertTrue(result["published"])
+        self.assertEqual(result["acceptedProposalCount"], len(sent))
+        form_ids = sorted(json.loads(message)["formID"] for message in sent)
+        self.assertEqual(form_ids, sorted(PRIORITY_FORM_IDS))
+
+    def test_a_published_message_carries_only_contract_fields(self) -> None:
+        # The message lands on a queue another component reads, so an extra key is a contract
+        # change made by accident.
+        sent: list[str] = []
+        publish_acquisition_proposals(self._proposals(), sent.append)
+
+        for message in sent:
+            self.assertEqual(set(json.loads(message)), set(PUBLISHABLE_KEYS))
+
+    def test_an_unexpected_key_is_refused_rather_than_published(self) -> None:
+        proposals = self._proposals()
+        proposals[0]["applicantId"] = "A-12345"
+
+        with self.assertRaises(ValueError) as raised:
+            publish_acquisition_proposals(proposals, lambda _: None)
+
+        self.assertIn("unpublishable", str(raised.exception))
+
+    def test_only_proposed_items_may_be_published(self) -> None:
+        # Publishing something already marked activated would route around the two-person approval.
+        proposals = self._proposals()
+        proposals[0]["status"] = "ACTIVATED"
+
+        with self.assertRaises(ValueError):
+            publish_acquisition_proposals(proposals, lambda _: None)
+
+    def test_a_send_failure_propagates_rather_than_reporting_success(self) -> None:
+        # The orchestrator wraps this activity in a bounded retry. Swallowing the error here would
+        # report a publish that never happened and consume the retry budget for nothing.
+        def failing(_: str) -> None:
+            raise RuntimeError("broker unavailable")
+
+        with self.assertRaises(RuntimeError):
+            publish_acquisition_proposals(self._proposals(), failing)
+
+
+class PublishBindingShapeTests(unittest.TestCase):
+    """The binding itself, read out of the source.
+
+    The Durable runtime cannot start offline, so the decorator is asserted structurally — the same
+    reason OrchestrationShapeTests reads the timer trigger this way.
+    """
+
+    def setUp(self) -> None:
+        self.tree = ast.parse(Path(__file__).with_name("function_app.py").read_text(encoding="utf-8"))
+
+    def _publish_activity(self) -> ast.FunctionDef:
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "publish_acquisition_activity":
+                return node
+        self.fail("publish_acquisition_activity is missing")
+
+    def test_the_activity_declares_a_service_bus_output_binding(self) -> None:
+        decorators = [
+            decorator.func.attr
+            for decorator in self._publish_activity().decorator_list
+            if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)
+        ]
+
+        self.assertIn("service_bus_queue_output", decorators)
+
+    def test_the_binding_targets_the_acquisition_queue_by_identity(self) -> None:
+        source = Path(__file__).with_name("function_app.py").read_text(encoding="utf-8")
+
+        self.assertIn('ACQUISITION_QUEUE = "catalog-acquisition"', source)
+        # A connection string would be a shared key, which the namespace refuses: disableLocalAuth
+        # is set on it. Asserting the absence keeps a future convenience change honest.
+        self.assertNotIn("Endpoint=sb://", source)
+        self.assertNotIn("SharedAccessKey", source)
