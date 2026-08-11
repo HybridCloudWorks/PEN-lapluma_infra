@@ -276,7 +276,8 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Description:** Account erasure and case-retention sweeps must be integration-tested across SQL,
   Cosmos, Blob versions, search and projections, temporary stores, delivery links, logs, and backups
   and key policy. None of this exists.
-- **Dependencies:** 5.6; `REVIEW.md` **R-11** (one ratified retention contract).
+- **Dependencies:** 5.6. The retention contract is no longer one of them: it is ratified, and the
+  numbers this test asserts against are on the Pilot Policy and Compliance Gates wiki page.
 - **Recommended action:** Write an integration test that seeds a synthetic case across every store,
   triggers erasure, and asserts that no active copy, version, index entry, projection, temporary
   artifact, or delivery link survives — and that the deletion receipt is withheld until every one of
@@ -441,7 +442,9 @@ place. What remains is the edge, which cannot be modelled until an address range
   case content under the approved retention policy and records content-free, verifiable deletion
   evidence, withholding the receipt until active copies, versions, indexes, links, and applicable
   key material are all verified. None of it is implemented.
-- **Dependencies:** 5.2, 5.3; `REVIEW.md` **R-11** (ratified retention contract).
+- **Dependencies:** 5.2, 5.3. The retention contract is ratified, so the windows and the erasure
+  trigger this orchestration implements are settled — see the Pilot Policy and Compliance Gates
+  wiki page. `tools/validate_foundation.py` holds the ordering rule the sweep must not violate.
 - **Recommended action:** Add a Durable Functions orchestration that sweeps SQL, Cosmos projections,
   blob current versions and prior versions, temporary stores, delivery links, and search indexes,
   verifies each deletion, writes content-free evidence to the audit account, and only then issues
@@ -505,8 +508,8 @@ place. What remains is the edge, which cannot be modelled until an address range
   are real-user pilot prerequisites. All four are now **drafted** and staged in `wiki/`, together
   with an index page. What remains is validation: no step in any of them has been executed, because
   no environment exists to execute it against.
-- **Dependencies:** 3.5, 6.1; `REVIEW.md` **R-04** (operations and on-call owner), **R-11** (the
-  deletion drill's pass criteria are the retention numbers).
+- **Dependencies:** 3.5, 6.1; `REVIEW.md` **R-04** (operations and on-call owner). The deletion
+  drill's pass criteria are the ratified retention numbers, so that half is settled.
 - **Recommended action:** Once `staging` exists, execute each runbook by hand and correct it against
   what actually happened. The restore and deletion drills are the two that will change most —
   every command in them is written against the resource shapes declared in `infra/`, not against a
