@@ -90,7 +90,7 @@ place. What remains is the edge, which cannot be modelled until an address range
 
   The egress table is now ratified, and for four of the five zones it approves **no destination at
   all** — core, processing, AI, and private endpoints. For those four the existing deny *is* the
-  approved posture rather than a placeholder for one, and no firewall is wanted: with three zones
+  approved posture rather than a placeholder for one, and no firewall is wanted: with four subnets
   needing nothing and one needing four hosts, a firewall would add a continuously billing resource
   and a second policy surface to express a list the NSGs already hold. The ratified table is on the
   Security and Data Protection wiki page.
