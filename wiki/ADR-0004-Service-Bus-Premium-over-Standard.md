@@ -53,7 +53,7 @@ Premium configuration and is far beyond pilot volume — the capacity is a side 
 private networking, not a capacity decision.
 
 Queues enable duplicate detection and dead-lettering on message expiration, with the windows and
-TTLs parameterized against `REVIEW.md` R-11.
+TTLs from the ratified retention contract.
 
 ## Consequences
 
@@ -61,7 +61,7 @@ Service Bus bills continuously from creation, in every environment, whether or n
 sent. It is one of the three continuously billing lines that R-03's cost record subtotals separately,
 and in a low-traffic `dev` environment it is a large fraction of the total.
 
-The processing zone keeps a genuinely empty egress allowlist — the proposal under R-09 — because its
+The processing zone keeps a genuinely empty egress allowlist — now ratified — because its
 inbound work and outbound results both travel over private endpoints. That is only true because of
 this decision.
 
@@ -77,5 +77,5 @@ cost is buying the network property, and dropping the tier drops the property.
 
 - [Architecture Overview](Architecture-Overview) — Azure service mapping
 - [ADR 0002](ADR-0002-Three-Container-Apps-environments) — the zone isolation this supports
-- `REVIEW.md` R-03 (cost), R-09 (egress)
+- `REVIEW.md` R-03 (cost); [Security and Data Protection](Security-and-Data-Protection) (the ratified egress table)
 - `infra/modules/messaging.bicep`

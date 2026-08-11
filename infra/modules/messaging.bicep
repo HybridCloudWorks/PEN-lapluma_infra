@@ -23,7 +23,7 @@ param serviceBusPartitions int = 1
 @minLength(1)
 param duplicateDetectionWindow string = 'PT1H'
 
-@description('Queue message time to live, ISO 8601 duration. Pending REVIEW.md R-11.')
+@description('Queue message time to live, ISO 8601 duration. Ratified; see the Pilot Policy and Compliance Gates wiki page.')
 @minLength(1)
 param queueMessageTimeToLive string = 'P7D'
 
@@ -36,7 +36,7 @@ param queueLockDuration string = 'PT5M'
 @maxValue(2000)
 param queueMaxDeliveryCount int = 5
 
-@description('Topic message time to live, ISO 8601 duration. Pending REVIEW.md R-11.')
+@description('Topic message time to live, ISO 8601 duration. Ratified; see the Pilot Policy and Compliance Gates wiki page.')
 @minLength(1)
 param topicMessageTimeToLive string = 'P14D'
 
@@ -77,7 +77,7 @@ resource acquisitionQueue 'Microsoft.ServiceBus/namespaces/queues@2024-01-01' = 
     requiresDuplicateDetection: true
     duplicateDetectionHistoryTimeWindow: duplicateDetectionWindow
     // Without a TTL the default is effectively infinite, so the dead-letter policy below can never
-    // fire and a stuck message is retained instead of surfaced. Window pending R-11.
+    // fire and a stuck message is retained instead of surfaced. Window ratified.
     defaultMessageTimeToLive: queueMessageTimeToLive
     deadLetteringOnMessageExpiration: true
     maxDeliveryCount: queueMaxDeliveryCount
@@ -92,7 +92,7 @@ resource processingQueue 'Microsoft.ServiceBus/namespaces/queues@2024-01-01' = {
     requiresDuplicateDetection: true
     duplicateDetectionHistoryTimeWindow: duplicateDetectionWindow
     // Without a TTL the default is effectively infinite, so the dead-letter policy below can never
-    // fire and a stuck message is retained instead of surfaced. Window pending R-11.
+    // fire and a stuck message is retained instead of surfaced. Window ratified.
     defaultMessageTimeToLive: queueMessageTimeToLive
     deadLetteringOnMessageExpiration: true
     maxDeliveryCount: queueMaxDeliveryCount

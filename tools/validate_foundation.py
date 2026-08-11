@@ -733,6 +733,65 @@ def validate_functions_subnet_delegation() -> Failures:
     return failures
 
 
+# The ratified retention ordering rule, as a check rather than a paragraph. The contract itself is
+# on the Pilot Policy and Compliance Gates wiki page.
+#
+# Every window that extends the life of case content must be STRICTLY shorter than the erasure SLA.
+# A soft-deleted blob is still recoverable, which means it is still retained: if the recovery window
+# reaches the SLA, the deletion receipt the data-flow design promises is false at the moment it is
+# issued. Equal is not good enough — the two clocks start at different moments, so equality already
+# means content outlives the promise.
+#
+# Two classes are exempt, and the reason is the same for both: they hold no case content. Audit
+# metadata is content-free and pseudonymized on erasure, so it is the evidence that erasure happened
+# rather than a surviving copy of what was erased. Key material is not case content either, and a
+# long recovery window there costs nothing in privacy terms while buying a great deal in
+# recoverability.
+CONTENT_BEARING_WINDOWS = ("blobSoftDeleteDays", "containerSoftDeleteDays", "blobVersionDays")
+RETENTION_DEFAULTS = re.compile(
+    r"param retention RetentionBaseline = \{(.*?)\n\}",
+    re.DOTALL,
+)
+
+
+def validate_retention_ordering() -> Failures:
+    """No content-bearing retention window reaches the erasure SLA."""
+    failures = Failures()
+    text = (ROOT / "infra/main.bicep").read_text(encoding="utf-8")
+
+    block = RETENTION_DEFAULTS.search(text)
+    failures.require(
+        block is not None,
+        "main.bicep declares no retention defaults; the ordering rule cannot check them",
+    )
+    if block is None:
+        return failures
+
+    values = dict(re.findall(r"(\w+):\s*'(\d+)'", block.group(1)))
+    sla = values.get("erasureSlaDays")
+    failures.require(
+        sla is not None,
+        "the retention baseline declares no erasureSlaDays; the ordering rule has no ceiling to "
+        "check against",
+    )
+    if sla is None:
+        return failures
+
+    for window in CONTENT_BEARING_WINDOWS:
+        value = values.get(window)
+        if value is None:
+            failures.require(False, f"the retention baseline declares no {window}")
+            continue
+        failures.require(
+            int(value) < int(sla),
+            f"{window} is {value} days against a {sla}-day erasure SLA. A window that reaches the "
+            "SLA keeps case content alive past the point the deletion receipt says it is gone. "
+            "Either shorten the window or raise the SLA and tell the privacy owner, because the "
+            "participant notice states the same number",
+        )
+    return failures
+
+
 SUBSCRIPTION_DECLARATION = re.compile(
     r"^resource (\w+) 'Microsoft\.ServiceBus/namespaces/topics/subscriptions@",
     re.MULTILINE,
@@ -789,6 +848,7 @@ def main() -> int:
         *validate_diagnostic_coverage(),
         *validate_functions_subnet_delegation(),
         *validate_subscriptions_dead_letter(),
+        *validate_retention_ordering(),
         *validate_no_sensitive_values(),
     ]
     if failures:

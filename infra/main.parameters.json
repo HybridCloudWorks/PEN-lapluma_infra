@@ -32,7 +32,8 @@
         "processing": "${LAPLUMA_PROCESSING_SUBNET_PREFIX}",
         "ai": "${LAPLUMA_AI_SUBNET_PREFIX}",
         "functions": "${LAPLUMA_FUNCTIONS_SUBNET_PREFIX}",
-        "privateEndpoints": "${LAPLUMA_PRIVATE_ENDPOINTS_SUBNET_PREFIX}"
+        "privateEndpoints": "${LAPLUMA_PRIVATE_ENDPOINTS_SUBNET_PREFIX}",
+        "apim": "${LAPLUMA_APIM_SUBNET_PREFIX}"
       }
     },
     "tags": {
@@ -49,6 +50,8 @@
         "containerSoftDeleteDays": "${LAPLUMA_CONTAINER_SOFT_DELETE_DAYS}",
         "keyVaultSoftDeleteDays": "${LAPLUMA_KEY_VAULT_SOFT_DELETE_DAYS}",
         "hsmSoftDeleteDays": "${LAPLUMA_HSM_SOFT_DELETE_DAYS}",
+        "blobVersionDays": "${LAPLUMA_BLOB_VERSION_DAYS}",
+        "erasureSlaDays": "${LAPLUMA_ERASURE_SLA_DAYS}",
         "auditImmutabilityDays": "${LAPLUMA_AUDIT_IMMUTABILITY_DAYS}"
       }
     },

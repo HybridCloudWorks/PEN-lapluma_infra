@@ -35,15 +35,19 @@ place. What remains is the edge, which cannot be modelled until an address range
   publishes it. That is correct for the current shape — an internet-facing authoritative API with no
   gateway in front of it would be worse — but it means the Edge zone does not exist yet, and no
   client can reach the service.
-- **Dependencies:** `REVIEW.md` **R-09** is the hard one — APIM needs its own dedicated subnet and
-  the address plan allocates five, none of them for the edge. Also **R-03** for the SKU cost,
-  **R-06** for the Entra application registration and API audience, and **R-07** for the public
-  hostname, DNS, and TLS certificate.
-- **Recommended action:** Once R-09 allocates a range, add `apim` to the `SubnetPrefixes` type in
-  `infra/main.bicep`, its variable to `.env.example` and `infra/main.parameters.json`, and a subnet
-  to `infra/modules/network.bicep`. Then add an `apim` module publishing the Core API container app,
-  validating the token audience R-06 settles, on the hostname R-07 settles.
-- **Status:** Not started
+- **Dependencies:** The address range is no longer one of them. `snet-apim` exists at
+  `10.42.8.0/24` with its own NSG, its prefix is wired through `SubnetPrefixes`, `.env.example` and
+  `infra/main.parameters.json`, and `network.bicep` emits `apimSubnetId` for the module to consume.
+  What remains is **R-03** for the SKU and its cost, **R-06** for the Entra registration and API
+  audience, and **R-07** for the public hostname, DNS, and TLS certificate.
+- **Recommended action:** Add an `apim` module publishing the Core API container app, validating the
+  token audience R-06 settles, on the hostname R-07 settles. Set the subnet delegation at the same
+  time: it is deliberately unset today because the v2 tiers integrate through a delegated subnet and
+  the classic tiers in internal mode do not, so the right value depends on the tier R-03 picks. The
+  subnet is empty, so setting it later costs nothing — unlike `snet-functions`, where the delegation
+  had to be right before anything occupied it.
+- **Status:** Partially unblocked — the subnet is reserved and wired; the resource needs three
+  decisions.
 - **Notes for future engineers:** APIM in internal VNet mode requires the Premium or Developer tier;
   the cheaper tiers cannot join a virtual network at all, which makes this an R-03 question before
   it is a networking one. `tools/validate_foundation.py` asserts that every resource disabling
@@ -82,15 +86,30 @@ place. What remains is the edge, which cannot be modelled until an address range
   had unrestricted outbound internet access. The processing NSG additionally denies the `Sql` and
   `AzureCosmosDB` service tags and the private-endpoint subnet prefix, which closes code review
   finding **F-04**: an NSG carries an implicit `AllowVnetOutBound`, and every private endpoint sits
-  inside this VNet, so the internet rule never covered that path. What remains is the mechanism and
-  the destinations — there is still no route table, no firewall, and no DNS egress control.
-- **Dependencies:** `REVIEW.md` **R-09** (approved egress destinations and enforcement mechanism).
-- **Recommended action:** Implement the approved mechanism — an Azure Firewall with forced tunneling
-  via UDR, or an equivalent — with an explicit allowlist, and punch the approved destinations
-  through the baseline denies rather than widening them. Add a validation test that asserts a
-  processing replica cannot resolve or reach an arbitrary external host.
-- **Status:** Partially complete — rule structure and the F-04 denies are in; the allowlist and its
-  enforcement mechanism remain.
+  inside this VNet, so the internet rule never covered that path.
+
+  The egress table is now ratified, and for four of the five zones it approves **no destination at
+  all** — core, processing, AI, and private endpoints. For those four the existing deny *is* the
+  approved posture rather than a placeholder for one, and no firewall is wanted: with three zones
+  needing nothing and one needing four hosts, a firewall would add a continuously billing resource
+  and a second policy surface to express a list the NSGs already hold. The ratified table is on the
+  Security and Data Protection wiki page.
+
+  One zone remains: the functions zone is approved for the four Alpha 0.2 authority publication
+  hosts on TCP 443. That row cannot be implemented as written, and the reason is worth knowing
+  before someone tries. **NSG rules match IP prefixes and service tags, not hostnames.** The four
+  authority hosts are CDN-backed, so their address ranges change and cannot be pinned in a rule.
+- **Dependencies:** None for the four empty rows. The functions row needs either FQDN-capable
+  filtering or an accepted change of mechanism, and it needs the source URLs `REVIEW.md` **R-14**
+  records, since the allowlist derives from them rather than being written from memory.
+- **Recommended action:** Nothing for the four empty zones — they are done. For the functions zone,
+  wait: `src/functions/acquisition_contract.py` performs no upstream fetch today, so there is
+  nothing to allow. When the edition-drift fetch is written, decide the mechanism then and land it
+  with that work. The `DenyInternet` rule at priority 4000 will block the first fetch at runtime
+  rather than at review, so that decision has to precede the code, not follow it. Add a validation
+  test that asserts a processing replica cannot reach an arbitrary external host.
+- **Status:** Complete for four of five zones. The functions row is deferred to the work that
+  creates the need, with the FQDN constraint recorded above so it is not rediscovered.
 - **Notes for future engineers:** Container Apps environments need platform-level egress for image
   pulls and control-plane traffic. Use the ACR private endpoint plus the documented required FQDNs;
   do not widen the allowlist to "all Azure services". The baseline deny sits at priority 4000 and
@@ -104,17 +123,18 @@ place. What remains is the edge, which cannot be modelled until an address range
   parameterized window, defaulting to seven years, and `allowProtectedAppendWrites` so evidence
   appended over time is still protected. It is created **unlocked**, and an unlocked policy can be
   shortened or removed — which is most of the protection missing.
-- **Dependencies:** `REVIEW.md` **R-11** (audit metadata retention, proposed 7 years).
-- **Recommended action:** Once R-11 ratifies the period, lock the policy in `staging` and `pilot`
-  with `az storage container immutability-policy lock`. Keep `dev` unlocked permanently so test data
-  can be cleaned up. Record the lock in the deployment runbook under 6.2.
-- **Status:** Not started
+- **Dependencies:** None remaining. The seven-year period is ratified; the audit row was the one
+  value on that page whose consequence is irreversible, and it came back unchanged.
+- **Recommended action:** Lock the policy in `staging` and `pilot` with
+  `az storage container immutability-policy lock`, once those environments exist. Keep `dev`
+  unlocked permanently so test data can be cleaned up. Record the lock in the operational runbooks.
+- **Status:** Unblocked, waiting on an environment to lock it in.
 - **Notes for future engineers:** **Locking is not a Bicep property, and there is deliberately no
   parameter offering to do it.** ARM exposes the lock as an explicit action on the policy resource,
   so a `lock: true` in the template would read like a guarantee and enforce nothing. It is an
   irreversible out-of-band step: a locked policy cannot be shortened or removed by an owner, by a
   subscription administrator, or by support. Extending it is the only permitted change. Do not run
-  the lock command until R-11 has ratified the number.
+  the lock command anywhere the number might still move, and never in `dev`.
 
 ### 2.4 — Add supply-chain and code scanning to CI
 

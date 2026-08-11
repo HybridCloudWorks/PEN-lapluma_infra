@@ -19,7 +19,8 @@ param diagnosticsWorkspaceId string = ''
 // what close it.
 //
 // Rule *structure* is authored here; the destination *addresses* for a firewall allowlist are
-// REVIEW.md R-09 and are not invented. Deny rules do not need an approved allowlist to be correct.
+// the ratified egress table on the Security and Data Protection wiki page, which is empty for this
+// zone. Deny rules do not need an allowlist to be correct.
 var denyDatabaseEgress = [
   {
     name: 'DenyProcessingToSql'
@@ -66,13 +67,14 @@ var denyDatabaseEgress = [
 ]
 
 // The other four subnets had no rules at all, which left the AI zone with unrestricted outbound
-// internet access. A baseline deny is not the approved allowlist R-09 owes — it is the default the
-// allowlist will punch holes in, and it is the safe state to hold until then.
+// internet access. The ratified egress table approves no destination for the core, processing, AI or
+// private-endpoint zones, so for those four this deny IS the approved posture rather than a
+// placeholder for one. The functions zone is the single exception and needs no egress yet.
 var denyInternetEgress = [
   {
     name: 'DenyInternetEgress'
     properties: {
-      description: 'Baseline. Approved destinations are added by the R-09 allowlist, not removed from here.'
+      description: 'Approved posture: no egress. A destination is added here, never removed from here.'
       priority: 4000
       direction: 'Outbound'
       access: 'Deny'
@@ -127,6 +129,20 @@ resource privateEndpointsNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01
   tags: tags
   properties: {
     securityRules: denyInternetEgress
+  }
+}
+
+// The edge. This NSG deliberately carries no DenyInternetEgress rule, unlike the other five: API
+// Management is the one component whose job is to face the internet, and a baseline deny here would
+// have to be punched through immediately, which is the pattern that makes a deny rule meaningless.
+// Inbound rules belong with the APIM resource itself, which needs the tier from REVIEW.md R-03 and
+// the hostname from R-07 before it can be written.
+resource apimNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
+  name: 'nsg-${name}-apim'
+  location: location
+  tags: tags
+  properties: {
+    securityRules: []
   }
 }
 
@@ -203,6 +219,23 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
         }
       }
       {
+        // Allocated by the ratified address plan and reserved now, ahead of the API Management resource that
+        // will occupy it. Reserving early is the cheap half of the decision: the prefix cannot be
+        // taken by something else, and a subnet with nothing in it can still be changed.
+        //
+        // No delegation is set, deliberately. API Management's v2 tiers integrate through a
+        // delegated subnet and the classic tiers in internal mode do not, so the correct delegation
+        // depends on the tier R-03 settles. Guessing it would produce a value that reads as decided
+        // and is only conditionally right — and unlike the Functions subnet, this one is empty, so
+        // setting the delegation later costs nothing. `validate_foundation.py` has no rule for this
+        // one yet for the same reason: there is no SKU to check it against.
+        name: 'snet-apim'
+        properties: {
+          addressPrefix: string(subnetPrefixes.apim)
+          networkSecurityGroup: { id: apimNsg.id }
+        }
+      }
+      {
         name: 'snet-private-endpoints'
         properties: {
           addressPrefix: string(subnetPrefixes.privateEndpoints)
@@ -220,6 +253,9 @@ output processingSubnetId string = resourceId('Microsoft.Network/virtualNetworks
 output aiSubnetId string = resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, 'snet-ai')
 output functionsSubnetId string = resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, 'snet-functions')
 output privateEndpointsSubnetId string = resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, 'snet-private-endpoints')
+// Emitted now so the APIM module has something to consume the day it is written, rather than the
+// module and the output landing in the same change and neither being reviewable on its own.
+output apimSubnetId string = resourceId('Microsoft.Network/virtualNetworks/subnets', vnet.name, 'snet-apim')
 
 // Every NSG, not only the processing one. A deny that never appears in a log is indistinguishable
 // from a rule that was never evaluated, and four of these carried no rules at all until recently.
@@ -266,6 +302,18 @@ resource functionsNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-
 
 resource privateEndpointsNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
   scope: privateEndpointsNsg
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: diagnosticsWorkspaceId
+    logs: [{ categoryGroup: 'allLogs', enabled: true }]
+  }
+}
+
+resource apimNsgDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticsWorkspaceId)) {
+  // The edge NSG carries no rules yet, so this logs nothing today. It is written now because the
+  // diagnostic-coverage rule requires it, and because the moment APIM occupies this subnet its flow
+  // logs are the most interesting ones in the VNet.
+  scope: apimNsg
   name: 'to-log-analytics'
   properties: {
     workspaceId: diagnosticsWorkspaceId

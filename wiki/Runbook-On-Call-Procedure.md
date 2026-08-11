@@ -15,7 +15,7 @@ making a decision they were never given authority for:
 
 - **Approve anything.** Deployment, security, privacy, and compliance approvals belong to their R-04
   owners. On-call may roll back; on-call may not roll forward into `pilot`.
-- **Change a retention or erasure window.** Those are R-11 values.
+- **Change a retention or erasure window.** Those are ratified contract values; changing one is a privacy-owner decision.
 - **Activate or deactivate a form edition.** Activation derives from R-14 record completeness.
 - **Read case content to diagnose a problem.** If a problem cannot be diagnosed from content-free
   telemetry, that is a finding, not a licence.

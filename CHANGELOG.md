@@ -7,6 +7,52 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- **The network address plan and the retention contract are ratified**, and both have moved out of
+  `REVIEW.md` into the wiki, where settled decisions belong. R-09 and R-11 are gone from the blocker
+  list; the address plan and egress table are on the Security and Data Protection page and the
+  retention contract is on the Pilot Policy and Compliance Gates page.
+
+  The address plan is `10.42.0.0/16` with the five existing subnets unchanged and a sixth,
+  `snet-apim` at `10.42.8.0/24`, reserved for the API Management edge with its own NSG and a
+  `apimSubnetId` output. That is the half of `TODO.md` 1.1 the address decision was blocking; the
+  resource itself still needs R-03, R-06 and R-07. The subnet's delegation is deliberately unset,
+  because API Management's v2 tiers integrate through a delegated subnet and the classic tiers in
+  internal mode do not — and unlike `snet-functions`, this subnet is empty, so the value can be set
+  when the tier is known without rebuilding anything.
+
+  The edge NSG carries no `DenyInternetEgress`, unlike the other five. API Management is the one
+  component whose job is to face the internet, and a baseline deny there would have to be punched
+  through immediately, which is the pattern that makes a deny rule meaningless.
+
+- **The egress posture is settled and, for four of five zones, already implemented.** The ratified
+  table approves no destination at all for the core, processing, AI and private-endpoint zones, so
+  the existing NSG denies stop being a placeholder and become the approved posture. No Azure
+  Firewall: with three zones needing nothing and one needing four hosts, it would add a continuously
+  billing resource and a second policy surface to express a list the NSGs already hold.
+
+  The functions row cannot be implemented as approved, and `TODO.md` 2.2 now records why rather than
+  leaving it to be rediscovered: **NSG rules match IP prefixes and service tags, not hostnames.** The
+  four authority publication hosts are CDN-backed, so their ranges change and cannot be pinned in a
+  rule. Nothing needs that egress today — the acquisition adapter performs no upstream fetch — so the
+  baseline deny stands and the mechanism decision lands with the work that creates the need.
+
+- **The retention contract is implemented, and one of its numbers changed on the way in.** Blob
+  version purge is now modelled as a lifecycle management policy on all four storage accounts, which
+  is the window that actually bounds how long erased content survives: versioning is enabled, so
+  deleting a blob creates a version, and without a purge policy the accounts would quietly retain
+  every document the erasure sweep believes it deleted.
+
+  The approved table put version purge at 30 days against a 30-day erasure SLA. That is internally
+  inconsistent, and the check written to enforce the contract caught it on the contract itself: a
+  version's clock starts when the blob is deleted, so its 30 days run *after* the deletion rather
+  than inside the SLA. Version purge is set to **7 days**, matching soft delete, so the recovery
+  story is one number rather than two.
+
+  `validate_retention_ordering` in `tools/validate_foundation.py` now enforces the ordering rule the
+  contract rests on — every window that extends the life of case content must be strictly shorter
+  than the erasure SLA — so a later change that widens one fails the build instead of quietly making
+  the deletion receipt false. Audit metadata and key material are exempt, and the rule says why.
+
 - Both Trivy jobs in `.github/workflows/security-scanning.yml` now **fail the build** on a CRITICAL
   or HIGH finding, where before they reported and exited zero. The shape matters as much as the
   threshold: each job scans once to JSON, converts that to SARIF and uploads it, and only then runs

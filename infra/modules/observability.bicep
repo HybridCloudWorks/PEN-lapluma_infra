@@ -4,7 +4,7 @@ param name string
 param location string = resourceGroup().location
 param tags object = {}
 
-@description('Workspace retention. A planning baseline pending REVIEW.md R-11, not a policy decision.')
+@description('Workspace retention. Ratified at 365 days (12 months); see the Pilot Policy and Compliance Gates wiki page.')
 @minValue(30)
 @maxValue(730)
 param logAnalyticsRetentionDays int = 365
