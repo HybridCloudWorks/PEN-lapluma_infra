@@ -10,3 +10,10 @@
 **/*.py[cod]
 **/.venv/
 infra/main.json
+
+# Trivy scan artifacts. CI writes these into the workspace; the cache directory is shared between
+# the reporting scan and the enforcing scan so the vulnerability database is downloaded once.
+.trivy-cache/
+trivy-*.json
+trivy-*.sarif
+arm-template.json
