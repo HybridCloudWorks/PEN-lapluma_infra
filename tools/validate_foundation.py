@@ -664,6 +664,75 @@ def validate_diagnostic_coverage() -> Failures:
     return failures
 
 
+# Subnet delegation is not a free choice: each Functions hosting SKU integrates through a specific
+# delegated service, and the two must agree. This map is recorded from the Azure Component Research
+# Record rather than derived here; re-verify it against current Azure guidance before adding a SKU.
+#
+# The reason this is a rule and not a comment: a delegation cannot be changed while a resource
+# occupies the subnet, so a mismatch is not caught at deployment and then fixed — it is caught at
+# deployment and then requires rebuilding the VNet. The two declarations live in different files,
+# which is exactly the shape of change where one gets updated and the other does not.
+FUNCTIONS_SKU_DELEGATIONS = {
+    "FC1": "Microsoft.App/environments",       # Flex Consumption
+    "EP1": "Microsoft.Web/serverFarms",        # Elastic Premium
+    "EP2": "Microsoft.Web/serverFarms",
+    "EP3": "Microsoft.Web/serverFarms",
+}
+
+FUNCTIONS_PLAN_SKU = re.compile(
+    r"resource functionsPlan 'Microsoft\.Web/serverfarms@[^']+'.*?sku:\s*\{\s*name:\s*'([^']+)'",
+    re.DOTALL,
+)
+FUNCTIONS_SUBNET_DELEGATION = re.compile(
+    r"name:\s*'snet-functions'.*?serviceName:\s*'([^']+)'",
+    re.DOTALL,
+)
+
+
+def validate_functions_subnet_delegation() -> Failures:
+    """The Functions subnet delegation matches the hosting SKU the plan declares."""
+    failures = Failures()
+    compute = ROOT / "infra/modules/compute.bicep"
+    network = ROOT / "infra/modules/network.bicep"
+
+    sku_match = FUNCTIONS_PLAN_SKU.search(compute.read_text(encoding="utf-8"))
+    delegation_match = FUNCTIONS_SUBNET_DELEGATION.search(network.read_text(encoding="utf-8"))
+
+    # Each side is reported separately, and a missing side is a failure rather than a skip. A rule
+    # that quietly passes when it cannot find what it checks is the vacuous-pass failure this
+    # repository has already been bitten by twice.
+    failures.require(
+        sku_match is not None,
+        "compute.bicep declares no functionsPlan SKU; the delegation rule cannot check it",
+    )
+    failures.require(
+        delegation_match is not None,
+        "network.bicep declares no snet-functions delegation; the delegation rule cannot check it",
+    )
+    if sku_match is None or delegation_match is None:
+        return failures
+
+    sku = sku_match.group(1)
+    delegation = delegation_match.group(1)
+    expected = FUNCTIONS_SKU_DELEGATIONS.get(sku)
+
+    if expected is None:
+        failures.require(
+            False,
+            f"functionsPlan uses SKU '{sku}', which has no recorded subnet delegation; add it to "
+            "FUNCTIONS_SKU_DELEGATIONS after verifying the requirement against Azure guidance",
+        )
+        return failures
+
+    failures.require(
+        delegation == expected,
+        f"functionsPlan uses SKU '{sku}', which integrates through '{expected}', but "
+        f"snet-functions is delegated to '{delegation}'. A delegation cannot be changed while the "
+        "subnet is occupied, so this must be right before the first provisioning run",
+    )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -675,6 +744,7 @@ def main() -> int:
         *validate_private_endpoint_coverage(),
         *validate_ai_zone_has_no_data_plane_role(),
         *validate_diagnostic_coverage(),
+        *validate_functions_subnet_delegation(),
         *validate_no_sensitive_values(),
     ]
     if failures:

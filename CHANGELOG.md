@@ -7,6 +7,36 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- Both Trivy jobs in `.github/workflows/security-scanning.yml` now **fail the build** on a CRITICAL
+  or HIGH finding, where before they reported and exited zero. The shape matters as much as the
+  threshold: each job scans once to JSON, converts that to SARIF and uploads it, and only then runs
+  a second `trivy convert` as the gate. A failing build therefore still publishes its findings to
+  the Security tab and prints them as a table in the job log — a gate that suppresses the report it
+  is gating on leaves a reviewer with a red check and nowhere to look.
+
+  The image scans keep `--ignore-unfixed`, which is what makes enforcement honest. A CVE with no
+  published fix is not something this repository can act on, and failing on one would teach
+  reviewers that red means "wait for upstream" rather than "do something". What survives the filter
+  is a base-image bump. The infrastructure scan has no equivalent filter, deliberately: every
+  misconfiguration Trivy reports against the compiled ARM is one this repository wrote.
+
+  The open question of whether the weekly scheduled run should also open an issue is now answered
+  no, and enforcement is the reason. A scheduled run that only wrote to the Security tab was easy to
+  miss; one that *fails* is notified to the repository owner by GitHub already, so an issue-opening
+  job would duplicate the notification and add `issues: write` to a security workflow for no gain.
+
+- Recorded which Functions hosting SKU the `snet-functions` delegation assumes, and made the two
+  agree by rule rather than by memory. `infra/modules/network.bicep` now carries the reasoning, and
+  `tools/validate_foundation.py` gained `validate_functions_subnet_delegation`, which reads the
+  `functionsPlan` SKU from `compute.bicep` and the delegation from `network.bicep` and fails if they
+  disagree — Flex Consumption integrates through `Microsoft.App/environments`, Elastic Premium
+  through `Microsoft.Web/serverFarms`. An unrecognised SKU also fails rather than passing quietly.
+
+  This is a rule instead of a comment because a subnet delegation cannot be changed while a resource
+  occupies the subnet. A mismatch is not caught at deployment and then fixed; it is caught at
+  deployment and then requires rebuilding the VNet. The two declarations live in different files,
+  which is exactly the shape of change where one gets updated and the other does not.
+
 - Added drafted proposals to `REVIEW.md`. Thirteen of the seventeen blockers now carry a
   **Proposed answer** — a concrete draft the named owner can approve, amend, or reject in one
   reading, rather than a policy they have to author from nothing. Several of these items had been
