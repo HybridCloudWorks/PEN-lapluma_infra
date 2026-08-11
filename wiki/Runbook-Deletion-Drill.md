@@ -1,7 +1,7 @@
 # Runbook — deletion drill
 
-> Draft. Never executed, and it cannot be finalized until `REVIEW.md` R-11 ratifies the retention and
-> erasure contract — the drill's pass criteria are those numbers. See
+> Draft. Never executed. Its pass criteria are the ratified retention numbers on the
+> [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) page. See
 > [Operational Runbooks](Operational-Runbooks).
 
 ## Why this is a drill
@@ -38,10 +38,10 @@ Erasure must reach every one of these, and the drill fails if any single row is 
 | Delivery links | Every issued link revoked and refused |
 | Service Bus | No in-flight or dead-lettered message referencing the participant |
 | Log Analytics | Content-free by design; verify no identifier leaked into telemetry |
-| Backups | Content expires within the R-11 backup window |
+| Backups | Content expires within the 12-month backup window |
 
 The audit row is the only one that inverts. Audit records survive erasure by design — they are the
-evidence that erasure happened — which is why R-11 requires them to be content-free and
+evidence that erasure happened — which is why the contract requires them to be content-free and
 pseudonymized. A drill that finds the audit container empty after erasure has found a failure, not a
 success.
 
@@ -68,9 +68,9 @@ reason a check passes.
 Invoke the erasure path, not a hand-written script. The thing under test is the implementation
 (`TODO.md` 5.6), and a drill that bypasses it tests nothing that will run in production.
 
-Record the wall-clock time from invocation to completion, and compare it to the R-11 SLA — proposed
-30 days for active data, which the mechanism must be capable of meeting under real volume, not only
-for a single synthetic case.
+Record the wall-clock time from invocation to completion, and compare it to the ratified 30-day SLA
+for active data, which the mechanism must be capable of meeting under real volume, not only for a
+single synthetic case.
 
 ### 4. Verify
 
@@ -101,12 +101,12 @@ at the projection, and no amount of projection-level deletion can fake it.
 The deletion receipt must state what was actually done. Compare its wording against the verified
 results — including the audit records that deliberately survive. A receipt claiming complete removal
 while pseudonymized audit metadata is retained for seven years is inaccurate, and the participant
-notice under R-11 has to say the same thing the receipt says.
+notice has to say the same thing the receipt says.
 
 ### 6. Backups
 
 The longest tail and the easiest to defer. Confirm that backups containing the participant's content
-expire within the R-11 backup window, and that no restore path can reintroduce erased content
+expire within the 12-month backup window, and that no restore path can reintroduce erased content
 afterwards.
 
 This is where a backup product that only expires whole vaults on a long schedule makes the erasure

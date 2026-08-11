@@ -6,15 +6,35 @@ param tags object = {}
 param sqlEntraAdminObjectId string
 param sqlEntraAdminDisplayName string
 
-@description('Blob soft-delete window. Pending REVIEW.md R-11. Versioning is not a parameter.')
+@description('Blob soft-delete window. Ratified at 7 days. Versioning is not a parameter.')
 @minValue(1)
 @maxValue(365)
 param blobSoftDeleteRetentionDays int = 7
 
-@description('Container soft-delete window. Pending REVIEW.md R-11.')
+@description('Container soft-delete window. Ratified at 7 days.')
 @minValue(1)
 @maxValue(365)
 param containerSoftDeleteRetentionDays int = 7
+
+@description('''
+Days a non-current blob version is kept before it is purged. Versioning is on, so deleting a blob
+creates a version: the current blob is gone and the content is not. This is the window that actually
+bounds how long erased content survives, and the ratified ordering rule requires it to stay strictly below
+the erasure SLA.
+''')
+@minValue(1)
+@maxValue(365)
+param blobVersionRetentionDays int = 7
+
+@description('''
+Account erasure SLA in days, ratified at 30. Nothing here deletes anything on this
+schedule — the erasure orchestration is TODO 5.6. It is a parameter so the ordering rule can be
+checked against it: every window above that extends the life of case content must be strictly
+shorter, or the deletion receipt promises something the storage configuration contradicts.
+''')
+@minValue(1)
+@maxValue(365)
+param erasureSlaDays int = 30
 
 @description('Azure SQL SKU name. Pending REVIEW.md R-03.')
 @minLength(1)
@@ -70,7 +90,7 @@ param diagnosticsWorkspaceId string = ''
 @description('''
 Immutability window for the audit container, in days. The audit account is described as holding
 immutable evidence and was configured identically to the other three: deletion evidence that can be
-deleted is not evidence. Proposed retention is seven years, pending REVIEW.md R-11.
+deleted is not evidence. Seven years, ratified.
 ''')
 @minValue(1)
 @maxValue(146000)
@@ -196,6 +216,53 @@ resource purposeContainers 'Microsoft.Storage/storageAccounts/blobServices/conta
   properties: { publicAccess: 'None' }
 }]
 
+// Version purge. Versioning is enabled above, which means deleting a blob does not remove its
+// content — it moves it to a non-current version. Without this policy those versions are kept
+// forever, so the storage account would quietly retain every document the erasure sweep believes it
+// deleted, and the deletion receipt in the data-flow design would be false.
+//
+// The audit account is included deliberately: its immutability policy protects the current blobs it
+// is meant to protect, and a stale non-current version of an audit record is not evidence, it is a
+// second copy with no obligation attached.
+//
+// The ratified ordering rule fixes the number, and it moved 30 days of proposal to 7 days of setting.
+// The proposal put version purge at 30 against a 30-day erasure SLA, which reads fine until the
+// clocks are lined up: a version is created when the blob is deleted, so its 30 days start *after*
+// however long the deletion itself took, and the total runs past the SLA rather than inside it.
+// `validate_retention_ordering` in tools/validate_foundation.py rejects equality for exactly that
+// reason, and it rejected the proposed pairing on its first run.
+//
+// Seven days matches the soft-delete window, so the recovery story is one number rather than two:
+// content is recoverable for a week, and after that it is gone. The Pilot Policy and Compliance
+// Gates wiki page records the change and the reasoning.
+//
+// This policy is a backstop for versions produced by ordinary overwrites. TODO 5.6's erasure
+// orchestration must purge versions explicitly rather than waiting for it — lifecycle management
+// runs once a day at Azure's discretion, which is not a schedule an erasure promise can rest on.
+resource blobLifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = [for (purpose, index) in storagePurposes: {
+  parent: storageAccounts[index]
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'purge-noncurrent-versions'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: { blobTypes: ['blockBlob'] }
+            actions: {
+              version: {
+                delete: { daysAfterCreationGreaterThan: blobVersionRetentionDays }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}]
+
 // WORM on the audit container only. The other three hold working material that retention and
 // erasure policy must be able to remove — an immutability policy there would collide with the
 // erasure obligation rather than support it.
@@ -205,7 +272,7 @@ resource purposeContainers 'Microsoft.Storage/storageAccounts/blobServices/conta
 // (`az storage container immutability-policy lock`), so a `lock: true` here would be a setting that
 // reads like a guarantee and enforces nothing. An unlocked policy can still be shortened or removed,
 // which is exactly why the lock is a deliberate, irreversible, out-of-band step taken in `staging`
-// and `pilot` once REVIEW.md R-11 ratifies the period — and never in `dev`, where test data has to
+// and `pilot`, now that the seven-year period is ratified — and never in `dev`, where test data has to
 // be removable. TODO.md carries the runbook step.
 resource auditImmutability 'Microsoft.Storage/storageAccounts/blobServices/containers/immutabilityPolicies@2023-05-01' = {
   parent: purposeContainers[indexOf(storagePurposes, 'audit')]
@@ -218,6 +285,8 @@ resource auditImmutability 'Microsoft.Storage/storageAccounts/blobServices/conta
 }
 
 output auditImmutabilityDays int = auditImmutabilityDays
+output blobVersionRetentionDays int = blobVersionRetentionDays
+output erasureSlaDays int = erasureSlaDays
 // Written out rather than composed from environment(): sqlServerHostname carries a leading dot,
 // so this is '<name>' + '.database.windows.net' by way of the suffix function.
 output sqlServerFullyQualifiedName string = '${sqlServer.name}${environment().suffixes.sqlServerHostname}'

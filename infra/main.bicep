@@ -15,7 +15,7 @@ targetScope = 'subscription'
 // replaced: this change makes the baselines adjustable, it does not adjust them.
 // ---------------------------------------------------------------------------------------------
 
-@description('Retention windows in days. Values pending REVIEW.md R-11.')
+@description('Retention windows in days. Ratified; see the Pilot Policy and Compliance Gates wiki page.')
 type RetentionBaseline = {
   @minLength(1)
   logAnalyticsDays: string
@@ -32,8 +32,19 @@ type RetentionBaseline = {
   @minLength(1)
   hsmSoftDeleteDays: string
 
+  // How long a non-current blob version survives. Versioning is on, so a delete produces a version
+  // rather than removing content, and this is the window that actually bounds how long erased
+  // material persists.
+  @minLength(1)
+  blobVersionDays: string
+
+  // The account erasure SLA. Nothing deploys on this schedule; it is here so the windows above can
+  // be checked against it rather than each being chosen on its own.
+  @minLength(1)
+  erasureSlaDays: string
+
   // Not a soft-delete window: this one is a WORM period, and once its policy is locked it cannot
-  // be shortened. Seven years proposed, pending R-11.
+  // be shortened. Seven years, ratified.
   @minLength(1)
   auditImmutabilityDays: string
 }
@@ -84,7 +95,7 @@ type ResilienceBaseline = {
 
 type StorageRedundancy = 'Standard_LRS' | 'Standard_ZRS' | 'Standard_GRS' | 'Standard_GZRS'
 
-@description('Message handling windows. TTLs pending REVIEW.md R-11.')
+@description('Message handling windows. TTLs ratified.')
 type MessagingBaseline = {
   @minLength(1)
   duplicateDetectionWindow: string
@@ -108,7 +119,7 @@ type MessagingBaseline = {
 // default rather than falling back to it. @minLength(1) is what turns that into a parameter error
 // at submission, before anything deploys.
 
-@description('The five zone subnets. A typed object turns a misspelled key into a parameter error rather than a failure deep inside the network module.')
+@description('The six zone subnets. A typed object turns a misspelled key into a parameter error rather than a failure deep inside the network module.')
 type SubnetPrefixes = {
   @minLength(1)
   core: string
@@ -124,6 +135,9 @@ type SubnetPrefixes = {
 
   @minLength(1)
   privateEndpoints: string
+
+  @minLength(1)
+  apim: string
 }
 
 @description('AZD environment name. Lowercase; it is embedded in globally unique resource names, and Azure SQL server names permit only lowercase letters, digits, and hyphens.')
@@ -181,6 +195,8 @@ param retention RetentionBaseline = {
   containerSoftDeleteDays: '7'
   keyVaultSoftDeleteDays: '90'
   hsmSoftDeleteDays: '90'
+  blobVersionDays: '7'
+  erasureSlaDays: '30'
   auditImmutabilityDays: '2555'
 }
 
@@ -226,6 +242,8 @@ var retentionDays = {
   containerSoftDelete: int(retention.containerSoftDeleteDays)
   keyVaultSoftDelete: int(retention.keyVaultSoftDeleteDays)
   hsmSoftDelete: int(retention.hsmSoftDeleteDays)
+  blobVersion: int(retention.blobVersionDays)
+  erasureSla: int(retention.erasureSlaDays)
   auditImmutability: int(retention.auditImmutabilityDays)
 }
 var sizing = {
@@ -330,6 +348,8 @@ module data './modules/data.bicep' = if (enableProvisioning) {
     sqlEntraAdminDisplayName: sqlEntraAdminDisplayName
     blobSoftDeleteRetentionDays: retentionDays.blobSoftDelete
     containerSoftDeleteRetentionDays: retentionDays.containerSoftDelete
+    blobVersionRetentionDays: retentionDays.blobVersion
+    erasureSlaDays: retentionDays.erasureSla
     sqlSkuName: capacity.sqlSkuName
     sqlSkuCapacity: sizing.sqlSkuCapacity
     sqlAutoPauseDelayMinutes: sizing.sqlAutoPauseMinutes
