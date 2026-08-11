@@ -191,11 +191,20 @@ What class of data this environment is authorized to hold, applied as the `data-
 all: a drill against real data creates a second copy of it with its own retention obligation, which
 is a privacy incident dressed as diligence.
 
-The default is the restrictive claim, deliberately. Declaring an environment able to hold real
-participant data has to be a deliberate act rather than something inherited from a default, and the
-allowed list means a typo fails at parameter submission rather than tagging the estate wrongly. The
-tag is what a governance query filters on when someone asks which resources hold regulated data, so
-it has to be true.
+Through AZD this parameter is **required in practice**, and that is deliberate rather than an
+oversight in the default. `infra/main.parameters.json` always supplies a value, so an unset
+`LAPLUMA_DATA_CLASSIFICATION` substitutes an empty string, which ARM treats as supplied and the
+allowed list then rejects — the deployment fails at submission naming this parameter. That is the
+same fail-closed convention every other parameter in that file uses, and it is the right one here:
+an environment's data classification should be stated by whoever authorizes it, not inherited from
+whatever a template happened to default to.
+
+The `'synthetic'` default therefore covers only the path where this parameter is omitted entirely —
+a direct `az deployment` without the AZD parameter file. On that path the restrictive claim is the
+safe one to land on.
+
+A typo fails at submission rather than tagging the estate wrongly. The tag is what a governance
+query filters on when someone asks which resources hold regulated data, so it has to be true.
 ''')
 @allowed([
   'synthetic'
