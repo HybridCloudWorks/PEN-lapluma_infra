@@ -60,16 +60,58 @@ When a required secret cannot be replaced by managed identity, document only its
 rotation interval, destination secret store, and consuming workload — never its value. Record it in
 [Configuration Contract](Configuration-Contract).
 
+## Ratified network plan
+
+Settled decisions, recorded here because they are the security boundary rather than a build detail.
+
+**Addressing.** `10.42.0.0/16`, with six subnets:
+
+| Subnet | Prefix | Purpose |
+|--------|--------|---------|
+| `snet-core` | `10.42.0.0/23` | Core Container Apps environment |
+| `snet-processing` | `10.42.2.0/23` | Processing Container Apps environment |
+| `snet-ai` | `10.42.4.0/23` | AI Container Apps environment |
+| `snet-functions` | `10.42.6.0/24` | Flex Consumption integration, delegated to `Microsoft.App/environments` |
+| `snet-private-endpoints` | `10.42.7.0/24` | Twelve private endpoints |
+| `snet-apim` | `10.42.8.0/24` | API Management edge |
+
+`10.42.9.0/24` and everything above it is deliberately unallocated, so a later requirement extends the plan rather than
+renumbering it.
+
+**Private DNS.** Zones live in the workload resource group and are linked to this VNet only, with no
+auto-registration. Central hub ownership is the better long-run model and was decided against for
+now on the grounds that no hub exists — adopting it early would mean inventing a linking process and
+an owner for it. If a hub arrives, the migration is to recreate the links and delete the local
+zones: a single planned change rather than a discovery.
+
+**Egress.** Four of the five subnets have an approved destination list that is genuinely
+empty, and the enforcement mechanism is the NSG deny rules already in the templates.
+
+| Zone | Approved egress |
+|------|-----------------|
+| Core | None. All dependencies are private endpoints, which are intra-VNet |
+| Processing | None. Inputs arrive over Service Bus, outputs go to storage, both privately. This zone is defined by having no route out |
+| AI | None. Model access is by private endpoint |
+| Private endpoints | None |
+| Functions | The publication hosts of the four Alpha 0.2 authorities, TCP 443 only, derived from the recorded official source URLs rather than written from memory |
+
+No Azure Firewall. With four subnets needing nothing and one needing four hosts, a firewall would add
+a continuously billing resource and a second policy surface to express a list the NSGs already hold.
+The point to revisit it is a genuine new destination — most likely the AI zone needing a public
+model endpoint — and this paragraph is where the reasoning to overturn lives.
+
+**A constraint worth knowing before implementing the Functions row.** NSG rules match IP prefixes and
+service tags, not hostnames. The four authority hosts cannot be expressed as an NSG allowlist without
+their address ranges, which are CDN-backed and change. Nothing needs that egress today — the
+acquisition adapter performs no upstream fetch yet — so the baseline deny stands. When the fetch is
+implemented, enforcing this row needs either FQDN-capable filtering or an accepted change to the
+mechanism, and that is a decision to take deliberately rather than discover at runtime.
+
 ## Decision areas awaiting an owner
 
 Each of the following is a security-relevant decision that an engineer cannot settle alone. They are
 tracked as blockers with named owners in `REVIEW.md`; the list here exists so the decision surface
 is documented in one place.
-
-- VNet and subnet CIDR plan for the Edge, Core, Processing, AI, Functions, and private-endpoint
-  zones.
-- DNS ownership and the private-DNS linking model.
-- Approved egress destinations and the firewall or control mechanism that enforces them.
 - The Azure SQL Entra administrator group.
 - SQL General Purpose serverless floor, maximum, zone redundancy, and backup policy.
 - Cosmos account consistency, autoscale ceiling, partition strategy, and US backup policy.

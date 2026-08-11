@@ -11,8 +11,8 @@ questions with certainty: what is true about a case, and has all of a participan
 erased. It also needs read paths — case lists, catalog views — that are shaped differently from the
 write model and are read far more often than they are written.
 
-Erasure is the constraint that shapes this decision more than performance does. `REVIEW.md` R-11
-proposes a 30-day erasure SLA across SQL, Cosmos, blob versions, projections, temporary stores,
+Erasure is the constraint that shapes this decision more than performance does. The ratified
+retention contract sets a 30-day erasure SLA across SQL, Cosmos, blob versions, projections, temporary stores,
 delivery links, logs, and backups. Every store that holds an authoritative copy is a store that
 erasure must reach, prove it reached, and be re-verifiable against.
 
@@ -76,11 +76,11 @@ stops being true the moment anything writes to Cosmos that SQL does not also hol
 invariant to defend in review.
 
 Cosmos is a second store to provision, secure, monitor, and pay for. `TODO.md` 3.2's invariant
-tests and R-11's erasure integration tests both have to cover it.
+tests and the erasure integration tests both have to cover it.
 
 ## References
 
 - [Architecture Overview](Architecture-Overview) — data ownership and flow
 - [Azure Component Research Record](Azure-Component-Research-Record) — SQL and Cosmos DB section
-- `REVIEW.md` R-11 — retention and erasure contract
+- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) — the ratified retention and erasure contract
 - `infra/modules/data.bicep`, `src/core-api/CatalogProjectionWriter.cs`

@@ -38,9 +38,7 @@ leaves the value to the owner.
 | [R-06](#r-06--entra-application-registrations-and-api-audience) | Entra application registrations and API audience | Identity owner | Drafted |
 | [R-07](#r-07--public-hostname-dns-and-tls-certificate-ownership) | Public hostname, DNS, and TLS certificate ownership | Platform owner | Drafted |
 | [R-08](#r-08--ios-bundle-identifier-and-app-attest-environment) | iOS bundle identifier and App Attest environment | Mobile owner and security owner | Drafted |
-| [R-09](#r-09--network-address-plan-private-dns-model-and-approved-egress) | Network address plan, private DNS model, and approved egress | Network owner and security owner | Drafted |
 | [R-10](#r-10--sql-administrator-group-and-managed-hsm-key-governance) | SQL administrator group and Managed HSM key governance | Data owner and CISO | Drafted |
-| [R-11](#r-11--retention-erasure-and-backup-policy-alignment) | Retention, erasure, and backup policy alignment | Privacy owner | Drafted |
 | [R-12](#r-12--document-intelligence-and-generative-ai-approvals) | Document Intelligence and generative AI approvals | AI owner and RAI owner | Drafted |
 | [R-13](#r-13--upl-classifier-release-gate-ownership) | UPL classifier release-gate ownership | Compliance owner | Drafted |
 | [R-14](#r-14--official-form-artifact-activation-approvals) | Official form artifact activation approvals | Catalog owner and compliance owner | Drafted |
@@ -211,8 +209,8 @@ named individual, with the groups created empty and populated afterwards.
 | Role | Approves | Group name | Object ID recorded as |
 |------|----------|------------|-----------------------|
 | Deployment approver | Provisioning into `staging` and `pilot`; the expansion checkpoint | `sg-lapluma-deployment-approvers` | — (approval is recorded, not deployed) |
-| Security owner | Security review board decision; penetration-test scope (**R-15**); egress list (**R-09**) | `sg-lapluma-security` | `AZURE_SECURITY_GROUP_OBJECT_ID` |
-| Privacy owner | Retention and erasure contract (**R-11**); DPIA; participant notice | `sg-lapluma-privacy` | `AZURE_PRIVACY_GROUP_OBJECT_ID` |
+| Security owner | Security review board decision; penetration-test scope (**R-15**) | `sg-lapluma-security` | `AZURE_SECURITY_GROUP_OBJECT_ID` |
+| Privacy owner | DPIA; participant notice; future changes to the ratified retention contract | `sg-lapluma-privacy` | `AZURE_PRIVACY_GROUP_OBJECT_ID` |
 | Compliance owner | UPL gate (**R-13**); form activation (**R-14**); counsel boundary | `sg-lapluma-compliance` | — |
 | Operations and on-call owner | Incident plan; restore and deletion drills; the role mailbox in **R-07** | `sg-lapluma-operations` | `AZURE_OPERATIONS_GROUP_OBJECT_ID` |
 | Finance owner | Cost approval (**R-03**); HSM recurring cost (**R-10**) | `sg-lapluma-finance` | — |
@@ -282,7 +280,7 @@ storage account limit of 24 — the prefix has headroom, and a longer one would 
 
 `data-classification` is the one to argue about. It is proposed as a tag rather than a comment
 because it is the field a governance query filters on when someone asks which resources hold
-regulated data, and a `dev` environment tagged `synthetic` is making a claim that **R-11**'s erasure
+regulated data, and a `dev` environment tagged `synthetic` is making a claim that the erasure
 testing has to keep true.
 
 `AZURE_RESOURCE_OWNER` is proposed to be a team or role name, never a person's name or address —
@@ -468,96 +466,6 @@ amends the per-environment attestation table.
 
 ---
 
-### R-09 — Network address plan, private DNS model, and approved egress
-
-**Problem.** The VNet and subnet CIDR values in the configuration contract are proposals only
-(`10.42.0.0/16` and its five subnets). DNS ownership and the private-DNS linking model are
-undecided, and no approved egress destination list or enforcement mechanism exists.
-
-**Why it blocks progress.** The address plan must not collide with existing organizational address
-space, and private DNS linking determines whether private endpoints resolve at all. The processing
-zone's deny-by-default egress posture needs an approved allowlist and a mechanism — an Azure
-Firewall, a UDR, or an equivalent — before it can be enforced beyond the current NSG rule.
-
-**Required owner.** Network owner for addressing and DNS; security owner for egress.
-
-**Required action.** Approve the CIDR plan against the organization's address registry, decide the
-private-DNS zone ownership and linking model, and approve the egress destination list with the
-enforcement mechanism.
-
-**Impact if unresolved.** The private endpoints and private DNS zones are modeled now, against the
-proposed `10.42.0.0/16` plan; ratifying or replacing that plan is what this item still decides, and
-replacement prefixes mean redeploying the network. Two things remain blocked outright: the egress
-allowlist and its enforcement mechanism, and the API Management edge, which needs a sixth subnet
-the plan does not allocate.
-
-**References.** Decision areas on the Security and Data Protection wiki page; foundation inputs on
-the Configuration Contract wiki page. Blocks `TODO.md` items **1.1** (the edge subnet) and
-**2.2** (the egress allowlist).
-
-**Proposed answer.** Ratify `10.42.0.0/16` as proposed, add a sixth subnet for the edge, own the
-private DNS zones in the workload resource group, and approve an egress list that is empty for three
-of the five zones.
-
-**Addressing.** The five proposed subnets stay as they are, and a sixth is added:
-
-| Subnet | Prefix | Note |
-|--------|--------|------|
-| `snet-core` | `10.42.0.0/23` | Container Apps managed environment |
-| `snet-processing` | `10.42.2.0/23` | Container Apps managed environment |
-| `snet-ai` | `10.42.4.0/23` | Container Apps managed environment |
-| `snet-functions` | `10.42.6.0/24` | Flex Consumption integration |
-| `snet-private-endpoints` | `10.42.7.0/24` | Twelve endpoints today |
-| `snet-apim` | `10.42.8.0/24` | **New.** API Management v2 VNet integration, delegated |
-
-The sixth subnet is what unblocks `TODO.md` **1.1**. `10.42.8.0/24` is proposed rather than reusing
-spare space inside an existing prefix because API Management v2 requires a delegated subnet, and a
-delegated subnet cannot host anything else. `/16` leaves `10.42.9.0` upward unallocated, so a later
-requirement does not force a renumbering.
-
-**Private DNS.** Zones are proposed to live in the workload resource group and be linked to this
-VNet only, with no auto-registration. The alternative — zones owned centrally in a hub subscription
-and linked outward — is the better long-run model and is proposed against for now on the grounds
-that no hub exists: adopting a hub-owned model before there is a hub means inventing a linking
-process and an owner for it, and both would be fiction. If a hub arrives, the migration is to
-recreate the zone links and delete the local zones, which is a single change and is worth naming now
-so it is a planned move rather than a discovery.
-
-**Egress.** The proposal is that three of the five zones have an approved destination list that is
-**empty**, and that the deny rules already in `infra/modules/network.bicep` are the enforcement
-mechanism — no Azure Firewall, no UDR.
-
-| Zone | Approved egress |
-|------|-----------------|
-| Core | None. All dependencies are private endpoints, which are intra-VNet |
-| Processing | None. Inputs arrive over Service Bus, outputs go to storage, both over private endpoints. This zone is defined by having no route out |
-| AI | None initially. Model access is via private endpoint (**R-12**) |
-| Private endpoints | None |
-| Functions | The publication hosts of the four Alpha 0.2 authorities, TCP 443 only |
-
-The functions row is the only non-empty one and needs a correction to the framing in this item.
-`src/functions/acquisition_contract.py` performs **no** network fetch today — it proposes an
-acquisition batch from a declared authority map. The egress requirement is therefore prospective,
-arriving with the edition-drift work, not present. That matters for sequencing: the `DenyInternet`
-rule at priority 4000 on the functions NSG will block the first upstream fetch that is written, and
-it will do so at runtime rather than at review, so this list has to be approved before that work
-starts rather than after it fails.
-
-The specific hosts are deliberately not enumerated here. They are the hosts of the official source
-URLs recorded under **R-14**, and writing a URL from memory is exactly how an acquisition sweep ends
-up pointed at a plausible wrong address. The proposal is that the allowlist is *derived* from the
-R-14 record, so the two cannot drift.
-
-An Azure Firewall is proposed against for the pilot: with three zones needing no egress and one
-needing four hosts, a firewall would add a continuously billing resource and a second policy surface
-to enforce a list the NSGs can already express. If the AI zone later needs public model endpoints,
-that is the point to revisit it, and this paragraph is where the reasoning to overturn lives.
-
-**Recommended next step.** Network owner checks `10.42.0.0/16` and the six prefixes above against
-the existing address registry and either ratifies them or supplies replacements; security owner
-ratifies or amends the egress table, which is the part that unblocks `TODO.md` **2.2**.
-
----
 
 ### R-10 — SQL administrator group and Managed HSM key governance
 
@@ -635,86 +543,6 @@ hierarchy above; the identity owner then creates the two groups and supplies the
 
 ---
 
-### R-11 — Retention, erasure, and backup policy alignment
-
-**Problem.** `CASE_CONTENT_RETENTION_TRIGGER` is unresolved. The erasure SLA (proposed 30 days),
-backup expiry (proposed 12 months), audit metadata retention (proposed 7 years), security log
-retention (proposed 12 months), and the per-purpose blob soft-delete and version-purge windows are
-all proposals. Blob soft delete is currently hard-coded to 7 days and Log Analytics retention to 365
-days in the Bicep.
-
-**Why it blocks progress.** The deletion receipt promised in the data-flow design cannot be issued
-until there is one consistent retention contract across SQL, Cosmos, Blob versions, projections,
-temporary stores, delivery links, logs, backups, and key material. Whatever is implemented must
-match what participants are told.
-
-**Required owner.** Privacy owner, with the data owner and compliance owner.
-
-**Required action.** Approve a single retention and erasure contract covering all storage classes,
-confirm it matches the participant notice, and state the per-purpose blob lifecycle windows.
-
-**Impact if unresolved.** Real pilot data cannot be accepted. An erasure implementation built
-against unratified numbers would have to be redone and could make the participant notice inaccurate.
-
-**References.** Retention and erasure targets on the Pilot Policy and Compliance Gates wiki page;
-the infrastructure baselines table on the Configuration Contract wiki page, whose retention rows
-name this item as their gate. Those windows are parameters now, so resolving this sets values
-rather than requiring a code change. Blocks `TODO.md` item **3.4**.
-
-**Proposed answer.** One table, one ordering rule, and one trigger definition.
-
-The **ordering rule** is the load-bearing part, and it is what makes this a contract rather than a
-list of independently chosen numbers: *every window that extends the life of case content must be
-strictly shorter than the erasure SLA.* A soft-delete window keeps deleted data recoverable, which
-means it keeps it. If soft delete is 30 days and the erasure SLA is 30 days, the deletion receipt
-issued on day 30 is false for the length of a rounding error — and if soft delete is longer, it is
-false outright. Two classes are exempt because they hold no case content: audit metadata, which is
-content-free and pseudonymized, and key material.
-
-| Value | Proposed | Where it lands |
-|-------|----------|----------------|
-| `ACCOUNT_ERASURE_ACTIVE_DATA_SLA_DAYS` | `30` | The ceiling every row below is measured against |
-| `CASE_CONTENT_RETENTION_TRIGGER` | See below | `TODO.md` **5.6** |
-| `BACKUP_EXPIRY_MAX_MONTHS` | `12` | Backup policy |
-| `AUDIT_METADATA_RETENTION_YEARS` | `7` | `LAPLUMA_AUDIT_IMMUTABILITY_DAYS` = `2555`, already the template default |
-| `SECURITY_LOG_RETENTION_MONTHS` | `12` | `LAPLUMA_LOG_ANALYTICS_RETENTION_DAYS` = `365`, already the baseline |
-| Blob soft delete | `7` days, all four accounts | `LAPLUMA_BLOB_SOFT_DELETE_DAYS` |
-| Container soft delete | `7` days | `LAPLUMA_CONTAINER_SOFT_DELETE_DAYS` |
-| Blob version purge | `30` days | Lifecycle rule; not yet modeled |
-| Key Vault soft delete | `90` days | `LAPLUMA_KEY_VAULT_SOFT_DELETE_DAYS`, already the baseline |
-| Managed HSM soft delete | `90` days | `LAPLUMA_HSM_SOFT_DELETE_DAYS`, already the baseline |
-| Queue message TTL | `P7D` | Already the baseline; messages carry references, not content |
-| Topic message TTL | `P14D` | Already the baseline |
-
-Blob soft delete is proposed uniform at 7 days rather than per-purpose, which is a change of shape
-from what this item asks for. Per-purpose windows are supportable — the Bicep would take an object
-instead of an integer, one named change — but the case for them is weak: 7 days is a recovery
-window for operator error, and an operator who has not noticed a wrong deletion within a week is not
-going to notice it in three. Version purge at 30 days is where the longer tail sits, and it is still
-inside the erasure SLA. If the privacy owner wants per-purpose windows anyway, the constraint that
-survives is the ordering rule: no purpose may exceed 29 days.
-
-`CASE_CONTENT_RETENTION_TRIGGER` is proposed as: **the retention clock starts at case closure, or at
-180 days of participant inactivity on an open case, whichever comes first; content is deleted 18
-months after the clock starts.** The inactivity limb is the part to scrutinise. Without it, a case
-nobody ever closes is retained forever, which is the most common way a retention policy quietly
-fails — and 180 days is a guess at the boundary between "a participant who is between steps" and "a
-participant who has gone". This is the row where the privacy owner's judgement most changes the
-answer, and it is proposed only so there is something specific to disagree with.
-
-Two consequences worth stating before approval, because they are what the numbers cost. Seven-year
-audit immutability means the audit container's WORM policy, once locked out of band, cannot be
-shortened for seven years — `TODO.md` **2.3** carries that step, and it is irreversible. And 30-day
-erasure across SQL, Cosmos, blob versions, projections, temporary stores, delivery links, logs, and
-backups means the backup layer must support selective expiry within the SLA; a backup product that
-only expires whole vaults on a 12-month schedule would make the 30-day promise unmeetable no matter
-what the rest of the implementation does.
-
-**Recommended next step.** Privacy owner and data owner ratify or amend the table above, confirm the
-`CASE_CONTENT_RETENTION_TRIGGER` definition, and check the drafted participant notice states the
-same numbers before either is published.
-
----
 
 ### R-12 — Document Intelligence and generative AI approvals
 
@@ -881,7 +709,7 @@ each record is complete.
 | `authority` | `USCIS`, `U.S. Department of State`, or `Federal Student Aid` — already declared in `src/functions/acquisition_contract.py` |
 | `formID` | `I-130`, `I-485`, `DS-11` |
 | `editionDate` | From the artifact itself, not from the page that links to it |
-| `sourceURL` | HTTPS, the authority's own host. Also the source of the **R-09** egress allowlist |
+| `sourceURL` | HTTPS, the authority's own host. Also the source of the functions-zone egress allowlist |
 | `sourceSHA256` | Of the bytes downloaded, recorded at download time |
 | `encoding` | `ACROFORM`, `XFA`, or `FLAT` — determined by inspection, not assumption |
 | `fieldMapVersion` | Two-person approved, and the approval names both people |
@@ -1029,7 +857,7 @@ binding does require a value for the host to start, but `src/functions/acquisiti
 performs no upstream fetch today — it proposes an acquisition batch from a declared authority map.
 So this decision unblocks deployment of the Functions app now, and becomes load-bearing for
 drift detection when the fetch is implemented, at which point it also needs the functions-zone
-egress list proposed under **R-09**.
+ratified functions-zone egress list.
 
 **Recommended next step.** Catalog operations owner ratifies or amends the three values above; an
 engineer confirms the chosen cadence against the publication frequency of the four Alpha 0.2
