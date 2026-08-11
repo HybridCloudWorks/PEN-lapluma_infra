@@ -7,6 +7,46 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- **The pilot region moved from East US 2 to South Central US.** `infra/main.bicep`'s `location`
+  default, `.env.example`, `REVIEW.md` R-03 — retitled, with its anchor and index row — and five wiki
+  pages now say `southcentralus`.
+
+  R-03 weighs *more* after this, not less, and the Azure Component Research Record now says so
+  plainly: its "the selected foundation services are broadly available" finding was recorded against
+  East US 2 on 2026-08-02 and has not been re-checked. There is currently no region evidence behind
+  the templates at all — only an assumption carried over from a region the pilot is no longer
+  deploying to. R-03's capability check also gained a row for availability zones, since the
+  resilience settings under `TODO.md` 3.1 assume they exist.
+
+- **Three deployment decisions recorded that do not depend on knowing the tenant or subscription.**
+  All three environments share **one subscription**, separated by resource group, which is what
+  `infra/main.bicep` already builds — so this ratifies the current shape. The Environments and
+  Release Path wiki page states the cost of that choice rather than glossing it: a subscription-level
+  misconfiguration reaches all three environments, and `pilot` is the one with real participant data.
+  The mitigations are the per-resource role scoping already in `infra/modules/rbac.bicep` and the
+  `dev` synthetic-only rule; if the estate outgrows a supervised pilot, splitting `pilot` out is the
+  first change to make.
+
+  The deployment pipeline will authenticate by **federated workload identity with no stored secret**,
+  recorded as ADR 0006 because it moves a security boundary. Nothing implements it yet — no pipeline
+  exists — which is exactly why it is written down now: a pipeline built with a secret and migrated
+  later tends to leave the secret in place "temporarily".
+
+- **`dev` is synthetic-data-only, and the tag that says so now exists.** The Environments and Release
+  Path page documented `data-classification` as a fixed `sensitive-pii` tag, and `infra/main.bicep`
+  applied no such tag at all — the documentation described a control that was not there, and a fixed
+  value would have been wrong for `dev` anyway.
+
+  It is now a `dataClassification` parameter constrained by `@allowed` to `synthetic` or
+  `production-sensitive-pii`, defaulting to `synthetic` and applied as the tag on every resource. The
+  default is the restrictive claim deliberately: declaring an environment able to hold real
+  participant data should be a deliberate act, and a typo fails at parameter submission rather than
+  mislabelling the estate.
+
+  What it does not do is stated on the wiki page too — a tag is a declaration and a governance
+  filter, not an access control. It is what makes the restore and deletion drills runnable, because
+  those can only run somewhere holding no real data.
+
 - **The network address plan and the retention contract are ratified**, and both have moved out of
   `REVIEW.md` into the wiki, where settled decisions belong. R-09 and R-11 are gone from the blocker
   list; the address plan and egress table are on the Security and Data Protection page and the

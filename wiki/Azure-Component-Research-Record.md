@@ -69,9 +69,12 @@ official-form schemas, fill a form, approve a value, or receive an API-key fallb
 
 ## Region
 
-Region guidance indicated that the selected foundation services are broadly available. East US 2
-SKU, private-network, Document Intelligence model, quota, and cost verification nevertheless remains
-a hard gate before any live deployment.
+Region guidance indicated that the selected foundation services are broadly available. That research
+was carried out against **East US 2**, which was the proposed region on 2026-08-02; the region has
+since been changed to **South Central US**, and the finding above has *not* been re-verified against
+it. SKU, private-network, Document Intelligence model, quota, and cost verification remains a hard
+gate before any live deployment, and the region change makes it more load-bearing rather than less:
+"broadly available" was a statement about a different region.
 
 ## Related pages
 

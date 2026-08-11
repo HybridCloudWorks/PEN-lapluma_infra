@@ -32,7 +32,7 @@ leaves the value to the owner.
 |----|---------|----------------|----------|
 | [R-01](#r-01--azure-tenant-and-subscription-identity-are-unconfirmed) | Azure tenant and subscription identity are unconfirmed | Platform owner | — |
 | [R-02](#r-02--subscription-authorization-for-real-pilot-pii-and-cost-bearing-services) | Subscription authorization for real pilot PII and cost-bearing services | Subscription owner | — |
-| [R-03](#r-03--east-us-2-capability-quota-and-cost-approval) | East US 2 capability, quota, and cost approval | Platform owner and finance owner | Drafted |
+| [R-03](#r-03--south-central-us-capability-quota-and-cost-approval) | South Central US capability, quota, and cost approval | Platform owner and finance owner | Drafted |
 | [R-04](#r-04--named-approval-owners-are-undefined) | Named approval owners are undefined | Executive sponsor | Drafted |
 | [R-05](#r-05--resource-naming-tagging-and-cost-center-standard) | Resource naming, tagging, and cost-center standard | Governance owner | Drafted |
 | [R-06](#r-06--entra-application-registrations-and-api-audience) | Entra application registrations and API audience | Identity owner | Drafted |
@@ -75,6 +75,13 @@ the platform owner, not judgements anyone can draft on their behalf. A GUID inve
 the owner some typing would be indistinguishable from a confirmed one, and the gate exists precisely
 to stop a plausible value being mistaken for a confirmed value.
 
+**What has been settled around it.** The parts of this item that do not need the identifiers are
+decided, so the platform owner supplies two pairs of values rather than a design. All three
+environments share **one subscription**, separated by resource group — which is what
+`infra/main.bicep` already builds. The deployment principal authenticates by **federated workload
+identity with no stored secret** (see the ADR 0006 wiki page), so no credential accompanies the
+subscription ID. The region is **South Central US**.
+
 **Recommended next step.** Platform owner supplies both pairs; an engineer records them in the AZD
 environment (never in Git) and confirms `az account show` matches the stated display names before
 any further Azure command runs.
@@ -107,17 +114,30 @@ stand in for that. What can be drafted is the *scope* the authorization has to c
 is not made twice — it is the SKU ladder proposed under **R-03**, which enumerates every
 continuously billing resource the subscription would carry.
 
+**What has been settled around it.** The authorization needs to cover one subscription holding all
+three environments, of which only `staging` and `pilot` are declared able to hold
+production-sensitive PII: **`dev` is synthetic-only**, expressed as the `dataClassification`
+parameter and applied as the `data-classification` tag. That narrows the request to one
+subscription, US-only residency in South Central US, and the continuously billing resources
+enumerated in the R-03 SKU ladder.
+
 **Recommended next step.** Obtain written authorization referencing the specific subscription ID
 confirmed in R-01, and attach it to the deployment approval record.
 
 ---
 
-### R-03 — East US 2 capability, quota, and cost approval
+### R-03 — South Central US capability, quota, and cost approval
 
-**Problem.** `eastus2` is approved in principle only. No one has verified that it supports every
-selected service and SKU, the required quota, the required private-networking features, and the
-Document Intelligence models the pilot uses. No estimated monthly cost exists for `dev`, `staging`,
-or `pilot`.
+**Problem.** `southcentralus` is approved in principle only. No one has verified that it supports
+every selected service and SKU, the required quota, the required private-networking features, and
+the Document Intelligence models the pilot uses. No estimated monthly cost exists for `dev`,
+`staging`, or `pilot`.
+
+The region changed from `eastus2` to `southcentralus` after the foundation was generated, which
+makes this item weigh more rather than less. The Azure Component Research Record's "broadly
+available" finding was recorded against East US 2 on 2026-08-02 and has not been re-checked against
+South Central US, so there is now no region evidence behind the templates at all — only an
+assumption carried over from a region the pilot is no longer deploying to.
 
 **Why it blocks progress.** Item 4 of the hard context gate. The planning baseline includes API
 Management Standard v2, Service Bus Premium, Managed HSM `Standard_B1`, and Document Intelligence
@@ -163,15 +183,16 @@ this line and accept the standing `dev` cost.
 For the cost record itself, the proposal is a format rather than a figure. This page has no access
 to a pricing sheet, and a monthly total invented here would be the single most quotable wrong number
 in the repository. The record should list every row of the ladder above with its SKU, quantity, and
-region, priced from the Azure pricing calculator for `eastus2` on a stated date, with the three
+region, priced from the Azure pricing calculator for `southcentralus` on a stated date, with the three
 continuously billing lines — Managed HSM, API Management, Service Bus Premium — subtotalled
 separately. Those three dominate a low-traffic environment and are the ones a budget conversation
 is actually about.
 
 For quota, the proposal is that the capability check covers, at minimum: Managed HSM availability
 and pool quota, API Management v2 tier availability, Container Apps workload profile quota in each
-of the three managed environments, Flex Consumption availability for the Functions plan, and the
-Document Intelligence models named under **R-12**. A pass on the first four and a fail on the last
+of the three managed environments, Flex Consumption availability for the Functions plan, availability
+zones (the resilience settings under `TODO.md` 3.1 assume they exist), and the Document Intelligence
+models named under **R-12**. A pass on the first four and a fail on the last
 still blocks the pilot's core capability, so the model check is not an afterthought in this list.
 
 **Recommended next step.** Run the region and quota check against the confirmed subscription, record
@@ -590,7 +611,7 @@ which GA version is current, and a version pinned from memory is precisely the f
 exists to prevent: it would be a specific, confident, unverified value in a field whose whole
 purpose is to be verified. The AI owner supplies it from the current service documentation at the
 time of approval, and the capability check under **R-03** confirms that version and both models are
-available in `eastus2`.
+available in `southcentralus`.
 
 **Authentication.** Managed identity only, no key fallback, as the item already requires. Worth
 restating as part of the proposal because `DOCUMENT_INTELLIGENCE_ENDPOINT` is a private endpoint

@@ -36,6 +36,9 @@
         "apim": "${LAPLUMA_APIM_SUBNET_PREFIX}"
       }
     },
+    "dataClassification": {
+      "value": "${LAPLUMA_DATA_CLASSIFICATION}"
+    },
     "tags": {
       "value": {
         "owner": "${AZURE_RESOURCE_OWNER}",
