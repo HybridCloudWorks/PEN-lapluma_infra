@@ -5,12 +5,12 @@ param location string = resourceGroup().location
 param tags object = {}
 param hsmInitialAdminObjectId string
 
-@description('Key Vault soft-delete window. Pending REVIEW.md R-11. Purge protection is not a parameter.')
+@description('Key Vault soft-delete window. Ratified at 90 days; key material is exempt from the erasure ordering rule. Purge protection is not a parameter.')
 @minValue(7)
 @maxValue(90)
 param keyVaultSoftDeleteRetentionDays int = 90
 
-@description('Managed HSM soft-delete window. Pending REVIEW.md R-11. Purge protection is not a parameter.')
+@description('Managed HSM soft-delete window. Ratified at 90 days, exempt for the same reason. Purge protection is not a parameter.')
 @minValue(7)
 @maxValue(90)
 param hsmSoftDeleteRetentionDays int = 90

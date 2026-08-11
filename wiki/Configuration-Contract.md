@@ -60,12 +60,13 @@ parameters into the `network`, `observability`, `security`, `messaging`, and `da
 | `AZURE_SQL_ENTRA_ADMIN_OBJECT_ID` | Entra group GUID | Data and platform | SQL Entra-only administrator |
 | `AZURE_SQL_ENTRA_ADMIN_DISPLAY_NAME` | Entra group display name | Data and platform | SQL administrator metadata |
 | `AZURE_HSM_INITIAL_ADMIN_OBJECT_ID` | Entra principal GUID | CISO and platform | Managed HSM bootstrap; the PIM-versus-group decision is still open |
-| `LAPLUMA_VNET_ADDRESS_PREFIX` | Proposed `10.42.0.0/16` | Network | VNet address space |
-| `LAPLUMA_CORE_SUBNET_PREFIX` | Proposed `10.42.0.0/23` | Network | Core ACA environment |
-| `LAPLUMA_PROCESSING_SUBNET_PREFIX` | Proposed `10.42.2.0/23` | Network | Processing ACA environment |
-| `LAPLUMA_AI_SUBNET_PREFIX` | Proposed `10.42.4.0/23` | Network | AI ACA environment |
-| `LAPLUMA_FUNCTIONS_SUBNET_PREFIX` | Proposed `10.42.6.0/24` | Network | Functions integration |
-| `LAPLUMA_PRIVATE_ENDPOINTS_SUBNET_PREFIX` | Proposed `10.42.7.0/24` | Network | Private endpoints |
+| `LAPLUMA_VNET_ADDRESS_PREFIX` | Ratified `10.42.0.0/16` | Network | VNet address space |
+| `LAPLUMA_CORE_SUBNET_PREFIX` | Ratified `10.42.0.0/23` | Network | Core ACA environment |
+| `LAPLUMA_PROCESSING_SUBNET_PREFIX` | Ratified `10.42.2.0/23` | Network | Processing ACA environment |
+| `LAPLUMA_AI_SUBNET_PREFIX` | Ratified `10.42.4.0/23` | Network | AI ACA environment |
+| `LAPLUMA_FUNCTIONS_SUBNET_PREFIX` | Ratified `10.42.6.0/24` | Network | Functions integration |
+| `LAPLUMA_PRIVATE_ENDPOINTS_SUBNET_PREFIX` | Ratified `10.42.7.0/24` | Network | Private endpoints |
+| `LAPLUMA_APIM_SUBNET_PREFIX` | Ratified `10.42.8.0/24` | Network | API Management edge; reserved ahead of the APIM resource |
 | `ASPNETCORE_URLS` | Container default `http://+:8080` | Backend | Core API listen address, set in `src/core-api/Dockerfile` |
 | `PORT` | Container default `8080` | Backend | Processing health listener, read by `src/document-processing/worker.py` |
 | `ACQUISITION_SCHEDULE` | Six-field NCRONTAB expression | Catalog operations | Timer trigger in `src/functions/function_app.py` |
@@ -111,11 +112,13 @@ and allowed-value constraints. Leaving a variable unset substitutes an empty str
 
 | Variable | Default | Accepted | Gated by |
 |----------|---------|----------|----------|
-| `LAPLUMA_LOG_ANALYTICS_RETENTION_DAYS` | `365` | 30–730 | R-11 |
-| `LAPLUMA_BLOB_SOFT_DELETE_DAYS` | `7` | 1–365 | R-11 |
-| `LAPLUMA_CONTAINER_SOFT_DELETE_DAYS` | `7` | 1–365 | R-11 |
-| `LAPLUMA_KEY_VAULT_SOFT_DELETE_DAYS` | `90` | 7–90 | R-11 |
-| `LAPLUMA_HSM_SOFT_DELETE_DAYS` | `90` | 7–90 | R-11 |
+| `LAPLUMA_LOG_ANALYTICS_RETENTION_DAYS` | `365` | 30–730 | Ratified |
+| `LAPLUMA_BLOB_SOFT_DELETE_DAYS` | `7` | 1–365 | Ratified |
+| `LAPLUMA_CONTAINER_SOFT_DELETE_DAYS` | `7` | 1–365 | Ratified |
+| `LAPLUMA_KEY_VAULT_SOFT_DELETE_DAYS` | `90` | 7–90 | Ratified |
+| `LAPLUMA_HSM_SOFT_DELETE_DAYS` | `90` | 7–90 | Ratified |
+| `LAPLUMA_BLOB_VERSION_DAYS` | `7` | 1–365 | Ratified |
+| `LAPLUMA_ERASURE_SLA_DAYS` | `30` | 1–365 | Ratified |
 | `LAPLUMA_SQL_SKU_NAME` | `GP_S_Gen5` | any SKU name | R-03 |
 | `LAPLUMA_SQL_SKU_CAPACITY` | `2` | ≥ 1 vCores | R-03 |
 | `LAPLUMA_SQL_MIN_CAPACITY` | `0.5` | decimal vCores | R-03 |
@@ -129,10 +132,10 @@ and allowed-value constraints. Leaving a variable unset substitutes an empty str
 | `LAPLUMA_AUDIT_STORAGE_SKU` | `Standard_ZRS` | LRS, ZRS, GRS, GZRS | TODO 3.1 |
 | `LAPLUMA_DEFAULT_STORAGE_SKU` | `Standard_LRS` | LRS, ZRS, GRS, GZRS | TODO 3.1 |
 | `LAPLUMA_DUPLICATE_DETECTION_WINDOW` | `PT1H` | ISO 8601 duration | — |
-| `LAPLUMA_QUEUE_MESSAGE_TTL` | `P7D` | ISO 8601 duration | R-11 |
+| `LAPLUMA_QUEUE_MESSAGE_TTL` | `P7D` | ISO 8601 duration | Ratified |
 | `LAPLUMA_QUEUE_LOCK_DURATION` | `PT5M` | ISO 8601 duration, max `PT5M` | — |
 | `LAPLUMA_QUEUE_MAX_DELIVERY_COUNT` | `5` | 1–2000 | — |
-| `LAPLUMA_TOPIC_MESSAGE_TTL` | `P14D` | ISO 8601 duration | R-11 |
+| `LAPLUMA_TOPIC_MESSAGE_TTL` | `P14D` | ISO 8601 duration | Ratified |
 
 ### Deliberately not parameters
 

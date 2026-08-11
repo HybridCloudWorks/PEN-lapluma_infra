@@ -21,7 +21,7 @@ Six things have to come back, and two of them are the ones drills usually forget
 |-------|-----------|-------|
 | Azure SQL | Point-in-time restore | Restores to a **new** database; the swap is a separate step |
 | Cosmos DB projections | Rebuild from SQL | Not a restore at all — see below |
-| Blob content | Soft delete and versioning | Windows are R-11 values |
+| Blob content | Soft delete and versioning | Seven days for both soft delete and version purge |
 | Audit container | Immutable, cannot be lost | Verify it is *readable*, which is a different claim |
 | Managed HSM keys | Pool backup and security domain | **The one that matters most** |
 | Infrastructure | Redeploy from `infra/` | Templates are the source of truth |
@@ -91,14 +91,14 @@ az storage blob undelete \
 accounts, so a key-based command fails — and it should, since a drill that needed a shared key would
 prove the wrong thing.
 
-Verify: a soft-deleted blob is recoverable inside the R-11 window; a previous version is retrievable;
+Verify: a soft-deleted blob is recoverable inside the seven-day window; a previous version is retrievable;
 and a blob deleted **beyond** the window is *not* recoverable. That last check is the one that
 matters for the deletion promise, and it belongs in the restore drill because it is the same
 mechanism seen from the other side.
 
 ### 5. Audit container
 
-Verify the immutability policy is present, the retention period matches R-11, and existing blobs are
+Verify the immutability policy is present, the retention period is seven years, and existing blobs are
 readable. Then attempt a delete and confirm it is refused. A WORM policy that has never been tested
 is the same kind of belief as an untested backup.
 

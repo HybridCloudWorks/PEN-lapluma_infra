@@ -26,7 +26,7 @@ how the two recovery obligations — restore and deletion — are proved rather 
 | Prerequisite | Where it is tracked |
 |--------------|---------------------|
 | A named operations and on-call owner | `REVIEW.md` R-04 |
-| An approved retention and erasure contract | `REVIEW.md` R-11 |
+| ~~An approved retention and erasure contract~~ | Ratified — see [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) |
 | A `staging` environment to validate the steps against | `REVIEW.md` R-01 through R-05 |
 | Automated restore and deletion drills | `TODO.md` 3.5 |
 | Erasure and retention sweep integration tests | `TODO.md` 3.4 |

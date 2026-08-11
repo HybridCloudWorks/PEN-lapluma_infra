@@ -14,7 +14,7 @@ incident is best defined as a violation of one of them rather than as "something
 | The processing zone has no database route | Any successful connection from processing to SQL or Cosmos |
 | The AI zone writes nothing authoritative | Any authoritative write attributable to an AI-zone identity |
 | No form is activated without its approvals | An edition serves outside `CATALOG_ONLY` without a complete R-14 record |
-| Erasure completes within its SLA | A participant's content survives past the R-11 window |
+| Erasure completes within its SLA | A participant's content survives past the 30-day window |
 | The UPL gate fails closed | A response is served while the classifier or its audit trail is unavailable |
 | No secret is held outside a managed identity | Any credential, key, or connection string in configuration, logs, or source |
 
@@ -99,7 +99,7 @@ Before remediation, capture:
 - The correlation IDs spanning the incident.
 
 The audit container is immutable and needs no preservation step. That is its purpose, and it is why
-`REVIEW.md` R-11 proposes seven years for it.
+the ratified contract sets seven years for it.
 
 ## Remediate and close
 

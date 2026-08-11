@@ -42,13 +42,48 @@ placeholder catalog activates no pilot edition.
 
 ## Retention and erasure targets
 
-| Value | Proposed baseline | Owner | Notes |
-|-------|-------------------|-------|-------|
-| `CASE_CONTENT_RETENTION_TRIGGER` | Pending final policy alignment | Privacy and data | Must resolve to one consistent contract before real data is accepted |
-| `ACCOUNT_ERASURE_ACTIVE_DATA_SLA_DAYS` | Proposed `30` | Privacy | Must match the approved participant notice and the implementation |
-| `BACKUP_EXPIRY_MAX_MONTHS` | Proposed `12` | Privacy and data | Must be stated truthfully to participants |
-| `AUDIT_METADATA_RETENTION_YEARS` | Proposed `7` | Compliance and privacy | Content-free and pseudonymized on erasure |
-| `SECURITY_LOG_RETENTION_MONTHS` | Proposed `12` | Security and privacy | Logs must contain no case content |
+Ratified. These are settings now, not proposals.
+
+**The ordering rule is the contract.** Every window that extends the life of case content must be
+*strictly* shorter than the erasure SLA. A soft-deleted blob is still recoverable, which means it is
+still retained: if the recovery window reaches the SLA, the deletion receipt is false at the moment
+it is issued. Equality is not close enough, because the clocks start at different moments.
+
+Two classes are exempt, for the same reason in both cases — they hold no case content. Audit
+metadata is content-free and pseudonymized on erasure, so it is the evidence that erasure happened
+rather than a surviving copy of what was erased. Key material is not case content either.
+
+`tools/validate_foundation.py` enforces the ordering rule against the Bicep defaults, so a later
+change that widens a window past the SLA fails the build rather than quietly breaking the promise.
+
+| Value | Ratified | Owner | Notes |
+|-------|----------|-------|-------|
+| `CASE_CONTENT_RETENTION_TRIGGER` | Case closure, or 180 days of participant inactivity on an open case, whichever comes first; content deleted 18 months after the clock starts | Privacy and data | The inactivity limb is what stops a case nobody closes from being retained forever |
+| `ACCOUNT_ERASURE_ACTIVE_DATA_SLA_DAYS` | `30` | Privacy | The ceiling every content-bearing window below is measured against |
+| `BACKUP_EXPIRY_MAX_MONTHS` | `12` | Privacy and data | Must be stated truthfully to participants |
+| `AUDIT_METADATA_RETENTION_YEARS` | `7` (2555 days) | Compliance and privacy | Content-free and pseudonymized on erasure. Exempt from the ordering rule |
+| `SECURITY_LOG_RETENTION_MONTHS` | `12` (365-day workspace retention) | Security and privacy | Logs must contain no case content |
+| Blob soft delete | `7` days | Privacy and data | Recovery window for operator error, not retention |
+| Container soft delete | `7` days | Privacy and data | |
+| Blob version purge | `7` days | Privacy and data | **Corrected from the proposed 30.** See below |
+| Key Vault / Managed HSM soft delete | `90` days | Security | Exempt: key material is not case content |
+| Queue / topic message TTL | `P7D` / `P14D` | Data | A message carries a reference, not content |
+
+### The one value that changed on ratification
+
+Blob version purge was proposed at 30 days and is set to 7. The proposal paired it with a 30-day
+erasure SLA, which reads fine until the clocks are lined up: versioning is enabled, so deleting a
+blob creates a version, and that version's 30 days begin *after* however long the deletion itself
+took. The total runs past the SLA rather than inside it. The ordering-rule check rejected the pair
+on its first run, which is the check doing its job on the very contract it was written to defend.
+
+Seven days matches the soft-delete window, so the recovery story is one number rather than two:
+content is recoverable for a week, and after that it is gone.
+
+The lifecycle policy is a backstop for versions produced by ordinary overwrites. Erasure
+orchestration must purge versions explicitly rather than waiting for it, because lifecycle
+management runs once a day at Azure's discretion and that is not a schedule an erasure promise can
+rest on.
 
 ## Operational gates
 
