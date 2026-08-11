@@ -108,19 +108,33 @@ jobs:
         # Trivy runs from its own digest-pinned image rather than the marketplace action, whose
         # setup step fetches a release binary through an install script at run time — unpinned, and
         # observed failing outright on this repository.
+        #
+        # Scan once to JSON, then convert. The scan itself never fails the job, so the SARIF upload
+        # and the human-readable table below always run: a gate that suppresses the report it is
+        # gating on leaves a reviewer with a red check and nowhere to look.
         run: |
-          # --exit-code 0 reports without failing, until the baseline is triaged. See TODO.md 2.5.
           docker run --rm \
             --volume "$PWD:/work" \
             --workdir /work \
             aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
             image \
             --input image.tar \
-            --format sarif \
-            --output trivy-${{ matrix.image.name }}.sarif \
+            --format json \
+            --output trivy-${{ matrix.image.name }}.json \
             --ignore-unfixed \
             --severity CRITICAL,HIGH \
             --exit-code 0
+
+      - name: Convert the image scan to SARIF
+        run: |
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            convert \
+            --format sarif \
+            --output trivy-${{ matrix.image.name }}.sarif \
+            trivy-${{ matrix.image.name }}.json
 
       - name: Upload the image scan results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
@@ -128,6 +142,22 @@ jobs:
         with:
           sarif_file: trivy-${{ matrix.image.name }}.sarif
           category: container-${{ matrix.image.name }}
+
+      - name: Fail on a fixable critical or high vulnerability
+        # The gate. `--ignore-unfixed` at scan time is what makes enforcement honest: a CVE with no
+        # published fix is not something this repository can act on, and failing the build on one
+        # would teach reviewers that red means "wait for upstream" rather than "do something".
+        # What remains is a vulnerability with a fix available, which is a base-image bump.
+        run: |
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            convert \
+            --format table \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
+            trivy-${{ matrix.image.name }}.json
 
   infrastructure-scan:
     name: Infrastructure scan
@@ -152,17 +182,29 @@ jobs:
         run: az bicep build --file infra/main.bicep --outfile arm-template.json
 
       - name: Scan the ARM template
+        # Same shape as the image scan: report first, gate afterwards, so a failure still leaves the
+        # findings in the Security tab and in this job's log.
         run: |
-          # --exit-code 0 reports without failing, until the baseline is triaged. See TODO.md 2.5.
           docker run --rm \
             --volume "$PWD:/work" \
             --workdir /work \
             aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
             config arm-template.json \
-            --format sarif \
-            --output trivy-infrastructure.sarif \
+            --format json \
+            --output trivy-infrastructure.json \
             --severity CRITICAL,HIGH \
             --exit-code 0
+
+      - name: Convert the infrastructure scan to SARIF
+        run: |
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            convert \
+            --format sarif \
+            --output trivy-infrastructure.sarif \
+            trivy-infrastructure.json
 
       - name: Upload the infrastructure scan results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
@@ -170,3 +212,17 @@ jobs:
         with:
           sarif_file: trivy-infrastructure.sarif
           category: infrastructure
+
+      - name: Fail on a critical or high misconfiguration
+        # No `--ignore-unfixed` equivalent applies here: every misconfiguration Trivy reports against
+        # the compiled ARM is one this repository can fix, because this repository wrote it.
+        run: |
+          docker run --rm \
+            --volume "$PWD:/work" \
+            --workdir /work \
+            aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 \
+            convert \
+            --format table \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
+            trivy-infrastructure.json

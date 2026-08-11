@@ -47,6 +47,7 @@ leaves the value to the owner.
 | [R-15](#r-15--independent-penetration-test-authorization) | Independent penetration test authorization | Security owner | Drafted |
 | [R-16](#r-16--catalog-acquisition-schedule-decision) | Catalog acquisition schedule decision | Catalog operations owner | Drafted |
 | [R-17](#r-17--github-wiki-write-access-for-documentation-publication) | GitHub Wiki write access for documentation publication | Repository administrator | — |
+| [R-18](#r-18--secret-scanning-and-push-protection-are-repository-settings) | Secret scanning and push protection are repository settings | Repository administrator | Drafted |
 
 ---
 
@@ -1076,3 +1077,49 @@ directory that outlives its purpose becomes a second copy that drifts.
 **Recommended next step.** A maintainer clones the wiki repository, copies the contents of `wiki/`
 into it, pushes, verifies the fifteen pages render with working cross-links, and then removes `wiki/`
 from this repository.
+
+---
+
+### R-18 — Secret scanning and push protection are repository settings
+
+**Problem.** GitHub secret scanning and push protection are not enabled on this repository, as
+recorded in `TODO.md` item 2.4. They are repository settings rather than workflow configuration, so
+no change in this repository can turn them on.
+
+**Why it blocks progress.** The custom scanner in `tools/validate_foundation.py` covers five
+patterns specific to this repository's invariants — private keys, storage connection strings, bare
+account keys, shared-access signatures, and concrete tenant or subscription assignments. It covers
+none of the provider-issued credentials that a supervised pilot is most likely to leak: Entra client
+secrets, GitHub tokens, cloud provider keys. Those are matched by partner-supplied signatures, which
+only GitHub's scanner has.
+
+Push protection is the half that actually prevents an incident rather than reporting one. Secret
+scanning tells you a credential was committed, at which point it must be rotated because it is in
+the history and the repository is public. Push protection refuses the push.
+
+**Required owner.** Repository administrator.
+
+**Required action.** Confirm the current state of both settings and enable them if they are off:
+Settings → Code security → Secret scanning, and push protection under the same heading. Both are
+free for public repositories and need no Advanced Security licence.
+
+**Impact if unresolved.** A leaked provider credential in a public repository is unlikely to be
+caught before it is used. This is the one gap on this page whose consequence is immediate rather
+than procedural.
+
+**References.** `TODO.md` item **2.4**, whose workflow half is complete. Related to **R-17**: both
+are repository administration rather than engineering.
+
+**Proposed answer.** Enable both, with push protection set to block rather than warn, and no bypass
+list. A bypass list on a repository this size is a way to grant the exception permanently the first
+time someone is in a hurry.
+
+If a genuine false positive appears — the expected-format documentation uses placeholder patterns
+precisely so it will not trip a scanner — the fix is to adjust the placeholder rather than to add a
+bypass, because a placeholder that looks enough like a credential to trip push protection also looks
+enough like one to be copied by a reader.
+
+**Recommended next step.** The administrator checks both toggles and enables what is off; an
+engineer then confirms by pushing a test branch containing an obviously fake but correctly shaped
+token and verifying the push is refused, then deletes the branch. Testing the control is the point —
+an enabled setting nobody has seen refuse anything is the same class of belief as an untested backup.
