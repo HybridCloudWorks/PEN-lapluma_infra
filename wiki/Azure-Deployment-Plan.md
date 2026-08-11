@@ -36,7 +36,7 @@ shared with the iOS repository is `contracts/catalog-package-compatibility.json`
 | Data residency | US only |
 | Tenant | Not confirmed — mandatory confirmation before an AZD environment or deployment |
 | Subscription | Not confirmed — mandatory confirmation by display name and ID before an AZD environment or deployment |
-| Location | East US 2 (`eastus2`), approved in principle; service and quota availability must be verified before deployment |
+| Location | South Central US (`southcentralus`), approved in principle; service and quota availability must be verified before deployment |
 | Delivery recipe | Azure Developer CLI (AZD) with Bicep |
 | Application stack | .NET 10 core services; Python 3.13 document-processing workers; Azure Functions and Durable Functions for event and scheduled orchestration |
 
@@ -52,7 +52,7 @@ recorded and explicitly confirmed:
 1. Azure tenant display name and tenant ID.
 2. Azure subscription display name and subscription ID.
 3. Confirmation that the subscription is authorized for real pilot PII and cost-bearing resources.
-4. Confirmation that `eastus2` supports every selected service and SKU, the required quota, the
+4. Confirmation that `southcentralus` supports every selected service and SKU, the required quota, the
    required private-networking features, and the Azure AI Document Intelligence models the pilot
    uses.
 5. Identities and owners for deployment approval, security, privacy, compliance, operations, and
@@ -94,7 +94,7 @@ must produce.
 
 Analyze the workspace, gather approved requirements, scan the codebase, select the delivery recipe,
 and plan the application, trust zones, data flow, environments, and pilot gates. Close the hard
-context gate: confirm tenant and subscription, verify East US 2 service availability, SKU features,
+context gate: confirm tenant and subscription, verify South Central US service availability, SKU features,
 quotas, and cost approvals, and record the security, privacy, compliance, operations, and deployment
 approvers.
 

@@ -147,7 +147,7 @@ param environmentName string
 
 @description('Azure region approved in principle; availability and quota must still be verified.')
 @minLength(1)
-param location string = 'eastus2'
+param location string = 'southcentralus'
 
 @description('Lowercase alphanumeric resource naming prefix. Placeholder until governance approval.')
 @minLength(3)
@@ -183,6 +183,25 @@ param subnetPrefixes SubnetPrefixes
 
 @description('Required governance tags; no PII or secrets.')
 param tags object
+
+@description('''
+What class of data this environment is authorized to hold, applied as the `data-classification` tag.
+
+`dev` is synthetic-only by decision, which is what makes the restore and deletion drills runnable at
+all: a drill against real data creates a second copy of it with its own retention obligation, which
+is a privacy incident dressed as diligence.
+
+The default is the restrictive claim, deliberately. Declaring an environment able to hold real
+participant data has to be a deliberate act rather than something inherited from a default, and the
+allowed list means a typo fails at parameter submission rather than tagging the estate wrongly. The
+tag is what a governance query filters on when someone asks which resources hold regulated data, so
+it has to be true.
+''')
+@allowed([
+  'synthetic'
+  'production-sensitive-pii'
+])
+param dataClassification string = 'synthetic'
 
 @description('Python version for the function host. tools/validate_foundation.py holds this in step with the image, CI, and the documentation.')
 @minLength(1)
@@ -272,6 +291,7 @@ var commonTags = union(tags, {
   release: 'lapluma-infra-0.0'
   'correlated-app-release': 'lapluma-app-0.2'
   'data-residency': 'us'
+  'data-classification': dataClassification
 })
 
 resource targetResourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = if (enableProvisioning) {

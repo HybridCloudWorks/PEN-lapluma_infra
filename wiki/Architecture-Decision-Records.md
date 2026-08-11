@@ -8,8 +8,10 @@ who assumes it was arbitrary.
 
 Every record below states its status honestly. "Accepted" means the decision is made and
 implemented. "Accepted, partly gated" means the decision is made but something in `REVIEW.md` still
-has to clear before it is fully realized — which is different from an undecided question and is
-recorded as such.
+has to clear before it is fully realized. "Accepted, not yet implemented" means the decision governs
+code that has not been written — recorded now so the thing is built this way the first time rather
+than built wrongly and migrated. Neither is the same as an undecided question, and the difference
+is marked rather than left to be inferred.
 
 ## Records
 
@@ -20,6 +22,7 @@ recorded as such.
 | [ADR 0003](ADR-0003-SQL-authoritative-Cosmos-rebuildable) | Azure SQL authoritative, Cosmos rebuildable projections | Accepted |
 | [ADR 0004](ADR-0004-Service-Bus-Premium-over-Standard) | Service Bus Premium, not Standard | Accepted |
 | [ADR 0005](ADR-0005-Managed-HSM-over-Key-Vault-keys) | Managed HSM, not Key Vault-managed keys | Accepted, partly gated |
+| [ADR 0006](ADR-0006-Federated-deployment-identity) | Federated deployment identity, no stored secret | Accepted, not yet implemented |
 
 ## Writing a new record
 
