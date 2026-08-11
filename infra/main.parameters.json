@@ -36,11 +36,13 @@
         "apim": "${LAPLUMA_APIM_SUBNET_PREFIX}"
       }
     },
+    "dataClassification": {
+      "value": "${LAPLUMA_DATA_CLASSIFICATION}"
+    },
     "tags": {
       "value": {
         "owner": "${AZURE_RESOURCE_OWNER}",
-        "cost-center": "${AZURE_COST_CENTER}",
-        "data-classification": "sensitive-pii"
+        "cost-center": "${AZURE_COST_CENTER}"
       }
     },
     "retention": {

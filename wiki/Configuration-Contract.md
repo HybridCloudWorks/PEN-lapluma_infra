@@ -24,7 +24,7 @@ parameters into the `network`, `observability`, `security`, `messaging`, and `da
 |----------|-----------------|-------|-------|
 | `AZURE_TENANT_ID` | Azure tenant GUID | Platform | Confirm together with the tenant display name; never infer from CLI context |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription GUID | Platform | Confirm together with the subscription display name; never infer from defaults |
-| `AZURE_LOCATION` | `eastus2` | Platform | US-only pilot data plane |
+| `AZURE_LOCATION` | `southcentralus` | Platform | US-only pilot data plane |
 | `AZURE_ENV_NAME` | Approved AZD-safe environment name | Platform | Consumed by `infra/main.parameters.json` and the `azd-env-name` tag |
 | `AZURE_ENV_NAME_DEV` | `dev` or an approved AZD-safe name | Platform | Synthetic data only |
 | `AZURE_ENV_NAME_STAGING` | `staging` or an approved AZD-safe name | Platform | Production-equivalent controls |

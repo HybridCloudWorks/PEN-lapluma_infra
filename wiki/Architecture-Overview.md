@@ -1,7 +1,7 @@
 # Architecture overview
 
 **Stack:** three isolated Azure Container Apps zones plus serverless orchestration and managed data
-services, deployed in East US 2.
+services, deployed in South Central US.
 
 The constraints this architecture exists to enforce are documented in
 [Security and Data Protection](Security-and-Data-Protection).
@@ -55,7 +55,7 @@ and an explicit `DenyInternetEgress` outbound rule on the processing NSG.
 
 ## Azure service mapping
 
-The SKUs below are planning baselines. They may change only after East US 2 capability, quota,
+The SKUs below are planning baselines. They may change only after South Central US capability, quota,
 security-feature, and cost validation. Security controls may not be removed to fit budget.
 
 | Component | Azure service | Planning baseline |
