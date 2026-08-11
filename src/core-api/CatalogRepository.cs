@@ -1,6 +1,9 @@
 namespace LaPluma.CoreApi;
 
-public sealed class CatalogRepository
+// The in-memory fixture. It is no longer what production serves — SqlCatalogSource is — but it
+// remains the contract tests' catalog, and tools/validate_foundation.py reads this file as text for
+// the Alpha 0.2 priority forms and package composition. Moving these literals breaks that check.
+public sealed class CatalogRepository : ICatalogSource
 {
     private static readonly CatalogCategory Federal = new("FEDERAL", "Federal", 10);
     private static readonly CatalogCategory Education = new("EDUCATION", "Education", 20);
@@ -158,4 +161,25 @@ public sealed class CatalogRepository
                 null,
                 FixtureVerifiedAt));
     }
+
+    Task<IReadOnlyList<CatalogCategoryNode>> ICatalogSource.GetHierarchyAsync(CancellationToken _) =>
+        Task.FromResult(GetHierarchy());
+
+    Task<IReadOnlyList<FormPackage>> ICatalogSource.ListPackagesAsync(
+        string? categoryCode,
+        string? subcategoryCode,
+        FormActivationState? activationState,
+        CancellationToken _) =>
+        Task.FromResult(ListPackages(categoryCode, subcategoryCode, activationState));
+
+    Task<FormPackage?> ICatalogSource.GetPackageAsync(string packageCode, CancellationToken _) =>
+        Task.FromResult(GetPackage(packageCode));
+
+    Task<ExtractedFormSchema?> ICatalogSource.GetSchemaAsync(
+        string authority,
+        string formId,
+        DateOnly editionDate,
+        string schemaVersion,
+        CancellationToken _) =>
+        Task.FromResult(GetSchema(authority, formId, editionDate, schemaVersion));
 }

@@ -14,123 +14,42 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 
 | Phase | Theme | Items |
 |-------|-------|-------|
-| [1](#phase-1--critical-fixes) | Critical fixes: the generated foundation is internally inconsistent | 1.1 – 1.4 |
-| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.6 |
-| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.6 |
+| [1](#phase-1--critical-fixes) | Critical fixes: the edge zone is not modelled | 1.1 |
+| [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
+| [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.5 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
-| [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.4 |
+| [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.3 |
 
 ---
 
 ## Phase 1 — Critical fixes
 
-The foundation as generated cannot function even once provisioning is unlocked. These four items
-close that gap.
+The private endpoints, hosting layer, role assignments, and Azure Monitor Private Link Scope are in
+place. What remains is the edge, which cannot be modelled until an address range exists for it.
 
-### 1.1 — Model private endpoints and private DNS zones
-
-- **Priority:** P0
-- **Description:** Every data and AI service in `infra/modules/` sets `publicNetworkAccess:
-  'Disabled'` — SQL, Cosmos, all four storage accounts, Service Bus, Key Vault, and Managed HSM —
-  but no `Microsoft.Network/privateEndpoints` or `Microsoft.Network/privateDnsZones` resources
-  exist. A `snet-private-endpoints` subnet is created with `privateEndpointNetworkPolicies:
-  'Disabled'` and then left empty. As written, provisioning would produce a set of services that
-  nothing can reach.
-- **Dependencies:** `REVIEW.md` **R-09** (address plan, DNS ownership, private DNS linking model).
-- **Recommended action:** Add a `privatelink` Bicep module that creates one private endpoint per
-  service into `snet-private-endpoints`, the corresponding `privatelink.*` private DNS zones, and
-  the VNet links. Cover `privatelink.database.windows.net`, `privatelink.documents.azure.com`,
-  `privatelink.blob.core.windows.net`, `privatelink.servicebus.windows.net`,
-  `privatelink.vaultcore.azure.net`, `privatelink.managedhsm.azure.net`,
-  `privatelink.cognitiveservices.azure.com`, and `privatelink.azurecr.io`. Extend
-  `tools/validate_foundation.py` to fail if a resource disables public access without a matching
-  private endpoint.
-- **Status:** Not started
-- **Notes for future engineers:** The four storage accounts are created with a `[for purpose in
-  storagePurposes]` loop; the private endpoints must be indexed the same way. `validate_foundation.py`
-  already asserts that resource collections are indexed rather than iterated in outputs — keep that
-  pattern.
-
-### 1.2 — Model the workload hosting layer
+### 1.1 — Model the API Management edge
 
 - **Priority:** P0
-- **Description:** `azure.yaml` declares three services — `core-api` and `processing-worker` with
-  `host: containerapp`, and `acquisition-functions` with `host: function` — but the Bicep models no
-  Container Apps environments, no container apps, no Functions hosting plan or function app, no
-  Container Registry, and no API Management. `azd deploy` has nowhere to deploy to, and the
-  delegated `snet-core`, `snet-processing`, `snet-ai`, and `snet-functions` subnets have no
-  consumers.
-- **Dependencies:** 1.1 (registry and workload access rely on private endpoints); `REVIEW.md`
-  **R-03** for the APIM SKU cost, **R-06** and **R-07** for the APIM identity and hostname
-  configuration.
-- **Recommended action:** Add a `compute` module creating three separate Container Apps managed
-  environments — core, processing, and AI, each bound to its own subnet and each with its own
-  logging boundary — plus the Core API container app with a minimum of one replica and explicit
-  health probes against `/health` and `/ready`, a queue-driven processing worker app or job, the
-  Functions hosting plan and function app, and Azure Container Registry with managed-identity pull.
-  Add an `apim` module for the Edge zone. Tag each app with `azd-service-name` matching the
-  corresponding `azure.yaml` service so AZD can bind them.
+- **Description:** The Core API container app is created with `external: false` ingress, so nothing
+  publishes it. That is correct for the current shape — an internet-facing authoritative API with no
+  gateway in front of it would be worse — but it means the Edge zone does not exist yet, and no
+  client can reach the service.
+- **Dependencies:** `REVIEW.md` **R-09** is the hard one — APIM needs its own dedicated subnet and
+  the address plan allocates five, none of them for the edge. Also **R-03** for the SKU cost,
+  **R-06** for the Entra application registration and API audience, and **R-07** for the public
+  hostname, DNS, and TLS certificate.
+- **Recommended action:** Once R-09 allocates a range, add `apim` to the `SubnetPrefixes` type in
+  `infra/main.bicep`, its variable to `.env.example` and `infra/main.parameters.json`, and a subnet
+  to `infra/modules/network.bicep`. Then add an `apim` module publishing the Core API container app,
+  validating the token audience R-06 settles, on the hostname R-07 settles.
 - **Status:** Not started
-- **Notes for future engineers:** The function app must pin **Python 3.13** in its
-  `linuxFxVersion`, matching the rest of the repository — `src/functions/requirements.txt`
-  requires it, since `azure-functions` 2.x needs `>=3.13` and the 1.x line caps at `<3.13`.
-  Confirm the Azure Functions runtime offers 3.13 on the chosen plan and region before
-  provisioning: that was not verifiable when the version was chosen, and it is the one
-  assumption behind it. `tools/validate_foundation.py` enforces agreement across the image, CI,
-  and the documentation, but it cannot see the hosting configuration until this item adds it —
-  extend `PYTHON_VERSION_SOURCES` to cover the Bicep once it exists.
-  `src/core-api/Dockerfile` listens on `8080` via `ASPNETCORE_URLS`,
-  and `src/document-processing/worker.py` reads `PORT` with a default of `8080`. Both images already
-  run as non-root, so no `runAsUser` override is needed. The processing environment must have no
-  route to SQL or Cosmos — that is a trust-zone invariant, not a configuration preference.
-
-### 1.3 — Model RBAC role assignments
-
-- **Priority:** P0
-- **Description:** `infra/modules/security.bicep` creates four user-assigned managed identities —
-  `id-*-core`, `id-*-processing`, `id-*-ai`, and `id-*-functions` — and outputs their resource IDs,
-  but no `Microsoft.Authorization/roleAssignments` resource exists anywhere. Every service has local
-  authentication and shared keys disabled, so with no role assignments no workload can read or write
-  anything.
-- **Dependencies:** 1.2 (the identities must be attached to real workloads first); `REVIEW.md`
-  **R-04** for the security, operations, and privacy group object IDs.
-- **Recommended action:** Add an `rbac` module granting the least privilege each zone actually
-  needs. The core identity: SQL managed-identity user, Blob Data Contributor scoped to the documents
-  and packages accounts, Service Bus Data Sender, Key Vault Secrets User. The processing identity:
-  Blob Data Reader on quarantine only, Blob Data Contributor on the staging container only, Service
-  Bus Data Receiver on `document-processing` only, Cognitive Services User on Document Intelligence.
-  The functions identity: Storage Blob and Queue roles for identity-based `AzureWebJobsStorage`,
-  Service Bus Data Sender and Receiver, Durable task hub access. The AI identity: no authoritative
-  data-plane role at all. Prefer group-scoped assignments over individual ones.
-- **Status:** Not started
-- **Notes for future engineers:** The processing zone must never receive a SQL or Cosmos role. If a
-  future change appears to need one, the design is wrong — route it through a governed Core API call
-  instead.
-
-### 1.4 — Resolve the Application Insights ingestion deadlock
-
-- **Priority:** P0
-- **Description:** `infra/modules/observability.bicep` sets both
-  `publicNetworkAccessForIngestion: 'Disabled'` and `publicNetworkAccessForQuery: 'Disabled'` on the
-  Application Insights component, but no Azure Monitor Private Link Scope exists. With ingestion
-  disabled and no AMPLS, workloads cannot send telemetry and operators cannot query it — the pilot
-  would run blind.
-- **Dependencies:** 1.1 (AMPLS needs a private endpoint and the `privatelink.monitor.azure.com`,
-  `privatelink.oms.opinsights.azure.com`, `privatelink.ods.opinsights.azure.com`, and
-  `privatelink.agentsvc.azure-automation.net` zones).
-- **Recommended action:** Add a `Microsoft.Insights/privateLinkScopes` resource, scope the Log
-  Analytics workspace and the Application Insights component to it, create its private endpoint in
-  `snet-private-endpoints`, and link the four required private DNS zones. Verify end to end that a
-  container app can emit a trace and that a query returns it.
-- **Status:** Not started
-- **Notes for future engineers:** AMPLS access-mode settings (`Open` versus `PrivateOnly`) apply to
-  ingestion and query independently. Choose `PrivateOnly` for both to match the stated posture, but
-  be aware it affects every workspace in scope. The Log Analytics workspace now sets
-  `features.disableLocalAuth: true`, which closed the shared-key ingestion path immediately, but its
-  own `publicNetworkAccessForIngestion` and `publicNetworkAccessForQuery` are deliberately still
-  unset: disabling them extends this same ingestion deadlock to the workspace. Set both to
-  `'Disabled'` as part of this item, once AMPLS exists — not before.
+- **Notes for future engineers:** APIM in internal VNet mode requires the Premium or Developer tier;
+  the cheaper tiers cannot join a virtual network at all, which makes this an R-03 question before
+  it is a networking one. `tools/validate_foundation.py` asserts that every resource disabling
+  public network access has a private endpoint wired to it — APIM in internal mode has no
+  `publicNetworkAccess` property and will not trip that rule, so do not read its silence as
+  approval.
 
 ---
 
@@ -143,8 +62,8 @@ close that gap.
   account, SQL database, or Cosmos account references a customer-managed key. Customer-managed
   encryption is stated as a pilot prerequisite rather than later hardening, so the HSM currently
   costs money without protecting anything.
-- **Dependencies:** 1.1, 1.3; `REVIEW.md` **R-10** (HSM administrators, key hierarchy, rotation
-  policy, CMK coverage).
+- **Dependencies:** `REVIEW.md` **R-10** (HSM administrators, key hierarchy, rotation policy, CMK
+  coverage). The private endpoints and role assignments this used to wait on are in place.
 - **Recommended action:** Once the key hierarchy is approved, create the keys, grant each service's
   system- or user-assigned identity the `Managed HSM Crypto Service Encryption User` role, and set
   the CMK properties on the four storage accounts, the SQL database transparent-data-encryption
@@ -155,67 +74,49 @@ close that gap.
   retention. Bootstrapping the pool with the wrong `initialAdminObjectIds` is expensive to undo —
   confirm R-10 before the first provisioning run, not after.
 
-### 2.2 — Enforce processing-zone egress control
+### 2.2 — Implement the approved egress allowlist
 
 - **Priority:** P1
-- **Description:** `infra/modules/network.bicep` puts a single `DenyInternetEgress` outbound rule on
-  the processing NSG. That blocks direct internet destinations but does not implement the specified
-  "no general internet egress" posture with an approved destination allowlist — there is no route
-  table, no firewall, no DNS egress control, and the other four subnets have empty NSGs.
-- **Dependencies:** 1.1; `REVIEW.md` **R-09** (approved egress destinations and enforcement
-  mechanism).
+- **Description:** The rule *structure* is in place. Every one of the five NSGs now carries a
+  baseline `DenyInternetEgress`, where four of them previously carried nothing at all — the AI zone
+  had unrestricted outbound internet access. The processing NSG additionally denies the `Sql` and
+  `AzureCosmosDB` service tags and the private-endpoint subnet prefix, which closes code review
+  finding **F-04**: an NSG carries an implicit `AllowVnetOutBound`, and every private endpoint sits
+  inside this VNet, so the internet rule never covered that path. What remains is the mechanism and
+  the destinations — there is still no route table, no firewall, and no DNS egress control.
+- **Dependencies:** `REVIEW.md` **R-09** (approved egress destinations and enforcement mechanism).
 - **Recommended action:** Implement the approved mechanism — an Azure Firewall with forced tunneling
-  via UDR, or an equivalent — with an explicit allowlist. Add baseline deny rules to the core, AI,
-  functions, and private-endpoint NSGs rather than leaving them empty. Add a validation test that
-  asserts a processing replica cannot resolve or reach an arbitrary external host.
-- **Status:** Not started
+  via UDR, or an equivalent — with an explicit allowlist, and punch the approved destinations
+  through the baseline denies rather than widening them. Add a validation test that asserts a
+  processing replica cannot resolve or reach an arbitrary external host.
+- **Status:** Partially complete — rule structure and the F-04 denies are in; the allowlist and its
+  enforcement mechanism remain.
 - **Notes for future engineers:** Container Apps environments need platform-level egress for image
   pulls and control-plane traffic. Use the ACR private endpoint plus the documented required FQDNs;
-  do not widen the allowlist to "all Azure services".
-  Code review finding **F-04** is an explicit acceptance criterion for this item, and it is not
-  satisfied by internet-egress work alone. NSGs carry an implicit `AllowVnetOutBound`, and every
-  private endpoint lives inside the same VNet, so `DenyInternetEgress` does not stop a processing
-  replica reaching the SQL or Cosmos private endpoints. Add deny rules for the `Sql` and
-  `AzureCosmosDB` service tags and for the private-endpoint subnet prefix, and give the core, AI,
-  functions, and private-endpoint NSGs baseline deny rules rather than leaving them empty — the AI
-  zone currently has unrestricted outbound internet access. Rule addresses depend on **R-09**; rule
-  structure does not, and can be authored now.
+  do not widen the allowlist to "all Azure services". The baseline deny sits at priority 4000 and
+  the F-04 database denies at 3000–3020, so an allowlist has the whole range below 3000 to work in
+  without editing what is already there.
 
-### 2.3 — Add defense-in-depth authorization to the Core API
+### 2.3 — Lock the audit immutability policy
 
 - **Priority:** P1
-- **Description:** `src/core-api/Program.cs` registers no authentication or authorization at all.
-  Every catalog endpoint is anonymous. The design places JWT validation at the APIM edge, but a
-  service whose only protection is an upstream gateway fails open the moment anything reaches it
-  directly — including from inside the core subnet.
-- **Dependencies:** 1.2; `REVIEW.md` **R-06** (Entra registrations and API audience).
-- **Recommended action:** Add JWT bearer authentication bound to the confirmed Entra audience and
-  issuer, apply an authorization policy to the `/v1/catalog` group while leaving `/health` and
-  `/ready` anonymous, and add a test that asserts an unauthenticated catalog request returns 401.
-  Add the identity and policy boundary described in the architecture as a distinct module inside
-  `src/core-api`.
-- **Status:** Not started
-- **Notes for future engineers:** The catalog endpoints deliberately accept no `userId`, `personId`,
-  `folderId`, `caseId`, `documentId`, `eligibility`, or `facts` parameter, and
-  `tools/validate_foundation.py` enforces that. Adding authentication must not introduce any of
-  those as a query parameter.
-
-### 2.4 — Apply immutability to the audit storage account
-
-- **Priority:** P1
-- **Description:** The `audit` storage account is described as holding immutable evidence and is the
-  only account provisioned with `Standard_ZRS`, but it is configured identically to the others: no
-  immutability policy, no legal hold, and the same 7-day soft-delete window. Deletion evidence that
-  can be deleted is not evidence.
+- **Description:** The audit container now carries a time-based immutability policy with a
+  parameterized window, defaulting to seven years, and `allowProtectedAppendWrites` so evidence
+  appended over time is still protected. It is created **unlocked**, and an unlocked policy can be
+  shortened or removed — which is most of the protection missing.
 - **Dependencies:** `REVIEW.md` **R-11** (audit metadata retention, proposed 7 years).
-- **Recommended action:** Add a time-based immutability policy (WORM) to the audit container sized
-  to the approved retention period, with the policy locked in `staging` and `pilot`. Keep `dev`
-  unlocked so test data can be cleaned up.
+- **Recommended action:** Once R-11 ratifies the period, lock the policy in `staging` and `pilot`
+  with `az storage container immutability-policy lock`. Keep `dev` unlocked permanently so test data
+  can be cleaned up. Record the lock in the deployment runbook under 6.2.
 - **Status:** Not started
-- **Notes for future engineers:** A locked immutability policy cannot be shortened or removed. Do
-  not lock it until R-11 has ratified the retention period.
+- **Notes for future engineers:** **Locking is not a Bicep property, and there is deliberately no
+  parameter offering to do it.** ARM exposes the lock as an explicit action on the policy resource,
+  so a `lock: true` in the template would read like a guarantee and enforce nothing. It is an
+  irreversible out-of-band step: a locked policy cannot be shortened or removed by an owner, by a
+  subscription administrator, or by support. Extending it is the only permitted change. Do not run
+  the lock command until R-11 has ratified the number.
 
-### 2.5 — Add supply-chain and code scanning to CI
+### 2.4 — Add supply-chain and code scanning to CI
 
 - **Priority:** P2
 - **Description:** `.github/workflows/security-scanning.yml` now runs CodeQL for C# and Python,
@@ -252,7 +153,7 @@ close that gap.
   install script at run time, which is unpinned and was observed failing outright here. Scanning a
   `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
 
-### 2.6 — Replace the Functions host shared-key auth default
+### 2.5 — Replace the Functions host shared-key auth default
 
 - **Priority:** P2
 - **Description:** Code review finding **F-17**. `src/functions/function_app.py` constructs
@@ -263,38 +164,21 @@ close that gap.
   Entra-only SQL. No HTTP trigger exists yet, but this is the app-wide default that the next one
   inherits, and the Durable extension's built-in orchestration management endpoints already carry
   it.
-- **Dependencies:** 1.2 (APIM must front the app first); `REVIEW.md` **R-07** for the hostname.
+- **Dependencies:** 1.1 (APIM must front the app first); `REVIEW.md` **R-07** for the hostname.
 - **Recommended action:** Set `AuthLevel.ANONYMOUS` and terminate authentication at APIM with
   Entra, which is the topology the trust-zone model already describes. Record the decision as an
-  ADR under 6.3, since it moves a security boundary. Decide separately whether the Durable HTTP
+  ADR — the Architecture Decision Records wiki page carries the format — since it moves a security
+  boundary. Decide separately whether the Durable HTTP
   management API should be disabled outright through `extensions.durableTask` in `host.json`.
 - **Status:** Not started
 - **Notes for future engineers:** Do not flip this in isolation. `ANONYMOUS` is only safe once
-  network restriction and APIM fronting are both in place — land it with 1.2, not before.
+  network restriction and APIM fronting are both in place — land it with 1.1, not before.
 
 ---
 
 ## Phase 3 — Stability improvements
 
-### 3.1 — Add diagnostic settings to every resource
-
-- **Priority:** P1
-- **Description:** `infra/modules/observability.bicep` creates a Log Analytics workspace and an
-  Application Insights component, but not one resource in the network, security, messaging, or data
-  modules has a `Microsoft.Insights/diagnosticSettings` child. No audit log, no SQL security log, no
-  Key Vault access log, and no Service Bus operational log reaches the workspace.
-- **Dependencies:** 1.4.
-- **Recommended action:** Add diagnostic settings to SQL, Cosmos, all four storage accounts and
-  their blob services, Service Bus, Key Vault, Managed HSM, the NSGs, and — once 1.2 lands — the
-  Container Apps environments, the function app, ACR, and APIM. Route them all to the workspace.
-  Verify the emitted categories contain no case content, as the content-free telemetry constraint
-  requires.
-- **Status:** Not started
-- **Notes for future engineers:** Log Analytics retention is currently hard-coded to 365 days; see
-  item 4.2. Add the diagnostic settings before parameterizing retention, so the retention change can
-  be validated against real ingested categories.
-
-### 3.2 — Decide and implement resilience settings
+### 3.1 — Decide and implement resilience settings
 
 - **Priority:** P1
 - **Description:** SQL sets `zoneRedundant: false`, Cosmos sets `isZoneRedundant: false`, three of
@@ -312,17 +196,23 @@ close that gap.
   `sqlAutoPauseMinutes` are all supplied per environment through `.env.example`, so this item is
   now a decision about values rather than a code change.
 - **Status:** Not started
-- **Notes for future engineers:** `GP_S_Gen5` with `minCapacity: 0.5` and `autoPauseDelay: 60` means
+- **Notes for future engineers:** Log Analytics retention was parameterized before any diagnostic
+  setting existed, so the 365-day default has never been weighed against real ingested volume. Now
+  that every resource routes logs and metrics to the workspace, that number is measurable — take a
+  reading before ratifying it, because retention on an empty workspace costs nothing and retention
+  on a populated one is most of the observability bill.
+  `GP_S_Gen5` with `minCapacity: 0.5` and `autoPauseDelay: 60` means
   the first request after an idle hour pays a resume penalty. For a ~40-case supervised pilot that
   may well be fine — but it should be a recorded decision, not an accident.
 
-### 3.3 — Implement the invariant test suite
+### 3.2 — Implement the invariant test suite
 
 - **Priority:** P1
 - **Description:** Cross-tenant, cross-folder, person-boundary, and agent-no-write invariant tests
   are required to pass on every build. Today the repository has five Python contract tests and no
   invariant tests at all.
-- **Dependencies:** 1.2, 1.3, 2.3, 5.2.
+- **Dependencies:** 5.2. The Core API's authorization boundary exists now, so a token-scoped
+  test has something to assert against — supplying real tokens still needs `REVIEW.md` **R-06**.
 - **Recommended action:** Build an integration test project that asserts, against a running `dev`
   environment: a token scoped to tenant A cannot read tenant B's data; a folder-scoped grant cannot
   traverse to a sibling folder; a person boundary cannot be crossed by any API path; and no AI or
@@ -331,7 +221,7 @@ close that gap.
 - **Notes for future engineers:** These are the tests that justify the trust-zone architecture. If
   they cannot be written against the implementation, the implementation has drifted from the design.
 
-### 3.4 — Implement package round-trip fidelity verification
+### 3.3 — Implement package round-trip fidelity verification
 
 - **Priority:** P1
 - **Description:** The design requires the package worker to round-trip verify every mapped field
@@ -347,7 +237,7 @@ close that gap.
   activation and permits no electronic signature. Check the artifact's encoding — the contract
   distinguishes `ACROFORM`, `XFA`, and `FLAT`, and XFA round-tripping behaves very differently.
 
-### 3.5 — Implement erasure and retention sweep integration tests
+### 3.4 — Implement erasure and retention sweep integration tests
 
 - **Priority:** P1
 - **Description:** Account erasure and case-retention sweeps must be integration-tested across SQL,
@@ -363,18 +253,18 @@ close that gap.
   naive delete leaves recoverable versions behind. The test must assert on versions, not just on
   current blobs.
 
-### 3.6 — Automate restore and deletion drills
+### 3.5 — Automate restore and deletion drills
 
 - **Priority:** P2
 - **Description:** Restore and deletion drill evidence is a real-user pilot prerequisite, and no
   drill procedure or automation exists.
-- **Dependencies:** 3.5.
+- **Dependencies:** 3.4.
 - **Recommended action:** Script a periodic drill against `staging` that restores SQL and Cosmos to
   a point in time, verifies data integrity, executes a deletion sweep, and writes content-free
   evidence to the audit account. Document the procedure as a runbook (item 6.2).
 - **Status:** Not started
 - **Notes for future engineers:** The drill evidence itself must be content-free and pseudonymized —
-  it lands in the audit account, which is subject to the immutability policy from item 2.4.
+  it lands in the audit account, which is subject to the immutability policy from item 2.3.
 
 ---
 
@@ -413,7 +303,7 @@ close that gap.
   baseline, but wrong for Elastic Premium, which requires `Microsoft.Web/serverFarms`. The plan
   allows an approved equivalent if Flex Consumption features are unavailable in East US 2, so the
   delegation is only conditionally correct.
-- **Dependencies:** 1.2; `REVIEW.md` **R-03** (region capability verification).
+- **Dependencies:** `REVIEW.md` **R-03** (region capability verification).
 - **Recommended action:** When the region verification confirms the available Functions hosting SKU,
   re-check the delegation and correct it if the SKU changed. Add a comment in the network module
   recording which SKU the delegation assumes.
@@ -434,10 +324,10 @@ close that gap.
   responsible for deterministic PDF generation, verification, and delivery. The directory does not
   exist, and `azure.yaml` declares no such service. Without it, step 6 of the data flow — the entire
   output half of the product — has no implementation.
-- **Dependencies:** 1.2, 5.2; `REVIEW.md` **R-14** (verified artifacts and approved field maps).
+- **Dependencies:** 5.2; `REVIEW.md` **R-14** (verified artifacts and approved field maps).
 - **Recommended action:** Create `src/package-worker` as a .NET 10 queue-driven worker or Container
   Apps Job. It fills an edition-pinned official form from a human-approved field ledger, round-trip
-  verifies every mapped field (item 3.4), flattens the output where the artifact permits it, hashes
+  verifies every mapped field (item 3.3), flattens the output where the artifact permits it, hashes
   it, writes it to the packages storage account, and emits a delivery event. Add it to `azure.yaml`,
   give it its own Dockerfile with a non-root user, and extend `tools/validate_foundation.py` to
   cover it.
@@ -446,24 +336,28 @@ close that gap.
   authority to approve a value, and it must fail closed rather than deliver on a verification
   mismatch.
 
-### 5.2 — Replace the in-memory catalog with the authoritative store
+### 5.2 — Exercise the SQL catalog against a real database
 
 - **Priority:** P1
-- **Description:** `src/core-api/CatalogRepository.cs` is an in-memory fixture registered as a
-  singleton. Azure SQL is the authoritative relational store in the design, and nothing in the Core
-  API connects to it.
-- **Dependencies:** 1.2, 1.3.
-- **Recommended action:** Add the SQL-backed catalog and case schema, connect using the
-  managed-identity `AZURE_CLIENT_ID` credential with no connection string, keep the in-memory
-  fixture behind a `dev`-only flag for contract tests, and add the Cosmos projection writer for
-  rebuildable derived views. Preserve the existing contract exactly —
-  `tools/validate_foundation.py` asserts the Alpha 0.2 priority forms, package composition, and the
-  FAFSA external-workflow and reference-only modes against this file.
+- **Description:** `ICatalogSource` has two implementations. `CatalogRepository` is the in-memory
+  fixture, now opt-in; `SqlCatalogSource` reads the authoritative store and is the default. The
+  schema is in `src/core-api/Sql/001_catalog_schema.sql`, and `CatalogProjectionWriter` writes the
+  rebuildable Cosmos views. **None of the SQL or Cosmos code has ever executed.** No environment has
+  been provisioned, so the queries compile and are reviewed and that is the entire assurance behind
+  them. There is also no migration runner: nothing applies the schema file.
+- **Dependencies:** A provisioned `dev` environment, which is gated on the approvals in `REVIEW.md`.
+- **Recommended action:** Apply the schema, seed it from the fixture, and write integration tests
+  that run the four `ICatalogSource` methods against a real database and compare their output to
+  the fixture's — the contract is identical, so any difference is a defect in the SQL path. Add a
+  migration runner, and wire the projection writer to a rebuild command. Then run the same tests
+  against Cosmos.
 - **Status:** Not started
-- **Notes for future engineers:** The validator reads `CatalogRepository.cs` as text and checks for
-  literal strings such as `FAMILY_I130`, `"I-130A"`, and `FormArtifactKind.ExternalWorkflow`. If the
-  fixture moves, update `validate_priority_and_modes()` in the same change or CI will fail
-  misleadingly.
+- **Notes for future engineers:** The first thing to check is the reader's column ordinals in
+  `LoadPackagesAsync`: they are positional, and a column added to the `SELECT` in the wrong place
+  shifts every one after it without any compile error. The wire-name mapping is derived from the
+  enums' own `JsonStringEnumMemberName` attributes rather than restated, so the database, the JSON
+  contract, and C# cannot disagree — keep it that way. `tools/validate_foundation.py` still reads
+  `CatalogRepository.cs` as text for the Alpha 0.2 priority forms, so the fixture stays where it is.
 
 ### 5.3 — Implement the processing worker adapters
 
@@ -472,7 +366,7 @@ close that gap.
   else. Its docstring states that the queue and Document Intelligence adapters are intentionally
   absent pending managed-identity endpoints and private-network approval. Those are step 4 of the
   data flow.
-- **Dependencies:** 1.1, 1.2, 1.3, 2.2; `REVIEW.md` **R-12** (model IDs and pinned API version).
+- **Dependencies:** 2.2; `REVIEW.md` **R-12** (model IDs and pinned API version).
 - **Recommended action:** Add a Service Bus receiver for `document-processing` that reads exactly
   one scoped message, a quarantine blob reader restricted to the single referenced object, a
   sanitization stage, a Document Intelligence client using the pinned API version over the private
@@ -488,29 +382,20 @@ close that gap.
   no path, query string, or document ID is emitted. Extend that discipline to the processing path —
   log correlation IDs, never content.
 
-### 5.4 — Implement the acquisition Service Bus adapter
+### 5.4 — Add a dead-letter policy to every `domain-events` subscription
 
 - **Priority:** P2
-- **Description:** `publish_acquisition_proposals` in `src/functions/acquisition_contract.py` is a
-  deliberate stub — the comment in `function_app.py` notes that the Service Bus adapter is deferred
-  so local tests stay deterministic and the scaffold does not pretend to publish or activate
-  anything. The orchestrator therefore returns metadata and publishes nothing.
-- **Dependencies:** 1.2, 1.3; `REVIEW.md` **R-16** (`ACQUISITION_SCHEDULE`).
-- **Recommended action:** Add an identity-based Service Bus output binding publishing to
-  `catalog-acquisition`, keep the deterministic stub behind a test seam so the existing contract
-  tests stay offline, and preserve the invariant that the function proposes and never activates.
+- **Description:** The acquisition adapter publishes to the `catalog-acquisition` queue and that
+  path is complete. The `domain-events` topic still has no subscriber, and it carries a 14-day TTL
+  with no dead-letter policy — because `deadLetteringOnMessageExpiration` belongs to
+  `Microsoft.ServiceBus/namespaces/topics/subscriptions`, and `SBTopicProperties` rejects it. A
+  message that reaches the TTL today would be discarded with no trace, if anything were subscribed.
+- **Dependencies:** None. It becomes real the moment a subscription exists.
+- **Recommended action:** Every subscription added to `domain-events` must set
+  `deadLetteringOnMessageExpiration: true`. Add the first subscription and the rule together.
 - **Status:** Not started
-- **Notes for future engineers:** The orchestrator returns `activatedEditionCount: 0`. That zero is
-  an assertion about behaviour, not a placeholder — keep it, and add a test that fails if any code
-  path can make it non-zero. `propose_acquisition_batch` now requires the exact key set
-  `REQUIRED_REQUEST_KEYS`, and a test reads the timer trigger's `client_input` keys out of
-  `function_app.py` to confirm the two agree. If this item adds a field to the orchestration input,
-  add it to that constant in the same change or the test fails — which is the point, since the
-  input is persisted to the task hub and replayed. The `domain-events` topic carries a 14-day TTL
-  but no dead-letter policy, because `deadLetteringOnMessageExpiration` belongs to
-  `Microsoft.ServiceBus/namespaces/topics/subscriptions` and no subscription is modelled yet — every
-  subscription this item adds must set it, or messages that reach the TTL are discarded with no
-  trace. Item 4.4 left the comment in `infra/modules/messaging.bicep` marking the spot.
+- **Notes for future engineers:** `infra/modules/messaging.bicep` carries a comment on the topic
+  marking the spot. The queues already set the flag, so the pattern to copy is directly above.
 
 ### 5.5 — Implement the UPL classifier and its fail-closed gate
 
@@ -518,7 +403,7 @@ close that gap.
 - **Description:** The unauthorized-practice-of-law release gate is a stated Alpha 0.2 requirement
   with a zero-escape threshold and fail-closed behaviour on classifier or audit unavailability. No
   classifier, no gate, and no corpora exist in this repository.
-- **Dependencies:** 1.2, 1.3; `REVIEW.md` **R-13** (corpora ownership, prohibited-act taxonomy,
+- **Dependencies:** `REVIEW.md` **R-13** (corpora ownership, prohibited-act taxonomy,
   versioning scheme).
 - **Recommended action:** Implement the classifier service in the AI trust zone with no
   authoritative write capability, wire `UPL_CLASSIFIER_VERSION` into the release gate, and make the
@@ -539,7 +424,7 @@ close that gap.
 - **Recommended action:** Add a Durable Functions orchestration that sweeps SQL, Cosmos projections,
   blob current versions and prior versions, temporary stores, delivery links, and search indexes,
   verifies each deletion, writes content-free evidence to the audit account, and only then issues
-  the receipt. Pair it with the tests in item 3.5.
+  the receipt. Pair it with the tests in item 3.4.
 - **Status:** Not started
 - **Notes for future engineers:** "Applicable key material" matters when per-case keys are used —
   coordinate with the CMK design in item 2.1 before deciding whether crypto-shredding is part of the
@@ -552,7 +437,7 @@ close that gap.
   Nothing in the Core API or the storage configuration implements issuance, expiry, or revocation,
   and shared-key access is disabled on every storage account, so classic SAS issuance is not
   available.
-- **Dependencies:** 1.3, 5.1.
+- **Dependencies:** 5.1.
 - **Recommended action:** Issue user-delegation SAS tokens through the core managed identity with a
   short lifetime, record every issuance in the audit trail, and implement revocation — either by
   rotating the user-delegation key or by fronting delivery with an authorized API endpoint. Ensure
@@ -568,56 +453,56 @@ close that gap.
 ### 6.1 — Publish the staged wiki pages and remove `wiki/`
 
 - **Priority:** P1
-- **Description:** Nine wiki pages are written and staged in `wiki/` — Home, Azure Deployment Plan,
-  Architecture Overview, Environments and Release Path, Configuration Contract, Security and Data
-  Protection, Pilot Policy and Compliance Gates, Azure Component Research Record, and Documentation
-  Standards. They are staged rather than published because the automation that prepared them has no
-  GitHub Wiki write access. Until they are published, the repository holds a documentation directory
-  that the documentation model does not permit.
+- **Description:** Fifteen wiki pages are written and staged in `wiki/` — the original nine (Home,
+  Azure Deployment Plan, Architecture Overview, Environments and Release Path, Configuration
+  Contract, Security and Data Protection, Pilot Policy and Compliance Gates, Azure Component
+  Research Record, Documentation Standards), plus the five architecture decision records and their
+  index, plus the four operational runbooks and their index. They are staged rather than published
+  because the automation that prepared them has no GitHub Wiki write access. Until they are
+  published, the repository holds a documentation directory that the documentation model does not
+  permit.
 - **Dependencies:** `REVIEW.md` **R-17** (wiki write access).
 - **Recommended action:** Clone `https://github.com/HybridCloudWorks/PEN-lapluma_infra.wiki.git`,
-  copy the contents of `wiki/` into it, push, verify all nine pages render and that every
+  copy the contents of `wiki/` into it, push, verify all fifteen pages render and that every
   cross-link resolves, then delete `wiki/` from this repository and update the README documentation
   table.
-- **Status:** Not started
+- **Status:** Blocked. The block is confirmed rather than assumed: cloning the wiki remote succeeds
+  and pushing returns HTTP 403, because the wiki is a separate repository from the perspective of
+  access control and is not in the authorized set. Adding it as a source fails too — GitHub does not
+  expose `<repo>.wiki` as a grantable repository. This will not clear by retrying.
 - **Notes for future engineers:** GitHub derives wiki page titles from filenames, so
   `Architecture-Overview.md` becomes "Architecture Overview" and the relative links in the pages
   (`[Architecture Overview](Architecture-Overview)`) resolve correctly. Do not rename the files.
+  This applies to the new pages too: `ADR-0001-AZD-and-Bicep-over-Terraform.md` renders as
+  "ADR 0001 AZD and Bicep over Terraform", and the cross-links between records are written against
+  those derived titles.
 
 ### 6.2 — Author the operational runbooks
 
 - **Priority:** P2
 - **Description:** Incident response, on-call procedure, restore drill, and deletion drill runbooks
-  are real-user pilot prerequisites. None exist.
-- **Dependencies:** 3.6, 6.1; `REVIEW.md` **R-04** (operations and on-call owner).
-- **Recommended action:** Write the runbooks as wiki pages once the operations owner is named and
-  `staging` exists to validate them against. Link them from the wiki Home page.
-- **Status:** Not started
+  are real-user pilot prerequisites. All four are now **drafted** and staged in `wiki/`, together
+  with an index page. What remains is validation: no step in any of them has been executed, because
+  no environment exists to execute it against.
+- **Dependencies:** 3.5, 6.1; `REVIEW.md` **R-04** (operations and on-call owner), **R-11** (the
+  deletion drill's pass criteria are the retention numbers).
+- **Recommended action:** Once `staging` exists, execute each runbook by hand and correct it against
+  what actually happened. The restore and deletion drills are the two that will change most —
+  every command in them is written against the resource shapes declared in `infra/`, not against a
+  deployed resource, and every timing figure is an intention rather than a measurement. Then fill in
+  the role names from R-04 and the response targets the operations owner agrees.
+- **Status:** Drafted, unvalidated. Each page carries a banner saying so.
 - **Notes for future engineers:** Runbooks belong in the wiki, never in the repository — see the
-  Documentation Standards wiki page.
+  Documentation Standards wiki page. Resist the urge to tidy away the "never executed" banners
+  before the drills have actually been run: a runbook that looks authoritative and has never been
+  tested is worse than one that admits what it is, because someone will follow it under pressure.
 
-### 6.3 — Record architecture decision records
-
-- **Priority:** P3
-- **Description:** Several foundational decisions are documented as conclusions with no recorded
-  alternatives: AZD with Bicep over Terraform, three separate Container Apps environments over one
-  with internal isolation, SQL as authoritative with Cosmos as rebuildable projections, Service Bus
-  Premium over Standard, and Managed HSM over Key Vault-managed keys. A future engineer cannot tell
-  what was rejected or why.
-- **Dependencies:** 6.1.
-- **Recommended action:** Write one short ADR per decision as a wiki page, capturing the context,
-  the options considered, the decision, and its consequences. Link them from the Architecture
-  Overview page.
-- **Status:** Not started
-- **Notes for future engineers:** The Azure Component Research Record wiki page holds the research
-  that informed several of these; use it as the starting evidence rather than re-researching.
-
-### 6.4 — Write the troubleshooting guide
+### 6.3 — Write the troubleshooting guide
 
 - **Priority:** P3
 - **Description:** No troubleshooting documentation exists. It cannot usefully be written before a
   `dev` environment produces real failure modes.
-- **Dependencies:** 1.1 – 1.4, 6.1.
+- **Dependencies:** 1.1, 6.1.
 - **Recommended action:** Once `dev` is provisioned, collect the actual failure modes — private DNS
   resolution failures, RBAC propagation delays, Container Apps revision failures, Durable task hub
   conflicts — and write them up as a wiki page.

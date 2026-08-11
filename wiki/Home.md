@@ -18,6 +18,8 @@ and knowledge-transfer documentation. Live work state is **not** kept here — s
 | [Security and Data Protection](Security-and-Data-Protection) | Governing constraints, secret-handling policy, network and key-management boundaries |
 | [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) | Alpha 0.2 catalog scope, pilot policy baselines, UPL gate, retention and erasure targets |
 | [Azure Component Research Record](Azure-Component-Research-Record) | Research findings that shaped the generated foundation, recorded 2026-08-02 |
+| [Architecture Decision Records](Architecture-Decision-Records) | Foundational decisions, each with the options that were rejected and why |
+| [Operational Runbooks](Operational-Runbooks) | Incident response, on-call, restore drill, deletion drill — drafts, never yet executed |
 | [Documentation Standards](Documentation-Standards) | The repository documentation model and how to classify a new document |
 
 ## Where things live
