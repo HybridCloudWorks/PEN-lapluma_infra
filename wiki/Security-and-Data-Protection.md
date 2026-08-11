@@ -75,7 +75,7 @@ Settled decisions, recorded here because they are the security boundary rather t
 | `snet-private-endpoints` | `10.42.7.0/24` | Twelve private endpoints |
 | `snet-apim` | `10.42.8.0/24` | API Management edge |
 
-`10.42.9.0` upward is deliberately unallocated, so a later requirement extends the plan rather than
+`10.42.9.0/24` and everything above it is deliberately unallocated, so a later requirement extends the plan rather than
 renumbering it.
 
 **Private DNS.** Zones live in the workload resource group and are linked to this VNet only, with no
@@ -84,7 +84,7 @@ now on the grounds that no hub exists — adopting it early would mean inventing
 an owner for it. If a hub arrives, the migration is to recreate the links and delete the local
 zones: a single planned change rather than a discovery.
 
-**Egress.** Three of the five workload zones have an approved destination list that is genuinely
+**Egress.** Four of the five subnets have an approved destination list that is genuinely
 empty, and the enforcement mechanism is the NSG deny rules already in the templates.
 
 | Zone | Approved egress |
@@ -95,7 +95,7 @@ empty, and the enforcement mechanism is the NSG deny rules already in the templa
 | Private endpoints | None |
 | Functions | The publication hosts of the four Alpha 0.2 authorities, TCP 443 only, derived from the recorded official source URLs rather than written from memory |
 
-No Azure Firewall. With three zones needing nothing and one needing four hosts, a firewall would add
+No Azure Firewall. With four subnets needing nothing and one needing four hosts, a firewall would add
 a continuously billing resource and a second policy surface to express a list the NSGs already hold.
 The point to revisit it is a genuine new destination — most likely the AI zone needing a public
 model endpoint — and this paragraph is where the reasoning to overturn lives.

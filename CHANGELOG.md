@@ -24,10 +24,10 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   component whose job is to face the internet, and a baseline deny there would have to be punched
   through immediately, which is the pattern that makes a deny rule meaningless.
 
-- **The egress posture is settled and, for four of five zones, already implemented.** The ratified
+- **The egress posture is settled and, for four of the five subnets, already implemented.** The ratified
   table approves no destination at all for the core, processing, AI and private-endpoint zones, so
   the existing NSG denies stop being a placeholder and become the approved posture. No Azure
-  Firewall: with three zones needing nothing and one needing four hosts, it would add a continuously
+  Firewall: with four subnets needing nothing and one needing four hosts, it would add a continuously
   billing resource and a second policy surface to express a list the NSGs already hold.
 
   The functions row cannot be implemented as approved, and `TODO.md` 2.2 now records why rather than
@@ -89,8 +89,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - Guarded the `domain-events` dead-letter requirement before the first subscriber exists.
   `validate_subscriptions_dead_letter` fails any Service Bus topic subscription declared without
   `deadLetteringOnMessageExpiration: true`. The property belongs to the subscription rather than the
-  topic —
-  Bicep's `SBTopicProperties` rejects it — so the topic cannot set it once on behalf of everything
+  topic — Bicep's `SBTopicProperties` rejects it — so the topic cannot set it once on behalf of everything
   beneath it, and a subscription that forgets discards expired messages with no trace.
 
   The rule matches nothing today, and that is the point rather than an oversight: the failure
