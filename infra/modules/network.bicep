@@ -183,6 +183,17 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
         properties: {
           addressPrefix: string(subnetPrefixes.functions)
           networkSecurityGroup: { id: functionsNsg.id }
+          // This delegation assumes Flex Consumption (`FC1`/`FlexConsumption`), which is the SKU
+          // `functionsPlan` in compute.bicep declares. It is not a free choice: Flex Consumption
+          // integrates through `Microsoft.App/environments`, while Elastic Premium requires
+          // `Microsoft.Web/serverFarms`, and a delegation cannot be changed once a resource
+          // occupies the subnet — correcting it after the fact means rebuilding the VNet.
+          //
+          // `tools/validate_foundation.py` holds the SKU-to-delegation map and fails if this and
+          // the plan SKU disagree, so changing one without the other cannot pass. The map is
+          // recorded from the Azure Component Research Record; re-verify it against current Azure
+          // guidance if the hosting SKU changes. REVIEW.md R-03 is what confirms Flex Consumption
+          // is actually available in the target region.
           delegations: [
             {
               name: 'functions'

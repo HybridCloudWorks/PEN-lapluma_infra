@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the edge zone is not modelled | 1.1 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.5 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.3 |
 
@@ -119,23 +119,20 @@ place. What remains is the edge, which cannot be modelled until an address range
 ### 2.4 — Add supply-chain and code scanning to CI
 
 - **Priority:** P2
-- **Description:** `.github/workflows/security-scanning.yml` now runs CodeQL for C# and Python,
+- **Description:** `.github/workflows/security-scanning.yml` runs CodeQL for C# and Python,
   dependency review on pull requests, a Trivy image scan of both built images, and a Trivy scan of
-  the ARM template the Bicep compiles to. Two parts of the original item remain. First, both Trivy
-  scans run with `exit-code: '0'` — they publish findings to code scanning but cannot fail a build,
-  because no one has triaged the base-image and template baseline yet. Second, GitHub secret
-  scanning and push protection are repository settings, not workflow configuration, and are still
-  off. The custom secret scan in `tools/validate_foundation.py` covers five specific patterns and is
-  not a substitute for them.
-- **Dependencies:** None. The repository is public, so CodeQL, dependency review, secret scanning,
-  and code-scanning uploads are all available without an Advanced Security licence.
-- **Recommended action:** Triage the first full scan results, then set a severity threshold that
-  fails the build on both Trivy jobs — enforcing an untriaged baseline would only teach reviewers to
-  ignore a red pipeline. Enable secret scanning and push protection in the repository settings.
-  Consider whether the weekly schedule should also open an issue when a new advisory appears, since
-  a scheduled run that only writes to the Security tab is easy to miss.
-- **Status:** Partially complete — scanners run and report; enforcement and the settings toggles
-  remain.
+  the ARM template the Bicep compiles to. Both Trivy jobs now **enforce**: each scans once to JSON,
+  converts that to SARIF and uploads it, and then fails the build on a CRITICAL or HIGH finding.
+  What remains is not workflow configuration — GitHub secret scanning and push protection are
+  repository settings, and the custom secret scan in `tools/validate_foundation.py` covers five
+  specific patterns and is not a substitute for them.
+- **Dependencies:** `REVIEW.md` **R-18** for the repository settings. The repository is public, so
+  CodeQL, dependency review, secret scanning, and code-scanning uploads are all available without
+  an Advanced Security licence — the blocker is administrative access, not licensing.
+- **Recommended action:** Nothing further in this repository. Enabling secret scanning and push
+  protection is R-18.
+- **Status:** Complete for everything workflow configuration can do. Enforcement landed; the
+  settings toggles moved to R-18 because no engineer can set them.
 - **Notes for future engineers:** Enabling secret scanning is the part of this item that covers
   provider-issued credentials — Entra client secrets, GitHub tokens, and the like. A pattern for
   those was considered for `tools/validate_foundation.py` and deliberately not added: they have no
@@ -152,6 +149,22 @@ place. What remains is the edge, which cannot be modelled until an address range
   `aquasecurity/trivy-action`: that action's setup step downloads a release binary through an
   install script at run time, which is unpinned and was observed failing outright here. Scanning a
   `docker save` tarball rather than a running daemon keeps the Docker socket out of the scanner.
+
+  Two things about the enforcement shape are load-bearing. The scan itself still exits 0 and the
+  gate is a separate `trivy convert` step placed **after** the SARIF upload, so a failing build
+  still publishes its findings to the Security tab and prints them as a table in the job log — a
+  gate that suppresses the report it gates on leaves a reviewer with a red check and nowhere to
+  look. And the image scans keep `--ignore-unfixed`: a CVE with no published fix is not something
+  this repository can act on, and failing on one would teach reviewers that red means "wait for
+  upstream". What survives that filter is a base-image bump, which is actionable. The
+  infrastructure scan has no equivalent filter, deliberately — every misconfiguration Trivy reports
+  against the compiled ARM is one this repository wrote.
+
+  The original item also asked whether the weekly scheduled run should open an issue when a new
+  advisory appears. It should not, and enforcement is why: a scheduled run that only wrote to the
+  Security tab was easy to miss, but a scheduled run that *fails* is notified to the repository
+  owner by GitHub already. Adding an issue-opening job would duplicate that notification and add a
+  `issues: write` permission to a security workflow for no gain.
 
 ### 2.5 — Replace the Functions host shared-key auth default
 
@@ -295,24 +308,6 @@ place. What remains is the edge, which cannot be modelled until an address range
   after adding it by opening a pull request touching each guarded path and confirming the expected
   reviewer is actually requested.
 
-### 4.2 — Confirm the Functions subnet delegation matches the hosting SKU
-
-- **Priority:** P2
-- **Description:** `infra/modules/network.bicep` delegates `snet-functions` to
-  `Microsoft.App/environments`. That is correct for Flex Consumption, which is the stated preferred
-  baseline, but wrong for Elastic Premium, which requires `Microsoft.Web/serverFarms`. The plan
-  allows an approved equivalent if Flex Consumption features are unavailable in East US 2, so the
-  delegation is only conditionally correct.
-- **Dependencies:** `REVIEW.md` **R-03** (region capability verification).
-- **Recommended action:** When the region verification confirms the available Functions hosting SKU,
-  re-check the delegation and correct it if the SKU changed. Add a comment in the network module
-  recording which SKU the delegation assumes.
-- **Status:** Not started
-- **Notes for future engineers:** Subnet delegation cannot be changed while resources occupy the
-  subnet, so getting this right before the first provisioning run avoids a rebuild.
-
----
-
 ---
 
 ## Phase 5 — Feature enhancements
@@ -391,11 +386,17 @@ place. What remains is the edge, which cannot be modelled until an address range
   `Microsoft.ServiceBus/namespaces/topics/subscriptions`, and `SBTopicProperties` rejects it. A
   message that reaches the TTL today would be discarded with no trace, if anything were subscribed.
 - **Dependencies:** None. It becomes real the moment a subscription exists.
-- **Recommended action:** Every subscription added to `domain-events` must set
-  `deadLetteringOnMessageExpiration: true`. Add the first subscription and the rule together.
-- **Status:** Not started
+- **Recommended action:** Nothing to do until a subscriber exists. The requirement is now enforced
+  rather than remembered: `validate_subscriptions_dead_letter` in `tools/validate_foundation.py`
+  fails any subscription declared without `deadLetteringOnMessageExpiration: true`, so the first one
+  added cannot omit it.
+- **Status:** Guarded, pending a subscriber. The rule that was the substance of this item exists;
+  the subscription it applies to does not, and creating one belongs to whichever item introduces a
+  projection worker.
 - **Notes for future engineers:** `infra/modules/messaging.bicep` carries a comment on the topic
-  marking the spot. The queues already set the flag, so the pattern to copy is directly above.
+  marking the spot. The queues already set the flag, so the pattern to copy is directly above. The
+  validator rule matches nothing today, deliberately — do not delete it as dead code, because the
+  moment it has something to match is the moment it earns its place.
 
 ### 5.5 — Implement the UPL classifier and its fail-closed gate
 
