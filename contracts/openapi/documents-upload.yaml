@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: LaPluma Documents Upload API
+  version: 0.2.0
+  description: >-
+    Direct-to-storage document ingestion. The API never carries document bytes: a
+    session returns a write-only, single-blob upload URL and the client PUTs the
+    bytes to it, then completes the session so the server can verify the digest
+    and hand the object to processing. The upload URL is a user-delegation SAS —
+    shared-key access is disabled on every storage account in this estate — and
+    it expires fifteen minutes after issue. Tenant, folder, and person scope are
+    derived from the authenticated session; missing and unauthorized resources
+    use the same 404 response. Client capture limits are mirrored here so the
+    server rejects what the client would never send: 104857600 bytes, and a
+    SHA-256 digest declared before any byte is accepted.
+servers: [{url: "https://api.example.invalid/v1"}]
+security: [{tenantSession: []}]
+paths:
+  /documents/upload-sessions:
+    post:
+      operationId: createUploadSession
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateUploadSessionRequest'}}}}
+      responses:
+        '201': {description: One-object write-only upload slot, content: {application/json: {schema: {$ref: '#/components/schemas/UploadSession'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {description: File metadata exceeds capture limits}
+        '503': {description: Upload issuing is not configured in this environment}
+  /documents/upload-sessions/{sessionId}/complete:
+    post:
+      operationId: completeUpload
+      parameters:
+        - {name: sessionId, in: path, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {description: Received and handed to processing, content: {application/json: {schema: {$ref: '#/components/schemas/UploadReceipt'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Session already consumed by a different request}
+        '422': {description: Digest, size, page, type, or sanitization validation failed}
+components:
+  securitySchemes:
+    tenantSession: {type: http, scheme: bearer, bearerFormat: opaque-session}
+  parameters:
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+  responses:
+    NotFound: {description: Missing or unauthorized}
+  schemas:
+    CreateUploadSessionRequest:
+      type: object
+      required: [folderId, originalName, sizeBytes, contentSha256]
+      properties:
+        folderId: {type: string}
+        subjectPersonId: {type: [string, 'null']}
+        originalName: {type: string, minLength: 1, maxLength: 255}
+        declaredMimeType: {type: [string, 'null'], description: Stored for forensics; never trusted for processing}
+        sizeBytes: {type: integer, minimum: 1, maximum: 104857600}
+        contentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        sourceChannel: {type: [string, 'null'], description: Capture channel label; bounded vocabulary, no free text}
+    UploadSession:
+      type: object
+      required: [sessionId, documentId, uploadUrl, uploadMethod, expiresAt, expectedContentSha256]
+      properties:
+        sessionId: {type: string}
+        documentId: {type: string}
+        uploadUrl: {type: string, format: uri, description: Write-only one-object URL; bytes never traverse the API}
+        uploadMethod: {type: string, const: PUT}
+        expiresAt: {type: string, format: date-time}
+        expectedContentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+    UploadReceipt:
+      type: object
+      required: [sessionId, documentId, contentSha256, processingState]
+      properties:
+        sessionId: {type: string}
+        documentId: {type: string}
+        contentSha256: {type: string, pattern: '^[a-f0-9]{64}$', description: Digest of the received object, verified server-side; the client compares it to its local digest}
+        processingState: {type: string, enum: [SCANNING, SANITIZED, CLASSIFYING, EXTRACTING, EXTRACTED]}

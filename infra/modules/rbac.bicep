@@ -129,6 +129,23 @@ resource corePackages 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+resource coreQuarantine 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  // The workflow API (core identity) mints write-only user-delegation SAS URLs for direct client
+  // upload into quarantine — the ingestion path in the API architecture, where bytes never
+  // traverse the API. A user-delegation SAS is authorized against the delegating identity's RBAC
+  // at use time, and Storage Blob Data Contributor is what carries the
+  // generateUserDelegationKey action; allowSharedKeyAccess is false estate-wide, so an account-key
+  // SAS is impossible by construction (see TODO 5.7 — delivery links have the same constraint).
+  // Core writes quarantine; processing deliberately stays Reader below.
+  scope: storageAccounts[quarantineIndex]
+  name: guid(storageAccounts[quarantineIndex].id, corePrincipalId, roles.storageBlobDataContributor)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.storageBlobDataContributor)
+    principalId: corePrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource coreServiceBusSender 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: serviceBus
   name: guid(serviceBus.id, corePrincipalId, roles.serviceBusDataSender)

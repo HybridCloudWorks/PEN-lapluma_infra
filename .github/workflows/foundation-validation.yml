@@ -68,6 +68,12 @@ jobs:
       - name: Test .NET core API
         run: dotnet test src/core-api.tests/LaPluma.CoreApi.Tests.csproj --configuration Release
 
+      - name: Build .NET workflow API
+        run: dotnet build src/workflow-api/LaPluma.WorkflowApi.csproj --configuration Release
+
+      - name: Test .NET workflow API
+        run: dotnet test src/workflow-api.tests/LaPluma.WorkflowApi.Tests.csproj --configuration Release
+
       - name: Pin the Bicep CLI version
         run: |
           az bicep install --version v0.46.1
@@ -90,4 +96,5 @@ jobs:
       - name: Build non-root service images
         run: |
           docker build --tag lapluma-core-api:validation src/core-api
+          docker build --tag lapluma-workflow-api:validation src/workflow-api
           docker build --tag lapluma-processing-worker:validation src/document-processing

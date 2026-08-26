@@ -3,6 +3,9 @@
   "packages": [
     { "packageCode": "FAMILY_I130", "formNumbers": ["I-130", "I-130A"] },
     { "packageCode": "ADJUSTMENT_I485_I864", "formNumbers": ["I-485", "I-864"] },
+    { "packageCode": "NATURALIZATION_N400", "formNumbers": ["N-400"] },
+    { "packageCode": "EAD_I765", "formNumbers": ["I-765"] },
+    { "packageCode": "TRAVEL_I131", "formNumbers": ["I-131"] },
     { "packageCode": "PASSPORT_DS11", "formNumbers": ["DS-11"] },
     { "packageCode": "FINANCIAL_AID_FAFSA", "formNumbers": ["FAFSA"] }
   ]
