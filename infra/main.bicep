@@ -415,6 +415,8 @@ module compute './modules/compute.bicep' = if (enableProvisioning) {
     sqlServerFullyQualifiedName: data!.outputs.sqlServerFullyQualifiedName
     sqlDatabaseName: data!.outputs.sqlDatabaseName
     cosmosEndpoint: data!.outputs.cosmosEndpoint
+    quarantineStorageAccountName: data!.outputs.storageAccountNames[indexOf(
+      data!.outputs.storagePurposeNames, 'quarantine')]
     diagnosticsWorkspaceId: observability!.outputs.workspaceId
   }
 }

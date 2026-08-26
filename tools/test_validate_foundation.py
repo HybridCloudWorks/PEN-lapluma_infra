@@ -277,6 +277,37 @@ class CatalogInvariantTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("N-400 leaked into the acquisition scope", result.stderr)
 
+    def test_a_real_hostname_in_the_workflow_contract_is_rejected(self) -> None:
+        tree = self.copy_tree()
+        contract = tree / "contracts/openapi/documents-upload.yaml"
+        self.rewrite(
+            contract,
+            'servers: [{url: "https://api.example.invalid/v1"}]',
+            'servers: [{url: "https://api.lapluma.example.com/v1"}]',
+        )
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("placeholder server URL", result.stderr)
+
+    def test_editing_the_workflow_mirror_without_adopting_a_revision_is_rejected(self) -> None:
+        # The mirror must stay byte-identical to the adopted app revision. Any edit — even a
+        # harmless-looking one — has to arrive as a deliberate adoption that updates the pin.
+        tree = self.copy_tree()
+        contract = tree / "contracts/openapi/workforce-workflow.yaml"
+        self.rewrite(contract, "title: LaPluma Workflow API", "title: LaPluma Workflow API v2")
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("adopted contract revision", result.stderr)
+
+    def test_dropping_the_idempotency_header_from_the_upload_contract_is_rejected(self) -> None:
+        tree = self.copy_tree()
+        contract = tree / "contracts/openapi/documents-upload.yaml"
+        text = contract.read_text(encoding="utf-8").replace("Idempotency-Key", "X-Request-Key")
+        contract.write_text(text, encoding="utf-8")
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("Idempotency-Key", result.stderr)
+
     def test_activating_a_pilot_edition_is_rejected(self) -> None:
         tree = self.copy_tree()
         fixture = tree / "src/core-api/CatalogRepository.cs"

@@ -5,7 +5,64 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ## Unreleased
 
+### Added
+
+- **The Workflow API — the app-facing hosting service — exists as `src/workflow-api`.** The iOS
+  app's entire backend surface was specified but unserved: it codes against the LaPluma Workflow
+  API contract while running on a local stub, and its production runtime mode refuses to start
+  until a real client exists. The new .NET service implements the near-term slice — `/v1/session`,
+  the `/v1/clients` directory (list and idempotent create), `GET /v1/cases/{caseId}/workspace`,
+  and the documents upload-session pair — with the repository's established posture: fail-closed
+  JWT bearer auth (audience and issuer unset deny everything), content-free telemetry,
+  `application/problem+json` on every failure with the same 404 for missing and unauthorized,
+  and an `Idempotency-Key` requirement on every mutation where a replay returns the original
+  result and a payload mismatch is a 409. Every other authenticated contract operation is an
+  explicit, typed 501 so "not built" is distinguishable from "wrong URL"; the two anonymous
+  relay endpoints are deliberately not mapped at all pending their own security review. The
+  store is an explicitly named in-memory fixture — `Workflow:Source` has no default, so a
+  deployment that fails to name one refuses to start. ADR 0007 records why this is a second
+  core-zone service rather than a Core API extension or a new zone; `TODO.md` 5.8 and 5.9 carry
+  the durable store and the live-fire work.
+
+- **The workflow contracts are adopted into `contracts/openapi/`.** `workforce-workflow.yaml` is a
+  byte-identical mirror of the app repository's contract, pinned by SHA-256 in a new
+  `validate_workflow_contract` rule — editing the mirror without deliberately adopting a revision
+  fails CI, as do a real hostname replacing the `example.invalid` placeholder, a changed auth
+  scheme, or a dropped `Idempotency-Key`. `documents-upload.yaml` is infra-authored (upload
+  sessions exist in the app's client protocol and API architecture doc, not in the workflow
+  YAML): a write-only, single-blob, fifteen-minute upload URL with the client's exact capture
+  limits, which `WorkflowContractTests` pins to the service's own constants. Cross-repository
+  revision pinning is `REVIEW.md` R-19; the tenant-session service the contract's
+  `opaque-session` scheme presumes is R-20.
+
+- **The Workflow API is wired into the foundation.** `compute.bicep` deploys
+  `ca-<name>-workflow-api` in the core environment — internal ingress, core identity, fixture
+  store named in the infrastructure, quarantine blob endpoint composed from `environment()`, and
+  `maxReplicas: 1` because the fixture and the idempotency replay map live in process memory.
+  `rbac.bicep` adds the increment's one new grant: core identity → Storage Blob Data Contributor
+  on the quarantine account only, the role that carries `generateUserDelegationKey` — what makes
+  a write-only user-delegation SAS possible at all with shared keys disabled estate-wide.
+  `azure.yaml` declares the service, the interlock validator requires it, and both CI workflows
+  build, test, and Trivy-scan it alongside the existing services.
+
 ### Changed
+
+- **The catalog lists the app contract's full seven packages; the acquisition scope deliberately
+  does not.** Both repositories declared `contractVersion: lapluma-app-0.2` in
+  `catalog-package-compatibility.json` with different content: the app lists seven packages (and
+  its `ContractCompatibilityTests` asserts exactly seven) while this repository carried four. The
+  contract, the `CatalogRepository` fixture (N-400 and I-131 `CatalogOnly`, I-765 `Unavailable`,
+  I-131 correctly recorded as XFA rather than derived AcroForm), and the API tests now carry all
+  seven. `validate_priority_and_modes` no longer forbids N-400/I-765 outright — that rule encoded
+  the four-form *priority* scope as if it were the catalog listing — and instead enforces the
+  boundary that mattered all along: the three catalog-only forms must appear in the fixture and
+  can never enter `acquisition_contract.py`, whose `PRIORITY_FORM_IDS` stays exactly the four
+  ratified pilot priorities. The Pilot Policy and Compliance Gates page now states the
+  distinction: catalog listing ≠ pilot priority ≠ activation, and every edition stays fail-closed
+  pending R-14.
+
+- **TODO 1.1 now publishes two backends.** The APIM edge, when R-03/R-06/R-07 clear, fronts both
+  the Core API and the Workflow API.
 
 - **The pilot region moved from East US 2 to South Central US.** `infra/main.bicep`'s `location`
   default, `.env.example`, `REVIEW.md` R-03 — retitled, with its anchor and index row — and five wiki

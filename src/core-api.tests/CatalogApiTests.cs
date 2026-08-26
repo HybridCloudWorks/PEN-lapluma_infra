@@ -67,7 +67,11 @@ public sealed class CatalogApiTests : IClassFixture<AuthenticatedFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var codes = PackageCodes(await ReadJson(response));
         Assert.Equal(
-            new[] { "ADJUSTMENT_I485_I864", "FAMILY_I130", "PASSPORT_DS11", "FINANCIAL_AID_FAFSA" },
+            new[]
+            {
+                "ADJUSTMENT_I485_I864", "EAD_I765", "FAMILY_I130", "NATURALIZATION_N400",
+                "TRAVEL_I131", "PASSPORT_DS11", "FINANCIAL_AID_FAFSA",
+            },
             codes);
     }
 
@@ -75,7 +79,10 @@ public sealed class CatalogApiTests : IClassFixture<AuthenticatedFactory>
     [InlineData("categoryCode=EDUCATION", new[] { "FINANCIAL_AID_FAFSA" })]
     [InlineData("subcategoryCode=PASSPORT", new[] { "PASSPORT_DS11" })]
     [InlineData("categoryCode=FEDERAL&subcategoryCode=IMMIGRATION",
-        new[] { "ADJUSTMENT_I485_I864", "FAMILY_I130" })]
+        new[]
+        {
+            "ADJUSTMENT_I485_I864", "EAD_I765", "FAMILY_I130", "NATURALIZATION_N400", "TRAVEL_I131",
+        })]
     public async Task Packages_filter_by_taxonomy(string query, string[] expected)
     {
         var response = await Client().GetAsync($"/v1/catalog/packages?{query}");
@@ -87,17 +94,24 @@ public sealed class CatalogApiTests : IClassFixture<AuthenticatedFactory>
     [Fact]
     public async Task Packages_filter_by_derived_activation_state()
     {
-        // Package activation is derived from the weakest child form, never stored. FAFSA's only
-        // form is UNAVAILABLE, so its package is too; the other three are CATALOG_ONLY.
+        // Package activation is derived from the weakest child form, never stored. FAFSA's and
+        // I-765's only forms are UNAVAILABLE, so their packages are too; the other five are
+        // CATALOG_ONLY.
         var catalogOnly = await Client().GetAsync("/v1/catalog/packages?activationState=CATALOG_ONLY");
         Assert.Equal(HttpStatusCode.OK, catalogOnly.StatusCode);
         Assert.Equal(
-            new[] { "ADJUSTMENT_I485_I864", "FAMILY_I130", "PASSPORT_DS11" },
+            new[]
+            {
+                "ADJUSTMENT_I485_I864", "FAMILY_I130", "NATURALIZATION_N400", "TRAVEL_I131",
+                "PASSPORT_DS11",
+            },
             PackageCodes(await ReadJson(catalogOnly)));
 
         var unavailable = await Client().GetAsync("/v1/catalog/packages?activationState=UNAVAILABLE");
         Assert.Equal(HttpStatusCode.OK, unavailable.StatusCode);
-        Assert.Equal(new[] { "FINANCIAL_AID_FAFSA" }, PackageCodes(await ReadJson(unavailable)));
+        Assert.Equal(
+            new[] { "EAD_I765", "FINANCIAL_AID_FAFSA" },
+            PackageCodes(await ReadJson(unavailable)));
 
         var pilot = await Client().GetAsync("/v1/catalog/packages?activationState=PILOT");
         Assert.Equal(HttpStatusCode.OK, pilot.StatusCode);
@@ -111,7 +125,7 @@ public sealed class CatalogApiTests : IClassFixture<AuthenticatedFactory>
         var response = await Client().GetAsync("/v1/catalog/packages");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(4, (await ReadJson(response)).GetProperty("data").GetArrayLength());
+        Assert.Equal(7, (await ReadJson(response)).GetProperty("data").GetArrayLength());
     }
 
     [Theory]
@@ -263,7 +277,7 @@ public sealed class CatalogApiTests : IClassFixture<AuthenticatedFactory>
             "/v1/catalog/packages?personId=p-1&caseId=c-1&eligibility=asylum");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(4, (await ReadJson(response)).GetProperty("data").GetArrayLength());
+        Assert.Equal(7, (await ReadJson(response)).GetProperty("data").GetArrayLength());
     }
 
     private const string ProblemContentType = "application/problem+json";

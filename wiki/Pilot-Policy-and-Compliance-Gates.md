@@ -2,12 +2,14 @@
 
 ## Alpha 0.2 catalog scope
 
-The Alpha 0.2 priority catalog is exactly **I-130, I-485, DS-11, and FAFSA**. Their artifact and
-fill modes remain explicit: official PDF versus online application, and automatic, assisted, or
+The Alpha 0.2 **priority** catalog is exactly **I-130, I-485, DS-11, and FAFSA**. Their artifact
+and fill modes remain explicit: official PDF versus online application, and automatic, assisted, or
 reference-only.
 
-**Priority does not imply activation.** Every edition remains fail-closed until its source,
-encoding, field map or external-workflow boundary, and approvals are verified.
+**Catalog listing is not pilot priority, and priority does not imply activation.** The catalog
+*listing* tracks the app's `lapluma-app-0.2` contract snapshot, which carries seven packages; only
+the four priority forms are in the acquisition scope, and every edition remains fail-closed until
+its source, encoding, field map or external-workflow boundary, and approvals are verified.
 
 The package composition is pinned in `contracts/catalog-package-compatibility.json` under
 `contractVersion: lapluma-app-0.2` and enforced by `tools/validate_foundation.py`:
@@ -16,11 +18,15 @@ The package composition is pinned in `contracts/catalog-package-compatibility.js
 |--------------|-------|
 | `FAMILY_I130` | I-130, I-130A |
 | `ADJUSTMENT_I485_I864` | I-485, I-864 |
+| `NATURALIZATION_N400` | N-400 |
+| `EAD_I765` | I-765 |
+| `TRAVEL_I131` | I-131 |
 | `PASSPORT_DS11` | DS-11 |
 | `FINANCIAL_AID_FAFSA` | FAFSA |
 
-The validator also asserts that the earlier priority forms N-400 and I-765 have not leaked back into
-the Alpha 0.2 fixture, that FAFSA stays an external workflow that is reference-only, and that the
+The validator also asserts that the acquisition scope stays exactly the four priority forms — the
+catalog-only packages (N-400, I-765, I-131) must appear in the fixture but can never enter the
+acquisition contract — that FAFSA stays an external workflow that is reference-only, and that the
 placeholder catalog activates no pilot edition.
 
 ## Pilot policy baselines

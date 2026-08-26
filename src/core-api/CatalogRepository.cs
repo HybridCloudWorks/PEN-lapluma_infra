@@ -40,6 +40,22 @@ public sealed class CatalogRepository : ICatalogSource
                 FormArtifactKind.OfficialPdf, FormFillCapability.AutomaticFill,
                 FormActivationState.CatalogOnly)),
         Package(
+            "NATURALIZATION_N400", "Application for Naturalization", Federal, Immigration, "USCIS",
+            Form("N-400", "Application for Naturalization", FormArtifactKind.OfficialPdf,
+                FormFillCapability.AutomaticFill, FormActivationState.CatalogOnly)),
+        Package(
+            "EAD_I765", "Application for Employment Authorization", Federal, Immigration, "USCIS",
+            Form("I-765", "Application for Employment Authorization", FormArtifactKind.OfficialPdf,
+                FormFillCapability.AutomaticFill, FormActivationState.Unavailable)),
+        Package(
+            "TRAVEL_I131",
+            "Application for Travel Documents, Parole Documents, and Arrival/Departure Records",
+            Federal, Immigration, "USCIS",
+            Form("I-131",
+                "Application for Travel Documents, Parole Documents, and Arrival/Departure Records",
+                FormArtifactKind.OfficialPdf, FormFillCapability.AutomaticFill,
+                FormActivationState.CatalogOnly)),
+        Package(
             "PASSPORT_DS11", "DS-11", Federal, Passport, "U.S. Department of State",
             Form("DS-11", "Application for a U.S. Passport", FormArtifactKind.OfficialPdf,
                 FormFillCapability.AutomaticFill, FormActivationState.CatalogOnly)),
@@ -139,16 +155,23 @@ public sealed class CatalogRepository : ICatalogSource
     {
         var authority = formNumber switch
         {
-            "I-130" or "I-130A" or "I-485" or "I-864" => "USCIS",
+            "I-130" or "I-130A" or "I-485" or "I-864" or "N-400" or "I-765" or "I-131" => "USCIS",
             "DS-11" => "U.S. Department of State",
             "FAFSA" => "Federal Student Aid",
-            _ => throw new InvalidOperationException("Unapproved Alpha 0.2 priority form")
+            _ => throw new InvalidOperationException("Form is not in the lapluma-app-0.2 catalog")
         };
+        // The agency publishes I-131 as an XFA document, not an AcroForm; deriving its encoding
+        // from the fill capability would misstate an artifact property the package worker keys on.
+        var encoding = formNumber == "I-131"
+            ? FormEncoding.Xfa
+            : fillCapability == FormFillCapability.AutomaticFill
+                ? FormEncoding.AcroForm
+                : FormEncoding.Flat;
         return new(
             formNumber,
             title,
             new DateOnly(1970, 1, 1),
-            fillCapability == FormFillCapability.AutomaticFill ? FormEncoding.AcroForm : FormEncoding.Flat,
+            encoding,
             0,
             artifactKind,
             fillCapability,
