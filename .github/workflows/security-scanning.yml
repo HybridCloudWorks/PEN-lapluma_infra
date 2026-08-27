@@ -91,6 +91,8 @@ jobs:
         image:
           - name: core-api
             context: src/core-api
+          - name: workflow-api
+            context: src/workflow-api
           - name: processing-worker
             context: src/document-processing
     steps:

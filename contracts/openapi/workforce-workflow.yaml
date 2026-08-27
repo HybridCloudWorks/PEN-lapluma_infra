@@ -1,0 +1,306 @@
+openapi: 3.1.0
+info:
+  title: LaPluma Workflow API
+  version: 0.2.0
+  description: >-
+    Tenant, case, assignment, and person scope are derived from the authenticated
+    session. Missing and unauthorized resources use the same 404 response. Relay
+    recipient operations are a separate upload-only capability boundary.
+servers: [{url: "https://api.example.invalid/v1"}]
+security: [{tenantSession: []}]
+paths:
+  /session:
+    get: {operationId: getAuthenticatedContext, responses: {'200': {description: Persona and capabilities}}}
+  /clients:
+    get:
+      operationId: listClients
+      parameters:
+        - {name: query, in: query, schema: {type: string}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses: {'200': {description: Authorization-filtered page}}
+    post: {operationId: createClient, parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Client created}}}
+  /clients/{clientId}/people:
+    post: {operationId: addClientPerson, parameters: [{$ref: '#/components/parameters/ClientId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Person added}}}
+  /clients/{clientId}/access-grants:
+    post: {operationId: grantClientAccess, parameters: [{$ref: '#/components/parameters/ClientId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Scoped grant created}}}
+  /clients/{clientId}/invitations:
+    post: {operationId: inviteApplicant, parameters: [{$ref: '#/components/parameters/ClientId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'202': {description: Invitation queued}}}
+  /cases/{caseId}/workspace:
+    get: {operationId: getCaseWorkspace, parameters: [{$ref: '#/components/parameters/CaseId'}], responses: {'200': {description: Case workbench projection}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /cases/{caseId}/assignments:
+    put: {operationId: setCaseAssignments, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'200': {description: Assignments updated}}}
+  /cases/{caseId}/transitions:
+    post: {operationId: transitionCase, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'200': {description: Server-owned transition}}}
+  /cases/{caseId}/sections/{sectionId}/commit:
+    post:
+      operationId: commitCanonicalSection
+      parameters:
+        - {$ref: '#/components/parameters/CaseId'}
+        - {name: sectionId, in: path, required: true, schema: {type: string}}
+        - {name: If-Match, in: header, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses: {'200': {description: Canonical values committed}, '412': {description: Version conflict}}
+  /cases/{caseId}/evidence-links:
+    post: {operationId: linkEvidence, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Document linked without copying bytes}}}
+  /cases/{caseId}/guided-finish:
+    get:
+      operationId: getGuidedFinishPlan
+      parameters:
+        - {$ref: '#/components/parameters/CaseId'}
+        - {name: minutes, in: query, required: false, schema: {type: integer, enum: [5, 10, 20], default: 10}}
+      responses:
+        '200': {description: Plan generated from current missing items, content: {application/json: {schema: {$ref: '#/components/schemas/GuidedFinishPlan'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /cases/{caseId}/proof-map:
+    get:
+      operationId: getProofMap
+      parameters: [{$ref: '#/components/parameters/CaseId'}]
+      responses:
+        '200': {description: Person-scoped proof graph, content: {application/json: {schema: {$ref: '#/components/schemas/ProofMap'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /documents/{documentId}/pages/{pageNumber}/preview:
+    get:
+      operationId: getDocumentPagePreview
+      parameters:
+        - {$ref: '#/components/parameters/DocumentId'}
+        - {name: pageNumber, in: path, required: true, schema: {type: integer, minimum: 1}}
+      responses:
+        '200': {description: Authorized sanitized raster preview, content: {application/json: {schema: {$ref: '#/components/schemas/DocumentPagePreview'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /cases/{caseId}/evidence-relays:
+    get:
+      operationId: listEvidenceRelays
+      parameters: [{$ref: '#/components/parameters/CaseId'}]
+      responses: {'200': {description: Scoped relay metadata}, '404': {$ref: '#/components/responses/NotFound'}}
+    post:
+      operationId: createEvidenceRelay
+      parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateEvidenceRelayRequest'}}}}
+      responses:
+        '201': {description: Credentials are returned only in this response, content: {application/json: {schema: {$ref: '#/components/schemas/CreateEvidenceRelayResult'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {description: Missing item is not cited evidence}
+  /evidence-relays/{relayId}/revoke:
+    post:
+      operationId: revokeEvidenceRelay
+      parameters: [{$ref: '#/components/parameters/RelayId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '200': {description: Updated relay metadata, content: {application/json: {schema: {$ref: '#/components/schemas/EvidenceRelay'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Relay state changed}
+  /evidence-relays/{relayId}/accept:
+    post:
+      operationId: acceptEvidenceRelay
+      parameters: [{$ref: '#/components/parameters/RelayId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '200': {description: Updated relay metadata, content: {application/json: {schema: {$ref: '#/components/schemas/EvidenceRelay'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Upload is not processed and reviewable}
+  /evidence-relays/{relayId}/reject:
+    post:
+      operationId: rejectEvidenceRelay
+      parameters: [{$ref: '#/components/parameters/RelayId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '200': {description: Updated relay metadata, content: {application/json: {schema: {$ref: '#/components/schemas/EvidenceRelay'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Relay state changed}
+  /relay/{token}:
+    get:
+      operationId: challengeEvidenceRelay
+      security: []
+      parameters: [{$ref: '#/components/parameters/RelayToken'}]
+      responses: {'200': {description: Generic availability only, content: {application/json: {schema: {$ref: '#/components/schemas/RelayChallenge'}}}}}
+  /relay/{token}/unlock:
+    post:
+      operationId: unlockEvidenceRelay
+      security: []
+      parameters: [{$ref: '#/components/parameters/RelayToken'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [accessCode], properties: {accessCode: {type: string, pattern: '^[0-9]{6}$'}}}}}}
+      responses:
+        '200': {description: Upload-only grant and requested document label, content: {application/json: {schema: {$ref: '#/components/schemas/RelayUploadGrant'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '423': {description: Five-attempt lockout reached}
+  /relay-upload-sessions:
+    post:
+      operationId: createRelayUploadSession
+      security: [{relayGrant: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateRelayUploadSessionRequest'}}}}
+      responses:
+        '201': {description: One-object write-only upload slot, content: {application/json: {schema: {$ref: '#/components/schemas/RelayUploadSession'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {description: File metadata exceeds ordinary capture limits}
+  /relay-upload-sessions/{sessionId}/complete:
+    post:
+      operationId: completeRelayUpload
+      security: [{relayGrant: []}]
+      parameters:
+        - {name: sessionId, in: path, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {description: Received and awaiting authorized review, content: {application/json: {schema: {$ref: '#/components/schemas/RelaySubmissionReceipt'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Session already consumed by a different request}
+        '422': {description: Digest, size, page, type, or sanitization validation failed}
+  /review-queue:
+    get: {operationId: getReviewQueue, responses: {'200': {description: Assigned cases}}}
+  /cases/{caseId}/review-decisions:
+    post: {operationId: recordReviewDecision, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Decision recorded}}}
+  /cases/{caseId}/draft-preview:
+    post: {operationId: createDraftPreview, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Short-lived non-exportable watermarked preview}}}
+  /cases/{caseId}/step-up-challenge:
+    post: {operationId: createApprovalChallenge, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Step-up challenge}}}
+  /cases/{caseId}/approval:
+    post: {operationId: approveCase, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Hash-bound approval}}}
+  /cases/{caseId}/history:
+    get: {operationId: getCaseHistory, parameters: [{$ref: '#/components/parameters/CaseId'}], responses: {'200': {description: Audited history}}}
+  /admin/members:
+    get: {operationId: listWorkspaceMembers, responses: {'200': {description: Members without implicit content access}}}
+  /admin/sessions:
+    get: {operationId: listWorkspaceSessions, responses: {'200': {description: Active sessions}}}
+  /admin/audit-summary:
+    get: {operationId: getAuditSummary, responses: {'200': {description: Safe audit aggregates}}}
+  /admin/demo/enter:
+    post: {operationId: enterDemoWorkspace, parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Demo-bound session}}}
+  /admin/demo/reset:
+    post: {operationId: resetDemoWorkspace, parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], responses: {'202': {description: Synthetic reset queued}}}
+  /admin/demo/exit:
+    post: {operationId: exitDemoWorkspace, parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Restored live session}}}
+components:
+  securitySchemes:
+    tenantSession: {type: http, scheme: bearer, bearerFormat: opaque-session}
+    relayGrant: {type: http, scheme: bearer, bearerFormat: upload-only-relay-grant}
+  parameters:
+    ClientId: {name: clientId, in: path, required: true, schema: {type: string}}
+    CaseId: {name: caseId, in: path, required: true, schema: {type: string}}
+    DocumentId: {name: documentId, in: path, required: true, schema: {type: string}}
+    RelayId: {name: relayId, in: path, required: true, schema: {type: string}}
+    RelayToken: {name: token, in: path, required: true, schema: {type: string, minLength: 64, maxLength: 64}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+  responses:
+    NotFound: {description: Missing or unauthorized}
+  schemas:
+    GuidedFinishPlan:
+      type: object
+      required: [caseId, minutesBudget, estimatedMinutes, steps]
+      properties:
+        caseId: {type: string}
+        minutesBudget: {type: integer, enum: [5, 10, 20]}
+        estimatedMinutes: {type: integer, minimum: 0}
+        steps: {type: array, items: {$ref: '#/components/schemas/GuidedFinishStep'}}
+    GuidedFinishStep:
+      type: object
+      required: [id, itemIds, title, assignedPersonId, assignedPersonLabel, severity, estimatedMinutes, resolutionPaths, status]
+      properties:
+        id: {type: string}
+        itemIds: {type: array, items: {type: string}, minItems: 1}
+        title: {type: string}
+        assignedPersonId: {type: string}
+        assignedPersonLabel: {type: string}
+        severity: {type: string, enum: [BLOCKING, ADVISORY]}
+        estimatedMinutes: {type: integer, minimum: 0}
+        resolutionPaths: {type: array, items: {$ref: '#/components/schemas/ResolutionPath'}}
+        batchId: {type: [string, 'null']}
+        status: {type: string, enum: [ACTIONABLE, WAITING_FOR_RELAY, RELAY_LOCKED, RELAY_NEEDS_REVIEW]}
+        relayId: {type: [string, 'null']}
+    ResolutionPath:
+      type: object
+      required: [kind, label]
+      properties:
+        kind: {type: string, enum: [SCAN, IMPORT_FILE, ANSWER, TYPE, CANNOT_OBTAIN, PRIVATE_RELAY]}
+        label: {type: string}
+        estimatedMinutes: {type: [integer, 'null'], minimum: 1}
+    ProofMap:
+      type: object
+      required: [caseId, entries]
+      properties:
+        caseId: {type: string}
+        entries: {type: array, items: {$ref: '#/components/schemas/FieldProof'}}
+    FieldProof:
+      type: object
+      required: [subjectPersonId, localizedLabel, englishFormLabel, canonicalPath, requiresHumanReview, destinations]
+      properties:
+        subjectPersonId: {type: string}
+        localizedLabel: {type: string}
+        englishFormLabel: {type: string}
+        canonicalPath: {type: string}
+        value: {type: [string, 'null']}
+        requiresHumanReview: {type: boolean}
+        provenance: {type: [object, 'null'], description: Document anchor or attributed human entry; human entries have no confidence band}
+        destinations: {type: array, items: {$ref: '#/components/schemas/FormFieldReference'}}
+    FormFieldReference:
+      type: object
+      required: [formNumber, page, fieldName]
+      properties: {formNumber: {type: string}, page: {type: integer, minimum: 1}, fieldName: {type: string}}
+    DocumentPagePreview:
+      type: object
+      required: [documentId, pageNumber, mimeType, pixelWidth, pixelHeight, contentSha256, data]
+      properties:
+        documentId: {type: string}
+        pageNumber: {type: integer, minimum: 1}
+        mimeType: {type: string, const: image/png}
+        pixelWidth: {type: integer, minimum: 1}
+        pixelHeight: {type: integer, minimum: 1}
+        contentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        data: {type: string, contentEncoding: base64}
+    EvidenceRelay:
+      type: object
+      required: [id, caseId, missingItemId, requirementCode, requestedTitle, subjectPersonId, createdBy, createdAt, expiresAt, status, failedCodeAttempts]
+      properties:
+        id: {type: string}
+        caseId: {type: string}
+        missingItemId: {type: string}
+        requirementCode: {type: string}
+        requestedTitle: {type: string}
+        subjectPersonId: {type: string}
+        createdBy: {type: string}
+        createdAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time}
+        status: {type: string, enum: [ACTIVE, LOCKED, RECEIVED, ACCEPTED, REJECTED, REVOKED, EXPIRED]}
+        failedCodeAttempts: {type: integer, minimum: 0, maximum: 5}
+        submittedDocumentId: {type: [string, 'null']}
+    CreateEvidenceRelayRequest:
+      type: object
+      required: [missingItemId]
+      properties: {missingItemId: {type: string}}
+    CreateEvidenceRelayResult:
+      type: object
+      required: [relay, shareUrl, accessCode]
+      properties:
+        relay: {$ref: '#/components/schemas/EvidenceRelay'}
+        shareUrl: {type: string, format: uri}
+        accessCode: {type: string, pattern: '^[0-9]{6}$'}
+    RelayChallenge:
+      type: object
+      required: [isAvailable]
+      properties: {isAvailable: {type: boolean}, expiresAt: {type: [string, 'null'], format: date-time}}
+    RelayUploadGrant:
+      type: object
+      required: [id, relayId, requestedTitle, expiresAt]
+      properties:
+        id: {type: string}
+        relayId: {type: string}
+        requestedTitle: {type: string, description: Revealed only after code success}
+        expiresAt: {type: string, format: date-time}
+    CreateRelayUploadSessionRequest:
+      type: object
+      required: [originalName, sizeBytes, contentSha256]
+      properties:
+        originalName: {type: string, minLength: 1, maxLength: 255}
+        sizeBytes: {type: integer, minimum: 1, maximum: 104857600}
+        contentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+    RelayUploadSession:
+      type: object
+      required: [id, uploadUrl, expiresAt, expectedContentSha256]
+      properties:
+        id: {type: string}
+        uploadUrl: {type: string, format: uri, description: Write-only one-object URL}
+        expiresAt: {type: string, format: date-time}
+        expectedContentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+    RelaySubmissionReceipt:
+      type: object
+      required: [relayId, documentId, status]
+      properties:
+        relayId: {type: string}
+        documentId: {type: string}
+        status: {type: string, const: RECEIVED}

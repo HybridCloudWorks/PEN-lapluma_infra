@@ -1,0 +1,7 @@
+# The CI validate job runs `dotnet build` on the runner before `docker build`, which leaves
+# runner-generated obj/ (with project.assets.json pointing at the runner's package folders) in the
+# build context. `COPY . ./` then overwrites the restore the build stage just performed, and
+# `dotnet publish --no-restore` fails with NETSDK1064 for packages that exist only on the runner.
+# Excluding the outputs keeps the image build hermetic whatever ran before it.
+bin/
+obj/

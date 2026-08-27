@@ -46,6 +46,8 @@ leaves the value to the owner.
 | [R-16](#r-16--catalog-acquisition-schedule-decision) | Catalog acquisition schedule decision | Catalog operations owner | Drafted |
 | [R-17](#r-17--github-wiki-write-access-for-documentation-publication) | GitHub Wiki write access for documentation publication | Repository administrator | — |
 | [R-18](#r-18--secret-scanning-and-push-protection-are-repository-settings) | Secret scanning and push protection are repository settings | Repository administrator | Drafted |
+| [R-19](#r-19--cross-repository-contract-revision-pinning-and-drift-detection) | Cross-repository contract revision pinning and drift detection | Platform owner and mobile lead | Drafted |
+| [R-20](#r-20--tenant-session-service-ownership-and-the-canonical-problem-host) | Tenant session service ownership and the canonical problem host | Identity owner and platform owner | Drafted |
 
 ---
 
@@ -972,3 +974,99 @@ enough like one to be copied by a reader.
 engineer then confirms by pushing a test branch containing an obviously fake but correctly shaped
 token and verifying the push is refused, then deletes the branch. Testing the control is the point —
 an enabled setting nobody has seen refuse anything is the same class of belief as an untested backup.
+
+### R-19 — Cross-repository contract revision pinning and drift detection
+
+**Problem.** ADR-015 in the app repository assigns API and event contract ownership to this
+repository, and this repository now carries the adopted workflow contract
+(`contracts/openapi/workforce-workflow.yaml`, mirrored byte-identical from the app repository) and
+the catalog compatibility contract (`contracts/catalog-package-compatibility.json`, whose seven
+packages the app's `ContractCompatibilityTests` asserts exactly). Nothing mechanical keeps the two
+repositories' copies identical: this repository's CI cannot read the app repository, the app
+repository's CI cannot read this one, and the app ledger's `LAPLUMA_CONTRACT_REVISION` — the value
+meant to pin the app to one immutable contract revision — is still recorded as *format agreed
+only*. The four-versus-seven package divergence this increment corrected existed for exactly this
+reason, under the same `lapluma-app-0.2` version label on both sides.
+
+**Why it blocks progress.** The generated Swift client, the APIM request validation, and the
+provider-side contract tests are all specified to be produced from *the same document*. Until a
+revision pin and a drift check exist, "the same document" is a convention that already failed once.
+`tools/validate_foundation.py::validate_workflow_contract` pins this repository's mirror by SHA-256
+(`WORKFORCE_WORKFLOW_SHA256`), which stops *silent local* edits but cannot see the app repository
+move.
+
+**Required owner.** Platform owner (CI credentials and repository settings) together with the
+mobile lead (app-side ledger and checks).
+
+**Required action.** Decide the pinning mechanism and grant what it needs. Two workable shapes:
+either grant this repository's CI read access to `PEN-lapluma_app` so a workflow job compares the
+two contract directories on every pull request, or ratify that the app repository consumes
+contracts from this repository at a pinned commit SHA recorded in `LAPLUMA_CONTRACT_REVISION`, with
+an app-side check that its local copies match that revision.
+
+**Impact if unresolved.** The two repositories will drift again, and the failure mode is the bad
+one: both sides pass their own CI while the generated client and the service disagree about the
+contract they both claim to implement.
+
+**References.** App repository `docs/adr/ADR-015` (repository boundary), app
+`MOBILE_IMPLEMENTATION_LEDGER.md` (`LAPLUMA_CONTRACT_REVISION`, `LAPLUMA_INFRA_REPOSITORY`),
+`tools/validate_foundation.py::validate_workflow_contract`, `TODO.md` item **5.8**.
+
+**Proposed answer.** The second shape. Contracts live here (per ADR-015); the app repository
+records `LAPLUMA_CONTRACT_REVISION` as a full commit SHA of this repository and carries a CI check
+that its `contracts/` copies are byte-identical to that revision's. No cross-repository credential
+is needed for public reads, and the pin is an ordinary reviewed change in the app repository —
+which is where a contract adoption should be visible anyway.
+
+**Recommended next step.** The mobile lead confirms the shape, records the first
+`LAPLUMA_CONTRACT_REVISION` against this branch's merge commit, and adds the app-side check; this
+repository's `WORKFORCE_WORKFLOW_SHA256` constant then guards the same revision from this side.
+
+### R-20 — Tenant session service ownership and the canonical problem host
+
+**Problem.** The workflow contract declares its security scheme as an **opaque tenant-session
+bearer** (`bearerFormat: opaque-session`), minted by the passkey-first sign-in flow the app's
+architecture handoff specifies: enumeration-resistant discovery, WebAuthn assertion plus App
+Attest, short-lived tenant-bound sessions, server-side revocation. No such session service exists,
+and building one is a substantial identity-owning decision that extends **R-06** (which currently
+scopes Entra app registrations and audiences). The new `src/workflow-api` therefore validates
+**Entra JWTs**, fail-closed, exactly as the Core API does — a deliberate, recorded divergence from
+the contract's declared scheme, not an implementation of it.
+
+Relatedly, no owner has picked the canonical host for problem-type URIs and the API base: the app's
+stub emits `https://api.aperture.app/problems/*`, the app ledger names `lapluma.ai` as the product
+domain, and this repository mints `urn:lapluma:problem:*` (host-free by design). **R-07** owns
+hostnames; the problem-type namespace should be settled with it.
+
+**Why it blocks progress.** The iOS app cannot leave its local stub for authenticated flows until a
+real session issuer exists: passkey registration, assertion, recovery, and App Attest verification
+are all listed as *stubbed* in the app ledger with this service as the missing dependency. Until
+then the workflow surface is reachable only with an Entra token, which is right for
+service-to-service and staff tooling but is not the applicant sign-in the product defines.
+
+**Required owner.** Identity owner (session service, WebAuthn relying party, App Attest) together
+with the platform owner (where it runs, and the R-07 hostname the RP identifier depends on).
+
+**Required action.** Decide who builds and operates the tenant session service, in which zone it
+runs, and whether the opaque session token is validated at APIM, in the services, or both; and pick
+the canonical HTTPS host for problem types (or ratify the URN namespace as permanent).
+
+**Impact if unresolved.** The mobile alpha stays on `internal-demo` runtime mode indefinitely — its
+production mode refuses to start without a real client — and every workflow endpoint remains
+staff/service-token only.
+
+**References.** App repository `ARCH-HANDOFF.md` (authentication expectation, five steps), app
+`docs/adr/ADR-011`, `contracts/openapi/workforce-workflow.yaml` security schemes,
+`src/workflow-api/WorkflowAuthentication.cs`, **R-06**, **R-07**, `TODO.md` item **5.8**.
+
+**Proposed answer.** Keep Entra JWT validation as the permanent service-to-service second lock, and
+build the tenant session service as a separate core-zone service that exchanges a completed
+passkey-plus-attestation ceremony for an opaque session reference validated at APIM (introspection)
+with the services continuing to require a signed token behind it. Adopt `urn:lapluma:problem:*` as
+the canonical problem-type namespace — it needs no hostname decision and survives any future domain
+move — and record under R-07 that only the API base URL, not the problem namespace, awaits a
+hostname.
+
+**Recommended next step.** The identity owner rules on the proposal alongside R-06's registrations;
+until then the workflow API's fail-closed Entra validation stands, and the contract validator pins
+the declared `opaque-session` scheme so the divergence stays visible in review.
