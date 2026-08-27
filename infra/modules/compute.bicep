@@ -53,6 +53,12 @@ param sqlDatabaseName string = ''
 @description('Cosmos endpoint the projection writer targets.')
 param cosmosEndpoint string = ''
 
+@description('''
+Quarantine storage account the workflow API mints upload URLs against. Empty leaves upload issuing
+fail-closed in the service: a session request answers a typed 503 instead of a URL that cannot work.
+''')
+param quarantineStorageAccountName string = ''
+
 @description('Registry SKU. Premium is required for private endpoints, which this posture requires. Cost pending REVIEW.md R-03.')
 @allowed([
   'Basic'
@@ -253,6 +259,92 @@ resource coreApi 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
+// The second core-zone app. Same environment and same identity as the core API: the identity model
+// here is per trust zone rather than per app, and the workflow surface sits squarely in the core
+// zone. What separates the two apps is data classification of what they serve — the catalog is
+// deliberately content-free while this surface will carry case content — which is a reason for a
+// separate service and process, not a separate zone. ADR-0007 records the decision.
+resource workflowApi 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'ca-${name}-workflow-api'
+  location: location
+  tags: union(tags, { 'azd-service-name': 'workflow-api' })
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: { '${coreIdentityId}': {} }
+  }
+  properties: {
+    managedEnvironmentId: coreEnvironment.id
+    configuration: {
+      // Internal only, like the core API. TODO 1.1's APIM edge publishes both.
+      ingress: {
+        external: false
+        targetPort: 8080
+        transport: 'http'
+        allowInsecure: false
+      }
+      registries: [
+        {
+          server: registry.properties.loginServer
+          identity: coreIdentityId
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'workflow-api'
+          image: placeholderImage
+          env: [
+            { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
+            // The only implemented workflow store. Named here, not defaulted in code: no durable
+            // store exists yet (TODO 5.8), and infrastructure that serves a synthetic fixture
+            // should say so where the infrastructure is read.
+            { name: 'Workflow__Source', value: 'fixture' }
+            {
+              // Composed from environment() rather than hard-coded, per the repository rule that
+              // no environment-specific URL appears as a literal.
+              name: 'Workflow__QuarantineBlobEndpoint'
+              value: empty(quarantineStorageAccountName)
+                ? ''
+                : 'https://${quarantineStorageAccountName}.blob.${environment().suffixes.storage}'
+            }
+            { name: 'AZURE_CLIENT_ID', value: reference(coreIdentityId, '2023-01-31').clientId }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: applicationInsightsConnectionString
+            }
+          ]
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: { path: '/health', port: 8080 }
+              initialDelaySeconds: 10
+              periodSeconds: 30
+              failureThreshold: 3
+            }
+            {
+              // Readiness resolves the workflow source and answers 503 when it cannot be built —
+              // including when the deployment named a store that does not exist.
+              type: 'Readiness'
+              httpGet: { path: '/ready', port: 8080 }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 3
+            }
+          ]
+        }
+      ]
+      scale: {
+        // Exactly one replica, and not only for cost: the fixture store and the idempotency replay
+        // map live in process memory, so a second replica would give two different answers to the
+        // same replayed request. TODO 5.8 lifts this with the durable store.
+        minReplicas: 1
+        maxReplicas: 1
+      }
+    }
+  }
+}
+
 resource processingWorker 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-${name}-processing-worker'
   location: location
@@ -417,6 +509,7 @@ output functionsStorageId string = functionsStorage.id
 output functionsStorageName string = functionsStorage.name
 output functionAppName string = functionApp.name
 output coreApiName string = coreApi.name
+output workflowApiName string = workflowApi.name
 output processingWorkerName string = processingWorker.name
 
 // ---------------------------------------------------------------------------------------------

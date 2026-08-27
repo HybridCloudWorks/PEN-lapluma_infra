@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -229,6 +230,9 @@ def validate_priority_and_modes() -> Failures:
     expected_packages = {
         "FAMILY_I130": ["I-130", "I-130A"],
         "ADJUSTMENT_I485_I864": ["I-485", "I-864"],
+        "NATURALIZATION_N400": ["N-400"],
+        "EAD_I765": ["I-765"],
+        "TRAVEL_I131": ["I-131"],
         "PASSPORT_DS11": ["DS-11"],
         "FINANCIAL_AID_FAFSA": ["FAFSA"],
     }
@@ -240,11 +244,16 @@ def validate_priority_and_modes() -> Failures:
     for form_id in ("I-130", "I-485", "DS-11", "FAFSA"):
         require(form_id in source, f"core catalog fixture is missing {form_id}")
         require(form_id in function_contract, f"acquisition contract is missing {form_id}")
-    for retired in ("N-400", "I-765"):
-        require(retired not in source, f"older priority form {retired} leaked into the Alpha 0.2 fixture")
+    # The catalog *listing* tracks the app's lapluma-app-0.2 snapshot (seven packages, enforced by
+    # the app's ContractCompatibilityTests). The *acquisition scope* stays the four ratified
+    # PILOT_PRIORITY_FORMS. These are different boundaries: a form the catalog lists is not thereby
+    # a form the acquisition sweep may fetch, so the three catalog-only forms must appear in the
+    # fixture and must never appear in the acquisition contract.
+    for form_id in ("N-400", "I-765", "I-131"):
+        require(form_id in source, f"core catalog fixture is missing {form_id}")
         require(
-            retired not in function_contract,
-            f"older priority form {retired} leaked into the acquisition scope",
+            form_id not in function_contract,
+            f"non-priority form {form_id} leaked into the acquisition scope",
         )
     require("FAMILY_I130" in source and '"I-130A"' in source, "I-130 package must match the app contract")
     require(
@@ -263,7 +272,8 @@ def validate_priority_and_modes() -> Failures:
     require(not duplicated, f"catalog fixture declares a form more than once: {duplicated}")
     classifications = dict(declarations)
     require(
-        set(classifications) == {"I-130", "I-130A", "I-485", "I-864", "DS-11", "FAFSA"},
+        set(classifications)
+        == {"I-130", "I-130A", "I-485", "I-864", "N-400", "I-765", "I-131", "DS-11", "FAFSA"},
         f"catalog fixture form set drifted: {sorted(classifications)}",
     )
     require(
@@ -289,11 +299,80 @@ def validate_priority_and_modes() -> Failures:
     return failures
 
 
+# The adopted revision of the app-authored workflow contract. The mirror must stay byte-identical
+# to the file the iOS client is generated from, so drift is a hash mismatch rather than a silent
+# divergence; adopting a newer revision is a deliberate act that updates this constant in the same
+# change. The cross-repository pin (the app ledger's LAPLUMA_CONTRACT_REVISION) is still format
+# agreed only — see R-19.
+WORKFORCE_WORKFLOW_SHA256 = "09b0bce5fc03d244cd77a6a40b415827823e0c095019198f031dc72a223a8d9a"
+
+
+def validate_workflow_contract() -> Failures:
+    """Text-level checks over the YAML workflow contracts.
+
+    This validator is dependency-free and has no YAML parser, so these rules read the documents as
+    text. They exist to keep the load-bearing lines visible in review — the placeholder server, the
+    declared auth scheme, the anonymous relay surface — not to validate structure: a structural
+    mistake surfaces when the contract generates a client.
+    """
+    failures = Failures()
+    require = failures.require
+
+    mirror = ROOT / "contracts/openapi/workforce-workflow.yaml"
+    authored = ROOT / "contracts/openapi/documents-upload.yaml"
+    missing = [path for path in (mirror, authored) if not path.exists()]
+    for path in missing:
+        require(False, f"workflow contract missing: {path.relative_to(ROOT)}")
+    if missing:
+        return failures
+
+    mirror_bytes = mirror.read_bytes()
+    require(
+        hashlib.sha256(mirror_bytes).hexdigest() == WORKFORCE_WORKFLOW_SHA256,
+        "workforce-workflow.yaml no longer matches the adopted contract revision; adopting a new "
+        "revision means updating WORKFORCE_WORKFLOW_SHA256 in the same change, deliberately",
+    )
+
+    mirror_text = mirror_bytes.decode("utf-8")
+    authored_text = authored.read_text(encoding="utf-8")
+    for text, name in ((mirror_text, mirror.name), (authored_text, authored.name)):
+        require(
+            text.startswith("openapi: 3.1.0\n"),
+            f"{name} must declare OpenAPI 3.1.0 on its first line",
+        )
+        require(
+            'servers: [{url: "https://api.example.invalid/v1"}]' in text,
+            f"{name} must keep the placeholder server URL until R-07 lands a hostname",
+        )
+        require(
+            "bearerFormat: opaque-session" in text,
+            f"{name} auth scheme drifted from the opaque session bearer the app expects",
+        )
+        require("Idempotency-Key" in text, f"{name} must require the Idempotency-Key header")
+        require("version: 0.2.0" in text, f"{name} version drifted from 0.2.0")
+
+    require("title: LaPluma Workflow API" in mirror_text, "workflow mirror title drifted")
+    require(
+        mirror_text.count("security: []") == 2,
+        "the workflow mirror must carry exactly two anonymous operations "
+        "(the relay challenge and unlock)",
+    )
+    require(
+        "title: LaPluma Documents Upload API" in authored_text,
+        "upload contract title drifted",
+    )
+    require(
+        "security: []" not in authored_text,
+        "the upload contract must not declare anonymous operations",
+    )
+    return failures
+
+
 def validate_azure_interlock() -> Failures:
     failures = Failures()
     require = failures.require
     azure_yaml = (ROOT / "azure.yaml").read_text(encoding="utf-8")
-    for service in ("core-api", "processing-worker", "acquisition-functions"):
+    for service in ("core-api", "workflow-api", "processing-worker", "acquisition-functions"):
         require(f"  {service}:" in azure_yaml, f"azure.yaml missing {service}")
 
     parameters = json.loads((ROOT / "infra/main.parameters.json").read_text(encoding="utf-8"))
@@ -839,6 +918,7 @@ def main() -> int:
     failures = [
         *validate_openapi(),
         *validate_priority_and_modes(),
+        *validate_workflow_contract(),
         *validate_azure_interlock(),
         *validate_env_example(),
         *validate_workflow_action_pins(),

@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:e1ffd2a92ae84c1291bc1b6887501f8af98e6331e7af6d4c8d37168c5e87a64c AS build
 WORKDIR /src
-COPY LaPluma.CoreApi.csproj ./
+COPY LaPluma.WorkflowApi.csproj ./
 RUN dotnet restore
 COPY . ./
 RUN dotnet publish --configuration Release --no-restore --output /app/publish
@@ -12,4 +12,4 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 EXPOSE 8080
 COPY --from=build /app/publish ./
 USER $APP_UID
-ENTRYPOINT ["dotnet", "LaPluma.CoreApi.dll"]
+ENTRYPOINT ["dotnet", "LaPluma.WorkflowApi.dll"]

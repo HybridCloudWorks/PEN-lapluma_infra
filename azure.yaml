@@ -10,6 +10,13 @@ services:
       path: ./src/core-api/Dockerfile
       context: ./src/core-api
 
+  workflow-api:
+    project: ./src/workflow-api
+    host: containerapp
+    docker:
+      path: ./src/workflow-api/Dockerfile
+      context: ./src/workflow-api
+
   processing-worker:
     project: ./src/document-processing
     host: containerapp

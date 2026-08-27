@@ -18,7 +18,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.5 |
 | [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 |
-| [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.7 |
+| [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.9 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.3 |
 
 ---
@@ -31,17 +31,18 @@ place. What remains is the edge, which cannot be modelled until an address range
 ### 1.1 — Model the API Management edge
 
 - **Priority:** P0
-- **Description:** The Core API container app is created with `external: false` ingress, so nothing
-  publishes it. That is correct for the current shape — an internet-facing authoritative API with no
-  gateway in front of it would be worse — but it means the Edge zone does not exist yet, and no
-  client can reach the service.
+- **Description:** The Core API and Workflow API container apps are created with `external: false`
+  ingress, so nothing publishes them. That is correct for the current shape — an internet-facing
+  authoritative API with no gateway in front of it would be worse — but it means the Edge zone does
+  not exist yet, and no client can reach either service.
 - **Dependencies:** The address range is no longer one of them. `snet-apim` exists at
   `10.42.8.0/24` with its own NSG, its prefix is wired through `SubnetPrefixes`, `.env.example` and
   `infra/main.parameters.json`, and `network.bicep` emits `apimSubnetId` for the module to consume.
   What remains is **R-03** for the SKU and its cost, **R-06** for the Entra registration and API
   audience, and **R-07** for the public hostname, DNS, and TLS certificate.
-- **Recommended action:** Add an `apim` module publishing the Core API container app, validating the
-  token audience R-06 settles, on the hostname R-07 settles. Set the subnet delegation at the same
+- **Recommended action:** Add an `apim` module publishing both internal container apps — the Core
+  API and the Workflow API, as two backends behind one edge — validating the token audience R-06
+  settles, on the hostname R-07 settles. Set the subnet delegation at the same
   time: it is deliberately unset today because the v2 tiers integrate through a delegated subnet and
   the classic tiers in internal mode do not, so the right value depends on the tier R-03 picks. The
   subnet is empty, so setting it later costs nothing — unlike `snet-functions`, where the delegation
@@ -373,7 +374,9 @@ place. What remains is the edge, which cannot be modelled until an address range
   shifts every one after it without any compile error. The wire-name mapping is derived from the
   enums' own `JsonStringEnumMemberName` attributes rather than restated, so the database, the JSON
   contract, and C# cannot disagree — keep it that way. `tools/validate_foundation.py` still reads
-  `CatalogRepository.cs` as text for the Alpha 0.2 priority forms, so the fixture stays where it is.
+  `CatalogRepository.cs` as text — now for the full seven-package, nine-form `lapluma-app-0.2`
+  listing as well as the four-form acquisition scope — so the fixture stays where it is, and the
+  SQL seed must carry all nine forms.
 
 ### 5.3 — Implement the processing worker adapters
 
@@ -469,6 +472,66 @@ place. What remains is the edge, which cannot be modelled until an address range
 - **Status:** Not started
 - **Notes for future engineers:** `allowSharedKeyAccess: false` is set on all four storage accounts,
   which is deliberate. Do not re-enable it to make SAS issuance easier — use user-delegation SAS.
+  The Workflow API's upload path (`UserDelegationUploadUrlIssuer`) already mints write-only
+  user-delegation SAS against quarantine with the core identity; delivery links are the read-side
+  sibling of that mechanism against the packages account.
+
+### 5.8 — Give the Workflow API a durable store and the remaining contract surface
+
+- **Priority:** P1
+- **Description:** `src/workflow-api` implements the near-term slice of
+  `contracts/openapi/workforce-workflow.yaml` — `/session`, the `/clients` directory (list and
+  create), the case workspace read, and the documents upload-session pair — against
+  `WorkflowFixtureSource`, an in-memory synthetic store. Every other authenticated contract
+  operation is mapped as an explicit 501 (people, access grants, invitations, assignments,
+  transitions, section commit, evidence links, guided finish, proof map, page preview, evidence
+  relays, review, approval, history, admin, demo), and the two anonymous relay endpoints
+  (`/relay/{token}`, `/relay/{token}/unlock`) are deliberately not mapped at all.
+- **Dependencies:** 5.2 (the SQL patterns and a provisioned environment), `REVIEW.md` **R-06** (the
+  audience the surface validates), **R-20** (the tenant-session service and opaque tokens), and for
+  the relay surface a dedicated security review — it is the only unauthenticated public surface in
+  the whole contract.
+- **Recommended action:** Replace the fixture with a durable store carrying tenant and person
+  scoping from the start (RLS per the app repository's `docs/05-data-architecture.md`), move the
+  idempotency replay map and the upload-session bookkeeping out of process memory, implement
+  section commit with real `If-Match`/412 semantics against stored revisions, then lift
+  `maxReplicas` above 1 in `compute.bicep` — the single-replica pin exists precisely because that
+  state is in-process today. Implement the relay surface only after its review, with hashed
+  credentials, constant-time code comparison, five-attempt lockout, and per-IP rate limiting.
+- **Status:** Not started — the scaffold this item builds on landed with the workflow-api
+  increment.
+- **Notes for future engineers:** The service deliberately has no default store: `Workflow:Source`
+  unset refuses to start, and `fixture` is named explicitly in `compute.bicep`. Keep that shape —
+  a durable store becomes a second named value, never a silent default. The wire names are pinned
+  to the app's Swift models (`userID`, `folderID`, `sourceSHA256`) by serialization tests; the
+  contract mirror is pinned by `WORKFORCE_WORKFLOW_SHA256` in `tools/validate_foundation.py`, and
+  adopting a newer app revision means updating both deliberately. No percentage or completion-score
+  field may ever appear on this surface — mechanical counters only.
+
+### 5.9 — Live-fire the upload pipeline
+
+- **Priority:** P1
+- **Description:** The upload path is implemented to the seam where Azure begins:
+  `UserDelegationUploadUrlIssuer` mints a write-only, single-blob, fifteen-minute user-delegation
+  SAS against the quarantine account's `quarantine` container, and `rbac.bicep` grants the core
+  identity the Blob Data Contributor role that carries `generateUserDelegationKey`. None of it has
+  ever executed against a real storage account, and completing a session records the declared
+  digest without reading the blob — there is nothing to read yet.
+- **Dependencies:** A provisioned `dev` environment, 5.3 (the processing adapters that consume
+  quarantine), 5.6 and 5.7 (the erasure sweep and delivery links share the SAS mechanism and must
+  invalidate outstanding URLs).
+- **Recommended action:** Against a real environment: verify the minted SAS accepts exactly one
+  `PUT` and nothing else; verify completion reads the blob, computes its SHA-256, compares it to
+  the declared digest, and answers 422 on mismatch (the iOS client independently verifies the
+  returned digest, so the server must never echo the declaration unverified); enqueue the accepted
+  object to the `document-processing` queue; and confirm the erasure sweep purges staged objects
+  whose sessions never completed, including their soft-deleted versions.
+- **Status:** Not started
+- **Notes for future engineers:** The client's only real network call today PUTs to whatever
+  `uploadUrl` a session returns and then compares digests — the integration seam is already
+  load-bearing on the app side. Mirror the capture limits exactly (104857600 bytes, 255-character
+  names, lowercase-hex SHA-256): `WorkflowContractTests` pins them to
+  `contracts/openapi/documents-upload.yaml`.
 
 ---
 

@@ -23,6 +23,7 @@ is marked rather than left to be inferred.
 | [ADR 0004](ADR-0004-Service-Bus-Premium-over-Standard) | Service Bus Premium, not Standard | Accepted |
 | [ADR 0005](ADR-0005-Managed-HSM-over-Key-Vault-keys) | Managed HSM, not Key Vault-managed keys | Accepted, partly gated |
 | [ADR 0006](ADR-0006-Federated-deployment-identity) | Federated deployment identity, no stored secret | Accepted, not yet implemented |
+| [ADR 0007](ADR-0007-Workflow-API-as-second-core-service) | Workflow API as a second core-zone service, not a Core API extension or a new zone | Accepted, partly gated |
 
 ## Writing a new record
 
