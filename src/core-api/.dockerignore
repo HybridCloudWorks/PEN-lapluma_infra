@@ -1,9 +1,7 @@
-# Deny everything, then allow only what the build needs.
-#
-# The Dockerfile does `COPY . ./`, so an allowlist is the difference between "the build receives
-# this directory's source" and "the build receives whatever a developer happens to have here" — a
-# local appsettings.Development.json, a .env, or a certificate would otherwise land in a build
-# layer. New .cs files are picked up automatically; anything else has to be allowed deliberately.
-*
-!*.cs
-!*.csproj
+# The CI validate job runs `dotnet build` on the runner before `docker build`, which leaves
+# runner-generated obj/ (with project.assets.json pointing at the runner's package folders) in the
+# build context. `COPY . ./` then overwrites the restore the build stage just performed, and
+# `dotnet publish --no-restore` fails with NETSDK1064 for packages that exist only on the runner.
+# Excluding the outputs keeps the image build hermetic whatever ran before it.
+bin/
+obj/
