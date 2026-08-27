@@ -4,6 +4,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8080
 
+# The digest pins which base this image starts from; this step patches it to Debian's current
+# security state at build time. The two move at different cadences — Debian published the openssl
+# fix for CVE-2026-14456 hours before any python:3.13-slim rebuild carried it — and the image scan
+# gates on fixed CVEs, so an image that only ever tracks the last rebuild goes red every time the
+# distro outpaces Docker Hub.
+RUN apt-get update \
+    && apt-get upgrade --yes --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 # The worker is stdlib-only, so the image ships no installer: nothing here ever runs pip, and the
 # packaging toolchain is the one part of the base image that keeps accruing scanner findings
 # (setuptools itself, and the libraries pip vendors, msgpack among them). Removing it in the zone
