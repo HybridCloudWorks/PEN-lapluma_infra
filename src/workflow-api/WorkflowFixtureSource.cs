@@ -53,7 +53,10 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
         string? query, string? cursor, CancellationToken cancellationToken)
     {
         // The fixture is a single page; a cursor is accepted but never issued, so any non-null
-        // value is a page that does not exist rather than an error.
+        // value is a page that does not exist rather than an error. Paging this surface is not a
+        // change this repository can make alone: the app requests the directory with a null cursor
+        // and never follows `nextCursor`, so a server that paged would truncate its client list
+        // silently. REVIEW.md R-21 carries the ordering that fix needs.
         if (cursor is not null)
         {
             return Task.FromResult(new ClientDirectoryPage([], null));
