@@ -306,6 +306,29 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - Rewrote `README.md` so it covers only repository purpose, layout, requirements, quick start,
   configuration overview, conventions, and navigation.
 
+### Fixed
+
+- **Idempotency held only when nothing raced it.** Both Workflow API stores decided "did I create
+  this?" from a flag set inside a `ConcurrentDictionary` value factory. That dictionary makes no
+  promise the factory runs once: under contention on a single key it may run on several threads and
+  keep one result. Every racing thread therefore believed it had won, and a thread that believes it
+  won skips the payload comparison — so two simultaneous requests carrying the same
+  `Idempotency-Key` but different payloads both returned 201 with the winner's resource instead of
+  the 409 the contract requires. The guarantee failed under exactly the concurrency it exists to
+  provide, and a client whose retry crossed its own original in flight would have been told its
+  second, different document had been accepted. The upload store leaked as well: each loser's
+  factory had already written a session into the map that nothing could ever reach or expire.
+
+  Both stores now build the candidate first and register it with the factory-free `GetOrAdd`
+  overload, so winning is decided by identity — the stored value is the candidate, or it is not.
+  `UploadSessionStore` publishes the session before the id becomes reachable through the key map,
+  so a replay that reads the winner's id always finds the session behind it, and the loser removes
+  its own unused candidate. `IdempotencyConcurrencyTests` races sixty-four dedicated threads
+  through a barrier across five scenarios — differing payloads must yield exactly one 201 and
+  sixty-three 409s, matching payloads must converge on one usable session, and a lost race must
+  leave nothing reachable behind it. The suite was verified against the previous implementation
+  before the fix landed: it failed every run.
+
 ### Added
 
 - Five architecture decision records, staged in `wiki/` with an index page and linked from the
