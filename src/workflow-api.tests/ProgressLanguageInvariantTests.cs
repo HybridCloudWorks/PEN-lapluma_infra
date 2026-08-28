@@ -32,6 +32,23 @@ public sealed class ProgressLanguageInvariantTests : IClassFixture<Authenticated
     private static string Normalise(string name) =>
         Regex.Replace(name.ToLowerInvariant(), "[^a-z0-9]", "");
 
+    /// <summary>
+    /// Read a response, prove it succeeded, and parse it.
+    ///
+    /// The status assertion is what stops this suite passing for the wrong reason. A problem
+    /// document carries no percentage-like key either, so a sweep over a regressed endpoint's 404
+    /// or 500 body would come back clean and report the invariant held. The body travels into the
+    /// assertion message so a failure names what came back rather than only the code.
+    /// </summary>
+    private static async Task<JsonDocument> SucceedingJson(HttpResponseMessage response, string what)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(
+            response.IsSuccessStatusCode,
+            $"{what} returned {(int)response.StatusCode}, so the sweep would prove nothing: {body}");
+        return JsonDocument.Parse(body);
+    }
+
     /// <summary>Every JSON property name in a response, at any depth.</summary>
     private static IEnumerable<string> PropertyNames(JsonElement element)
     {
@@ -75,7 +92,7 @@ public sealed class ProgressLanguageInvariantTests : IClassFixture<Authenticated
     public async Task No_response_carries_a_percentage_like_field(string path)
     {
         var response = await factory.CreateClient().GetAsync(path);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        using var document = await SucceedingJson(response, path);
 
         var offending = PropertyNames(document.RootElement)
             .Where(name => PercentageLike.IsMatch(Normalise(name)))
@@ -96,10 +113,47 @@ public sealed class ProgressLanguageInvariantTests : IClassFixture<Authenticated
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
 
         var response = await factory.CreateClient().SendAsync(request);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        using var document = await SucceedingJson(response, "POST /v1/clients");
 
         Assert.DoesNotContain(
             PropertyNames(document.RootElement), name => PercentageLike.IsMatch(Normalise(name)));
+    }
+
+    [Fact]
+    public async Task The_upload_session_pair_carries_no_percentage_like_field()
+    {
+        // The upload models are serialised by the same policy but reached only with a mintable
+        // issuer, so the sweeps above never touch them. UploadSession and UploadReceipt are the
+        // two shapes a percentage could appear on without any other test noticing.
+        using var uploadFactory = new UploadReadyFactory();
+        var client = uploadFactory.CreateClient();
+
+        var create = new HttpRequestMessage(HttpMethod.Post, "/v1/documents/upload-sessions")
+        {
+            Content = JsonContent.Create(new
+            {
+                folderId = "folder-fixture-0001",
+                originalName = "invariant-sweep.pdf",
+                sizeBytes = 2048,
+                contentSha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            }),
+        };
+        create.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        using var session = await SucceedingJson(
+            await client.SendAsync(create), "POST /v1/documents/upload-sessions");
+        Assert.DoesNotContain(
+            PropertyNames(session.RootElement), name => PercentageLike.IsMatch(Normalise(name)));
+
+        var sessionId = session.RootElement.GetProperty("sessionId").GetString();
+        var complete = new HttpRequestMessage(
+            HttpMethod.Post, $"/v1/documents/upload-sessions/{sessionId}/complete");
+        complete.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        using var receipt = await SucceedingJson(
+            await client.SendAsync(complete), "POST /v1/documents/upload-sessions/{id}/complete");
+        Assert.DoesNotContain(
+            PropertyNames(receipt.RootElement), name => PercentageLike.IsMatch(Normalise(name)));
     }
 
     [Fact]
@@ -109,7 +163,7 @@ public sealed class ProgressLanguageInvariantTests : IClassFixture<Authenticated
         // the counters are present stops the field being dropped altogether and the check above
         // passing on an empty object.
         var response = await factory.CreateClient().GetAsync("/v1/clients");
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        using var document = await SucceedingJson(response, "/v1/clients");
 
         var counters = document.RootElement
             .GetProperty("items").EnumerateArray()
