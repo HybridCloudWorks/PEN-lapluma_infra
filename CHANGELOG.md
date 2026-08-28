@@ -47,6 +47,27 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- **The progress-language invariant is enforced instead of assumed.** The app's architecture
+  handoff prohibits percentages and completion scores on every surface, and the DevSecOps invariant
+  gate lists "percentage key present" among the failures whose override authority is *none* — an
+  applicant reads a completion percentage as a prediction that the case will be approved, which is
+  the eligibility judgement this product must never appear to make. What enforced it here was a
+  single `.Contains("percent")` check on one response body: it covered one endpoint of five, and
+  `completionScore`, `pctComplete`, and `progress_ratio` would all have passed it.
+
+  It is now enforced twice, deliberately. `validate_progress_language` in
+  `tools/validate_foundation.py` rejects a percentage-like key in either OpenAPI contract or in the
+  wire models, which catches a field the moment it is *declared*, with no database, token, or
+  deployed environment — and comments are stripped first, so the rule is not tripped by its own
+  explanation. `ProgressLanguageInvariantTests` then sweeps every implemented response recursively
+  for what a declaration cannot show: a computed property, a serializer naming policy, a key
+  assembled at run time. Both normalise separators, so `pct_complete` and `pctComplete` read alike.
+
+  Each half carries a test that plants a percentage and proves the check fails — the lesson the
+  image-scan gate taught this repository, where a gate that could never fire looked exactly like
+  protection. This is the slice of `TODO.md` **3.2** that needed neither a provisioned environment
+  nor **R-06**; the authorization-boundary invariants are recorded there as still gated.
+
 - **The navigational and architectural documentation caught up with the Workflow API, and the
   counts that had drifted were corrected.** A whole service existed that the documents a reader
   navigates by did not mention. The README's layout table, quick-start commands, and shared-contract

@@ -308,6 +308,51 @@ class CatalogInvariantTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("Idempotency-Key", result.stderr)
 
+    def test_a_percentage_key_in_an_authored_contract_is_rejected(self) -> None:
+        # The invariant gate the app's DevSecOps model marks "cannot be overridden". A percentage
+        # reads to an applicant as a prediction that the case will be approved, which is the
+        # eligibility judgement this product must never appear to make.
+        tree = self.copy_tree()
+        contract = tree / "contracts/openapi/documents-upload.yaml"
+        self.rewrite(
+            contract,
+            "sizeBytes: {type: integer, minimum: 1, maximum: 104857600}",
+            "sizeBytes: {type: integer, minimum: 1, maximum: 104857600}\n        percentComplete: {type: integer}",
+        )
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("percentage-like key: percentComplete", result.stderr)
+
+    def test_a_completion_score_on_a_wire_model_is_rejected(self) -> None:
+        tree = self.copy_tree()
+        models = tree / "src/workflow-api/WorkflowModels.cs"
+        self.rewrite(models, "    int AdvisoryItems);", "    int AdvisoryItems,\n    int CompletionScore);")
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("percentage-like member: CompletionScore", result.stderr)
+
+    def test_the_percentage_rule_reads_through_separator_style(self) -> None:
+        # pct_complete and pctComplete are the same field to a reader and to this rule.
+        tree = self.copy_tree()
+        models = tree / "src/workflow-api/WorkflowModels.cs"
+        self.rewrite(models, "    int AdvisoryItems);", "    int AdvisoryItems,\n    int pct_complete);")
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("percentage-like member: pct_complete", result.stderr)
+
+    def test_the_percentage_rule_does_not_trip_on_its_own_explanation(self) -> None:
+        # The models and this repository discuss the ban in prose. A rule its own rationale trips
+        # is a rule someone deletes, so comments are stripped before the code is scanned.
+        tree = self.copy_tree()
+        models = tree / "src/workflow-api/WorkflowModels.cs"
+        models.write_text(
+            "// No percentage or completion score may appear here: pctComplete is banned.\n"
+            + models.read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_activating_a_pilot_edition_is_rejected(self) -> None:
         tree = self.copy_tree()
         fixture = tree / "src/core-api/CatalogRepository.cs"
