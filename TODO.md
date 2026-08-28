@@ -17,7 +17,7 @@ P2 required before expansion, or repository hygiene · P3 opportunistic.
 | [1](#phase-1--critical-fixes) | Critical fixes: the edge zone is not modelled | 1.1 |
 | [2](#phase-2--security-improvements) | Security improvements | 2.1 – 2.5 |
 | [3](#phase-3--stability-improvements) | Stability, observability, and evidence | 3.1 – 3.5 |
-| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 |
+| [4](#phase-4--technical-debt) | Technical debt and repository hygiene | 4.1 – 4.2 |
 | [5](#phase-5--feature-enhancements) | Feature and service completion | 5.1 – 5.9 |
 | [6](#phase-6--documentation-improvements) | Documentation | 6.1 – 6.3 |
 
@@ -330,6 +330,25 @@ place. What remains is the edge, which cannot be modelled until an address range
   after adding it by opening a pull request touching each guarded path and confirming the expected
   reviewer is actually requested.
 
+### 4.2 — Delete the merged `claude/todo-implementation-g5qz9b` branch
+
+- **Priority:** P3
+- **Description:** `origin/claude/todo-implementation-g5qz9b` has been fully merged since pull
+  request #21 and carries no commit that is not on `main`. Every branch merged since then was
+  deleted automatically on merge; this one predates that and is the only leftover.
+- **Dependencies:** None. It needs a maintainer with ordinary push access rather than an approval.
+- **Recommended action:** Delete it — the Branches page in the GitHub UI, or
+  `git push origin --delete claude/todo-implementation-g5qz9b` from a normal checkout. Verify first
+  with `git rev-list --count origin/main..origin/claude/todo-implementation-g5qz9b`, which returns
+  `0` while the branch holds nothing unmerged.
+- **Status:** Blocked on tooling rather than on a decision, and the block is confirmed rather than
+  assumed: the automation working this repository reaches GitHub through a git proxy that refuses
+  branch deletions outright, failing with `send-pack: unexpected disconnect` on both
+  `--delete` and the empty-refspec form. It is a limitation of that path, not a repository
+  permission, so a maintainer pushing from an ordinary checkout is unaffected.
+- **Notes for future engineers:** Confirm the count above before deleting rather than trusting this
+  entry — a branch that is merged today can acquire a commit tomorrow, and the check costs nothing.
+
 ---
 
 ## Phase 5 — Feature enhancements
@@ -540,17 +559,17 @@ place. What remains is the edge, which cannot be modelled until an address range
 ### 6.1 — Publish the staged wiki pages and remove `wiki/`
 
 - **Priority:** P1
-- **Description:** Fifteen wiki pages are written and staged in `wiki/` — the original nine (Home,
+- **Description:** Twenty-two wiki pages are written and staged in `wiki/` — the original nine (Home,
   Azure Deployment Plan, Architecture Overview, Environments and Release Path, Configuration
   Contract, Security and Data Protection, Pilot Policy and Compliance Gates, Azure Component
-  Research Record, Documentation Standards), plus the five architecture decision records and their
+  Research Record, Documentation Standards), plus the seven architecture decision records and their
   index, plus the four operational runbooks and their index. They are staged rather than published
   because the automation that prepared them has no GitHub Wiki write access. Until they are
   published, the repository holds a documentation directory that the documentation model does not
   permit.
 - **Dependencies:** `REVIEW.md` **R-17** (wiki write access).
 - **Recommended action:** Clone `https://github.com/HybridCloudWorks/PEN-lapluma_infra.wiki.git`,
-  copy the contents of `wiki/` into it, push, verify all fifteen pages render and that every
+  copy the contents of `wiki/` into it, push, verify all twenty-two pages render and that every
   cross-link resolves, then delete `wiki/` from this repository and update the README documentation
   table.
 - **Status:** Blocked. The block is confirmed rather than assumed: cloning the wiki remote succeeds

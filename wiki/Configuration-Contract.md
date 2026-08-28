@@ -67,7 +67,12 @@ parameters into the `network`, `observability`, `security`, `messaging`, and `da
 | `LAPLUMA_FUNCTIONS_SUBNET_PREFIX` | Ratified `10.42.6.0/24` | Network | Functions integration |
 | `LAPLUMA_PRIVATE_ENDPOINTS_SUBNET_PREFIX` | Ratified `10.42.7.0/24` | Network | Private endpoints |
 | `LAPLUMA_APIM_SUBNET_PREFIX` | Ratified `10.42.8.0/24` | Network | API Management edge; reserved ahead of the APIM resource |
-| `ASPNETCORE_URLS` | Container default `http://+:8080` | Backend | Core API listen address, set in `src/core-api/Dockerfile` |
+| `ASPNETCORE_URLS` | Container default `http://+:8080` | Backend | Core API and Workflow API listen address, set in each service's Dockerfile |
+| `Catalog__Source` | `sql` or `fixture` | Backend | Which catalog the Core API serves; set to `sql` in `infra/modules/compute.bicep`, and an unrecognised value refuses to start |
+| `Catalog__SqlServer` / `Catalog__SqlDatabase` | Generated server FQDN and database name | Platform | Core API catalog connection, assembled with `ActiveDirectoryDefault`; never a connection string |
+| `Catalog__CosmosEndpoint` | Generated account endpoint URI | Platform | Rebuildable projection writer |
+| `Workflow__Source` | `fixture` | Backend | Which workflow store the Workflow API serves. It has no default: unset refuses to start, so a deployment always states what it serves. The durable store is `TODO.md` **5.8** |
+| `Workflow__QuarantineBlobEndpoint` | Generated blob endpoint URI, or empty | Platform | Account the Workflow API mints write-only upload SAS against. Empty leaves upload issuing fail-closed, answering 503 rather than a URL that cannot work |
 | `PORT` | Container default `8080` | Backend | Processing health listener, read by `src/document-processing/worker.py` |
 | `ACQUISITION_SCHEDULE` | Six-field NCRONTAB expression | Catalog operations | Timer trigger in `src/functions/function_app.py` |
 | `DURABLE_TASK_HUB_NAME` | Environment-unique safe name | Platform | Durable Functions task hub in `src/functions/host.json` |

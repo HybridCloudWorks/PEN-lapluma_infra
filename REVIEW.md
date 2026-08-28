@@ -890,7 +890,7 @@ authorities once their source URLs are recorded under **R-14**.
 
 ### R-17 — GitHub Wiki write access for documentation publication
 
-**Problem.** Fifteen wiki pages are written and staged in the repository's `wiki/` directory, but
+**Problem.** Twenty-two wiki pages are written and staged in the repository's `wiki/` directory, but
 they cannot be published. The wiki Git remote rejects writes from the automation used to prepare
 them.
 
@@ -920,13 +920,13 @@ authoritative destination, which is exactly the documentation sprawl this model 
 
 **Proposed answer.** None to draft — this is a permission, not a decision, and no wording here
 changes whether the wiki remote accepts a push. What can be reduced is the work the grant unlocks:
-the fifteen pages are complete, cross-linked, and staged in `wiki/`, so publication is a clone, a copy,
+the twenty-two pages are complete, cross-linked, and staged in `wiki/`, so publication is a clone, a copy,
 and a push, with no authoring left. The only judgement involved is the second half of `TODO.md`
 **6.1** — that `wiki/` is deleted from this repository once the pages render, since a staging
 directory that outlives its purpose becomes a second copy that drifts.
 
 **Recommended next step.** A maintainer clones the wiki repository, copies the contents of `wiki/`
-into it, pushes, verifies the fifteen pages render with working cross-links, and then removes `wiki/`
+into it, pushes, verifies the twenty-two pages render with working cross-links, and then removes `wiki/`
 from this repository.
 
 ---
