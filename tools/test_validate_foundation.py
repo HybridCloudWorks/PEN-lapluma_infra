@@ -210,11 +210,11 @@ class ChecksAreIndependentTests(unittest.TestCase):
         self.assertEqual(list(first), [])
 
 
-class CatalogInvariantTests(unittest.TestCase):
-    """The catalog rules must reject semantic drift, not merely the absence of a literal.
+class ValidatorMutationHarness(unittest.TestCase):
+    """Mutate a throwaway copy of the tree and run the validator against it as a subprocess.
 
-    Each test mutates a throwaway copy of the tree and runs the validator against it as a
-    subprocess, so the rules are exercised end to end exactly as CI runs them.
+    Shared by every rule that has to be shown rejecting semantic drift rather than merely the
+    absence of a literal, so the rules are exercised end to end exactly as CI runs them.
     """
 
     def copy_tree(self) -> Path:
@@ -248,10 +248,14 @@ class CatalogInvariantTests(unittest.TestCase):
         path.write_text(mutated, encoding="utf-8")
 
     def test_an_unmutated_copy_still_passes(self) -> None:
-        # Proves the harness itself works, so a failure below means the mutation was caught
-        # rather than that the copy was broken.
+        # Proves the harness itself works, so a failure in either subclass below means the
+        # mutation was caught rather than that the copy was broken.
         result = self.run_validator(self.copy_tree())
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class CatalogInvariantTests(ValidatorMutationHarness):
+    """The catalog rules, each shown rejecting a drift that keeps every literal in place."""
 
     def test_swapping_classifications_between_forms_is_rejected(self) -> None:
         tree = self.copy_tree()
@@ -402,6 +406,49 @@ class CatalogInvariantTests(unittest.TestCase):
         result = self.run_validator(tree)
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("form set drifted", result.stderr)
+
+
+class ReviewIndexTests(ValidatorMutationHarness):
+    """REVIEW.md's index is navigation, so a row that lies about its item is a dead end."""
+
+    def test_an_item_missing_from_the_index_is_rejected(self) -> None:
+        tree = self.copy_tree()
+        review = tree / "REVIEW.md"
+        self.rewrite(
+            review,
+            "| [R-21](#r-21--the-client-directory-has-no-page-the-client-will-follow) "
+            "| The client directory has no page the client will follow "
+            "| Platform owner and mobile lead | Drafted |\n",
+            "",
+        )
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("index and its items disagree", result.stderr)
+
+    def test_an_index_row_that_renames_its_item_is_rejected(self) -> None:
+        tree = self.copy_tree()
+        review = tree / "REVIEW.md"
+        self.rewrite(
+            review,
+            "| The client directory has no page the client will follow ",
+            "| The client directory pages correctly ",
+        )
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("index row reads", result.stderr)
+
+    def test_an_index_link_that_points_nowhere_is_rejected(self) -> None:
+        # The row still renders, which is exactly why this needs a machine to notice.
+        tree = self.copy_tree()
+        review = tree / "REVIEW.md"
+        self.rewrite(
+            review,
+            "(#r-21--the-client-directory-has-no-page-the-client-will-follow)",
+            "(#r-21--the-client-directory-has-no-page)",
+        )
+        result = self.run_validator(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("is not the fragment its heading generates", result.stderr)
 
 
 if __name__ == "__main__":

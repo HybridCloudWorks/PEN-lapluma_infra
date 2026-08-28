@@ -986,6 +986,53 @@ def validate_subscriptions_dead_letter() -> Failures:
     return failures
 
 
+REVIEW_HEADING = re.compile(r"^### (R-\d{2}) — (.+)$", re.MULTILINE)
+REVIEW_INDEX_ROW = re.compile(r"^\| \[(R-\d{2})\]\(#([^)]+)\) \| ([^|]+?) \|", re.MULTILINE)
+
+
+def github_anchor(identifier: str, title: str) -> str:
+    """The fragment GitHub generates for a heading, which is what the index links to."""
+    text = f"{identifier} — {title}".lower()
+    return re.sub(r"[^a-z0-9 -]", "", text).replace(" ", "-")
+
+
+def validate_review_index() -> Failures:
+    """REVIEW.md's index is the only way to navigate it, so it has to match the body."""
+    failures = Failures()
+    text = (ROOT / "REVIEW.md").read_text(encoding="utf-8")
+
+    headings = REVIEW_HEADING.findall(text)
+    rows = REVIEW_INDEX_ROW.findall(text)
+    failures.require(bool(headings), "REVIEW.md declares no review items; the index rule found none")
+    if not headings:
+        return failures
+
+    failures.require(
+        [identifier for identifier, _ in headings] == [identifier for identifier, _, _ in rows],
+        "REVIEW.md's index and its items disagree: index "
+        f"{[identifier for identifier, _, _ in rows]} against items "
+        f"{[identifier for identifier, _ in headings]}. An item added to one and not the other is "
+        "an item nobody navigating the index will read",
+    )
+
+    titles = dict(headings)
+    for identifier, anchor, row_title in rows:
+        title = titles.get(identifier)
+        if title is None:
+            continue
+        failures.require(
+            row_title.strip() == title.strip(),
+            f"{identifier}'s index row reads {row_title.strip()!r} but its heading reads "
+            f"{title.strip()!r}",
+        )
+        failures.require(
+            anchor == github_anchor(identifier, title),
+            f"{identifier}'s index link points at #{anchor}, which is not the fragment its heading "
+            f"generates (#{github_anchor(identifier, title)}). The row renders but the link is dead",
+        )
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1003,6 +1050,7 @@ def main() -> int:
         *validate_subscriptions_dead_letter(),
         *validate_retention_ordering(),
         *validate_no_sensitive_values(),
+        *validate_review_index(),
     ]
     if failures:
         for failure in failures:
