@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace LaPluma.WorkflowApi.Tests;
@@ -177,6 +180,48 @@ public sealed class WorkflowApiTests : IClassFixture<AuthenticatedFactory>
         var body = await ReadJson(response);
         Assert.Equal("urn:lapluma:problem:not-found", body.GetProperty("type").GetString());
         Assert.NotEqual(Guid.Empty, body.GetProperty("correlationId").GetGuid());
+    }
+
+    private sealed class EmptyDirectorySource : IWorkflowSource
+    {
+        public Task<AuthenticatedContext> GetSessionContextAsync(
+            string userId, CancellationToken cancellationToken) =>
+            Task.FromResult(new AuthenticatedContext(userId, "EMPTY", [], [], [], true));
+
+        public Task<ClientDirectoryPage> ListClientsAsync(
+            string? query, string? cursor, CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientDirectoryPage([], null));
+
+        public Task<CreateClientOutcome> CreateClientAsync(
+            string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CaseWorkspace?> GetCaseWorkspaceAsync(
+            string caseId, CancellationToken cancellationToken) =>
+            Task.FromResult<CaseWorkspace?>(null);
+    }
+
+    private sealed class EmptyDirectoryFactory : WebApplicationFactory<global::Program>
+    {
+        protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+        {
+            builder.WithFixtureWorkflow().WithAuthenticationConfigured().WithTestAuthentication();
+            builder.ConfigureServices(services =>
+                services.AddSingleton<IWorkflowSource>(new EmptyDirectorySource()));
+        }
+    }
+
+    [Fact]
+    public async Task An_empty_client_directory_is_still_ready()
+    {
+        // A durable store with zero clients is a freshly provisioned environment, not a failed
+        // replica. Readiness proves the source resolves and answers — never that data exists —
+        // so an empty page must report ready rather than pull the replica out of rotation.
+        using var factory = new EmptyDirectoryFactory();
+
+        var response = await factory.CreateClient().GetAsync("/ready");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]

@@ -54,19 +54,19 @@ app.UseAuthorization();
 
 app.MapGet("/health", () =>
     Results.Ok(new HealthResponse("ok", ServiceMetadata.Name, ServiceMetadata.Version)));
-// Readiness resolves the source rather than answering from a literal: if the fixture cannot
-// construct or the registration refused a store nobody chose, readiness must say so.
+// Readiness resolves the source and queries it rather than answering from a literal: if the
+// registration refused a store nobody chose, or the store cannot answer, readiness must say so.
+// It deliberately does not require the answer to be non-empty — an empty client directory is a
+// healthy answer from a freshly provisioned durable store, not a failed replica.
 app.MapGet("/ready", async (
     IServiceProvider services, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
 {
     try
     {
         var source = services.GetRequiredService<IWorkflowSource>();
-        if ((await source.ListClientsAsync(null, null, cancellationToken)).Items.Count > 0)
-        {
-            return Results.Ok(
-                new HealthResponse("ready", ServiceMetadata.Name, ServiceMetadata.Version));
-        }
+        _ = await source.ListClientsAsync(null, null, cancellationToken);
+        return Results.Ok(
+            new HealthResponse("ready", ServiceMetadata.Name, ServiceMetadata.Version));
     }
     catch (Exception error)
     {
