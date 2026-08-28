@@ -345,10 +345,18 @@ place. What remains is the edge, which cannot be modelled until an address range
   they are leftovers rather than work in progress.
 - **Dependencies:** None. This needs a maintainer with ordinary push access rather than an
   approval.
-- **Recommended action:** Delete both — the Branches page in the GitHub UI, or
-  `git push origin --delete <branch>` from a normal checkout. Verify each first with
-  `git rev-list --count origin/main..origin/<branch>`, which returns `0` while the branch holds
-  nothing unmerged.
+- **Recommended action:** Delete both — the Branches page in the GitHub UI, or from a normal
+  checkout. Verify each count reads `0` before deleting the branch it belongs to:
+
+  ```bash
+  git fetch origin --prune
+
+  git rev-list --count origin/main..origin/claude/todo-implementation-g5qz9b
+  git push origin --delete claude/todo-implementation-g5qz9b
+
+  git rev-list --count origin/main..origin/claude/pen-lapluma-hosting-28kjr5
+  git push origin --delete claude/pen-lapluma-hosting-28kjr5
+  ```
 - **Status:** Blocked on tooling rather than on a decision, and the block is confirmed rather than
   assumed: the automation working this repository reaches GitHub through a git proxy that refuses
   branch deletions outright, failing with `send-pack: unexpected disconnect` on both `--delete`
