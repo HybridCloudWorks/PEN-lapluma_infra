@@ -330,24 +330,34 @@ place. What remains is the edge, which cannot be modelled until an address range
   after adding it by opening a pull request touching each guarded path and confirming the expected
   reviewer is actually requested.
 
-### 4.2 — Delete the merged `claude/todo-implementation-g5qz9b` branch
+### 4.2 — Delete the two merged branches left on the remote
 
 - **Priority:** P3
-- **Description:** `origin/claude/todo-implementation-g5qz9b` has been fully merged since pull
-  request #21 and carries no commit that is not on `main`. Every branch merged since then was
-  deleted automatically on merge; this one predates that and is the only leftover.
-- **Dependencies:** None. It needs a maintainer with ordinary push access rather than an approval.
-- **Recommended action:** Delete it — the Branches page in the GitHub UI, or
-  `git push origin --delete claude/todo-implementation-g5qz9b` from a normal checkout. Verify first
-  with `git rev-list --count origin/main..origin/claude/todo-implementation-g5qz9b`, which returns
-  `0` while the branch holds nothing unmerged.
+- **Description:** Two branches remain on the remote beside `main`, and neither carries a commit
+  that is not already on it:
+
+  | Branch | Merged by | Unmerged commits |
+  |--------|-----------|------------------|
+  | `claude/todo-implementation-g5qz9b` | pull request #21 | 0 |
+  | `claude/pen-lapluma-hosting-28kjr5` | pull request #42 | 0 |
+
+  Most merges in this repository delete their head branch automatically. These two did not, so
+  they are leftovers rather than work in progress.
+- **Dependencies:** None. This needs a maintainer with ordinary push access rather than an
+  approval.
+- **Recommended action:** Delete both — the Branches page in the GitHub UI, or
+  `git push origin --delete <branch>` from a normal checkout. Verify each first with
+  `git rev-list --count origin/main..origin/<branch>`, which returns `0` while the branch holds
+  nothing unmerged.
 - **Status:** Blocked on tooling rather than on a decision, and the block is confirmed rather than
   assumed: the automation working this repository reaches GitHub through a git proxy that refuses
-  branch deletions outright, failing with `send-pack: unexpected disconnect` on both
-  `--delete` and the empty-refspec form. It is a limitation of that path, not a repository
+  branch deletions outright, failing with `send-pack: unexpected disconnect` on both `--delete`
+  and the empty-refspec form, for both branches. It is a limitation of that path, not a repository
   permission, so a maintainer pushing from an ordinary checkout is unaffected.
 - **Notes for future engineers:** Confirm the count above before deleting rather than trusting this
   entry — a branch that is merged today can acquire a commit tomorrow, and the check costs nothing.
+  `claude/pen-lapluma-hosting-28kjr5` is the branch name this repository's automation reuses, so it
+  may exist again legitimately; delete it only when its own count reads `0`.
 
 ---
 
