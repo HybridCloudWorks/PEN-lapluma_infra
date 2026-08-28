@@ -16,6 +16,18 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
 
+  - package-ecosystem: nuget
+    directory: /src/workflow-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: nuget
+    directory: /src/workflow-api.tests
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
   # The processing worker is deliberately stdlib-only, so it declares no dependency file and has
   # nothing for pip to watch. That is an architectural guarantee, not an omission — if a
   # requirements file ever appears under src/document-processing, adding it here is the smaller half
@@ -28,6 +40,12 @@ updates:
 
   - package-ecosystem: docker
     directory: /src/core-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /src/workflow-api
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
