@@ -330,6 +330,23 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Fixed
 
+- **A test suite could leave CI without turning anything red.** `unittest discover` prints
+  "Ran 0 tests ... OK" and exits 0 when its pattern matches no file, so renaming or moving a module
+  took its entire suite out of the build while every check stayed green — the failure this
+  repository least wants, where the checks pass because they stopped checking. `dotnet test`
+  behaves the same way: a project containing no tests exits 0. Both were confirmed by building the
+  case rather than reasoning about it — an emptied Python suite and a test project with no test
+  methods were each run to see what CI would have concluded, and both came back clean.
+
+  `tools/run_test_suites.py` now runs the three Python suites, each as its own process as before,
+  and refuses one that discovered nothing; the .NET steps assert a passing count rather than trust
+  an exit code, so a vanished suite fails and a changed summary format fails loudly instead of
+  quietly ceasing to check. The runner's own rejection is proven by a planted rename, its passing
+  path by an intact suite, and the ordinary failing test by a planted failure — because a guard
+  in front of the normal case must not swallow it.
+
+### Fixed
+
 - **Idempotency held only when nothing raced it.** Both Workflow API stores decided "did I create
   this?" from a flag set inside a `ConcurrentDictionary` value factory. That dictionary makes no
   promise the factory runs once: under contention on a single key it may run on several threads and
