@@ -549,7 +549,9 @@ place. What remains is the edge, which cannot be modelled until an address range
   the whole contract.
 - **Recommended action:** Replace the fixture with a durable store carrying tenant and person
   scoping from the start (RLS per the app repository's `docs/05-data-architecture.md`), move the
-  idempotency replay map and the upload-session bookkeeping out of process memory, implement
+  idempotency replay map and the upload-session bookkeeping out of process memory — the
+  upload-session map is swept on a retention window so it stays bounded while it is still in
+  memory, but bounded is not durable, and the replay map behind `/v1/clients` is neither — implement
   section commit with real `If-Match`/412 semantics against stored revisions, then lift
   `maxReplicas` above 1 in `compute.bicep` — the single-replica pin exists precisely because that
   state is in-process today. Implement the relay surface only after its review, with hashed
