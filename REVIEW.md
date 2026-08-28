@@ -48,6 +48,7 @@ leaves the value to the owner.
 | [R-18](#r-18--secret-scanning-and-push-protection-are-repository-settings) | Secret scanning and push protection are repository settings | Repository administrator | Drafted |
 | [R-19](#r-19--cross-repository-contract-revision-pinning-and-drift-detection) | Cross-repository contract revision pinning and drift detection | Platform owner and mobile lead | Drafted |
 | [R-20](#r-20--tenant-session-service-ownership-and-the-canonical-problem-host) | Tenant session service ownership and the canonical problem host | Identity owner and platform owner | Drafted |
+| [R-21](#r-21--the-client-directory-has-no-page-the-client-will-follow) | The client directory has no page the client will follow | Platform owner and mobile lead | Drafted |
 
 ---
 
@@ -1070,3 +1071,49 @@ hostname.
 **Recommended next step.** The identity owner rules on the proposal alongside R-06's registrations;
 until then the workflow API's fail-closed Entra validation stands, and the contract validator pins
 the declared `opaque-session` scheme so the divergence stays visible in review.
+
+### R-21 — The client directory has no page the client will follow
+
+**Problem.** `GET /v1/clients` is a paginated operation in the contract: it takes a `cursor` and
+returns a `nextCursor`. The service does not page — `WorkflowFixtureSource.ListClientsAsync` returns
+every matching entry in one response with `nextCursor` always null — and the app does not page
+either. Its single call site requests `cursor: nil` and reads `.items`, with no loop over
+`nextCursor` and errors swallowed to an empty list. Both sides are internally consistent and both
+are wrong about the same thing: the directory is treated as small enough to arrive whole, and
+nothing enforces that it is.
+
+**Why it blocks progress.** Either half can be fixed alone, and both unilateral fixes are worse
+than the current state. Paging the server without the client following `nextCursor` truncates the
+directory *silently* — a workforce user sees the first page and no indication that clients are
+missing, which on this product is a person who does not get contacted. Leaving the server unpaged
+means the response grows without bound with the tenant, and every list request pays for the whole
+directory; `POST /v1/clients` is an ordinary authenticated operation, so growth needs no abuse, just
+use. The page size is also unspecified: the contract declares no bound, so the two sides cannot
+agree on one without a decision.
+
+**Required owner.** Platform owner (the contract and the service) together with the mobile lead
+(the client's fetch loop).
+
+**Required action.** Fix the ordering, not just the code. Ratify a server page size in the contract
+(a documented default and maximum on `listClients`), land the app-side cursor loop first, then turn
+on server paging once a released client follows it — or accept a documented directory ceiling and
+have the server answer a bounded error past it rather than a truncated page.
+
+**Impact if unresolved.** An unbounded response on the busiest read in the workforce app, and a
+latent truncation bug that arrives the moment anyone implements the paging the contract already
+describes.
+
+**References.** `contracts/openapi/workforce-workflow.yaml` (`listClients`, `cursor`), app
+repository `LaPlumaWorkforceApp.swift` (the `cursor: nil` call site),
+`ApertureAPIClient.clientDirectory`, `src/workflow-api/WorkflowFixtureSource.cs`, **R-19**
+(the cross-repository pin any coordinated contract change depends on), `TODO.md` item **5.8**.
+
+**Proposed answer.** Add an explicit page size to the contract — default 50, maximum 200 — and
+sequence it: app-side cursor loop first, server paging second, in that order and in separate
+releases, so no shipped client can ever see a truncated page. Until then the service keeps
+returning the whole directory, which is honest about what it does.
+
+**Recommended next step.** The mobile lead confirms the client can follow a cursor and says when
+that lands; the platform owner then amends `listClients` under the R-19 pinning mechanism, and
+`TODO.md` 5.8 carries the server half so it is implemented against the durable store rather than
+retrofitted to the fixture.
