@@ -12,16 +12,20 @@ The constraints this architecture exists to enforce are documented in
 |-----------|------|------------|------|
 | Core API | API service | .NET 10 / ASP.NET Core | `src/core-api` |
 | Identity and policy boundary | Core module or service | .NET 10; Entra-backed auth; policy enforcement | `src/core-api` initially; extract only with measured need |
-| Catalog and case services | Core modules | .NET 10; edition-pinned catalog and case workflows | `src/core-api` initially |
+| Catalog service | Core module | .NET 10; edition-pinned form catalog, content-free by contract | `src/core-api` |
+| Workflow API | API service | .NET 10 / ASP.NET Core; session, client directory, case workspace, document upload sessions | `src/workflow-api` |
 | Package and delivery service | Core module or worker | .NET 10; deterministic PDF generation, verification, delivery | `src/package-worker` |
 | Document processing | Isolated workers | Python 3.13 | `src/document-processing` |
 | Event and schedule orchestration | Serverless glue | Azure Functions / Durable Functions | `src/functions` |
 | Contracts | OpenAPI 3.1, JSON Schema, CloudEvents-compatible envelopes | Language-neutral | `contracts` |
 | Infrastructure | Azure IaC | AZD + Bicep | `infra` and `azure.yaml` |
 
-`src/core-api`, `src/document-processing`, `src/functions`, `contracts`, and `infra` exist today as
-placeholder scaffolds. `src/package-worker` has not been created yet; that gap is tracked in
-`TODO.md`.
+`src/core-api`, `src/workflow-api`, `src/document-processing`, `src/functions`, `contracts`, and
+`infra` exist today, and the two .NET services serve real request pipelines. Neither has yet run
+against a durable store: the catalog is configured for a SQL database that has never executed, and
+the workflow surface serves an in-memory fixture it must be told explicitly to serve. `TODO.md`
+**5.2** and **5.8** track the stores behind each.
+`src/package-worker` has not been created yet; that gap is `TODO.md` **5.1**.
 
 ## Component dependencies
 
@@ -29,6 +33,7 @@ placeholder scaffolds. `src/package-worker` has not been created yet; that gap i
 |-----------|------------|----------|
 | iOS client | APIM-published Core API contract | HTTPS only; no direct data-service access |
 | Core API | Azure SQL, Blob, Service Bus, Key Vault | Authoritative writes; managed identity |
+| Workflow API | Azure SQL, quarantine Blob, Key Vault | Authoritative case writes; mints write-only user-delegation upload SAS; bytes never traverse the API |
 | Functions and Durable glue | Service Bus, Blob events, Core APIs | Orchestration only; no bypass of service authorization |
 | Processing workers | Quarantine Blob, create-only staging Blob, Service Bus, Document Intelligence | No SQL or Cosmos access and no general internet egress |
 | Package worker | Confirmed field ledger, official pinned form assets, package Blob | Human-approved inputs only; deterministic round-trip verification |
@@ -39,7 +44,7 @@ placeholder scaffolds. `src/package-worker` has not been created yet; that gap i
 | Zone | Workloads | Required isolation |
 |------|-----------|--------------------|
 | Edge | API Management | Only public application ingress; JWT, schema, rate, size, and idempotency enforcement; no data persistence |
-| Core ACA environment | .NET 10 Core API and package worker | Private data-plane access; authoritative writes; no parsing of raw hostile documents |
+| Core ACA environment | .NET 10 Core API, Workflow API, and package worker | Private data-plane access; authoritative writes; no parsing of raw hostile documents |
 | Processing ACA environment | Python 3.13 sanitizer, OCR, and extraction workers | No database route; no general internet egress; least-privilege per-message and per-blob access; ephemeral workers |
 | AI ACA environment | Guardrail and bounded AI proposal services | No authoritative write or approval authority; model access through private endpoints; fail closed |
 | Orchestration | Azure Functions and Durable Functions | Timers, event intake, retries, and stateful coordination; calls governed services instead of bypassing them |
@@ -62,6 +67,7 @@ security-feature, and cost validation. Security controls may not be removed to f
 |-----------|---------------|-------------------|
 | Public API gateway | API Management | Standard v2, one unit; private backend connectivity and managed identity |
 | Core API | Azure Container Apps | Consumption workload profile with a minimum of one replica for pilot reliability |
+| Workflow API | Azure Container Apps | Same core environment and workload identity as the Core API; pinned to a single replica until its store and idempotency records leave process memory |
 | Package worker | Azure Container Apps Jobs or worker app | Consumption profile; queue-driven; scale to zero when safe |
 | Processing workers | Separate Azure Container Apps environment | Consumption profile; ephemeral queue-driven replicas; deny-by-default egress |
 | AI proposal and guardrail services | Separate Azure Container Apps environment | Consumption profile; no authoritative data-plane roles |
@@ -80,9 +86,11 @@ security-feature, and cost validation. Security controls may not be removed to f
 
 ## Data ownership and flow
 
-1. APIM authenticates and validates an iOS request before forwarding it to the Core API.
-2. The Core API creates authoritative case and upload metadata in Azure SQL and issues only a
-   short-lived, operation-scoped upload grant to the quarantine account.
+1. APIM authenticates and validates an iOS request before forwarding it to the Core API for form
+   catalog reads, or to the Workflow API for anything carrying case content.
+2. The Workflow API creates authoritative case and upload metadata in Azure SQL and issues only a
+   short-lived, operation-scoped upload grant to the quarantine account — a write-only,
+   single-blob user-delegation SAS, so the document bytes never traverse the API.
 3. Blob creation emits a versioned event through Service Bus. Durable orchestration tracks the work;
    it does not grant the processor broader access.
 4. The isolated processing worker reads one quarantined object, sanitizes it, invokes Document
