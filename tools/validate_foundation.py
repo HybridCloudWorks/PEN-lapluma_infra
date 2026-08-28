@@ -368,6 +368,78 @@ def validate_workflow_contract() -> Failures:
     return failures
 
 
+# The progress-language invariant, enforced statically.
+#
+# The app's architecture handoff prohibits percentages and completion scores on every surface, and
+# the DevSecOps invariant gate lists "percentage key present" among the failures whose override
+# authority is "none". The reason is a safety one rather than a stylistic one: an applicant reads a
+# completion percentage as a prediction that the case will be approved, which is exactly the
+# eligibility judgement this product must never appear to make. The dashboard shows exact counts —
+# fields completed and required, documents collected and required, blocking items, readiness, and
+# the audited case stage — and `ProgressCounters` is the shape that carries them.
+#
+# Changing this needs an ADR approved by Compliance, UX, and Security. It is enforced here as well
+# as at runtime because a contract can grow a field long before a handler returns one, and the
+# static check runs on every build without a database, a token, or a deployed environment.
+PERCENTAGE_LIKE = re.compile(
+    r"percent|pct|completion(score|rate|ratio)|progress(score|ratio)",
+)
+
+
+def normalise_identifier(name: str) -> str:
+    """Lowercase and strip separators, so pct_complete and pctComplete read alike."""
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def json_property_names(node: Any) -> list[str]:
+    """Every key in a JSON document, at any depth."""
+    if isinstance(node, dict):
+        names = list(node)
+        for value in node.values():
+            names.extend(json_property_names(value))
+        return names
+    if isinstance(node, list):
+        return [name for item in node for name in json_property_names(item)]
+    return []
+
+
+def validate_progress_language() -> Failures:
+    failures = Failures()
+    require = failures.require
+
+    # The JSON contract can be walked properly rather than matched as text.
+    catalog = json.loads((ROOT / "contracts/catalog.openapi.json").read_text(encoding="utf-8"))
+    for name in json_property_names(catalog):
+        require(
+            not PERCENTAGE_LIKE.search(normalise_identifier(name)),
+            f"catalog contract declares a percentage-like key: {name}",
+        )
+
+    # The YAML contracts have no parser here, so match declaration-shaped keys instead: a key at
+    # the start of a line, and the inline `{key: value}` form the workflow contract uses heavily.
+    yaml_key = re.compile(r"(?:^\s*|[{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:", re.MULTILINE)
+    for relative in ("contracts/openapi/workforce-workflow.yaml", "contracts/openapi/documents-upload.yaml"):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        for match in yaml_key.finditer(text):
+            name = match.group(1)
+            require(
+                not PERCENTAGE_LIKE.search(normalise_identifier(name)),
+                f"{relative} declares a percentage-like key: {name}",
+            )
+
+    # The wire models. Comments are stripped first: this file and the models both discuss the ban
+    # in prose, and a rule that its own explanation trips is a rule nobody keeps.
+    for relative in ("src/workflow-api/WorkflowModels.cs", "src/core-api/CatalogModels.cs"):
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        code = re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", source, flags=re.S))
+        for identifier in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", code):
+            require(
+                not PERCENTAGE_LIKE.search(normalise_identifier(identifier)),
+                f"{relative} declares a percentage-like member: {identifier}",
+            )
+    return failures
+
+
 def validate_azure_interlock() -> Failures:
     failures = Failures()
     require = failures.require
@@ -919,6 +991,7 @@ def main() -> int:
         *validate_openapi(),
         *validate_priority_and_modes(),
         *validate_workflow_contract(),
+        *validate_progress_language(),
         *validate_azure_interlock(),
         *validate_env_example(),
         *validate_workflow_action_pins(),
