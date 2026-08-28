@@ -54,25 +54,39 @@ public sealed partial class UploadSessionStore(TimeProvider timeProvider)
         Create(string idempotencyKey, CreateUploadSessionRequest request)
     {
         var payloadHash = HashPayload(request);
-        var isNew = false;
-        var registered = createKeys.GetOrAdd(idempotencyKey, _ =>
-        {
-            isNew = true;
-            var sessionId = $"upload-{Guid.NewGuid():N}";
-            var session = new Session(
-                sessionId,
-                $"doc-{Guid.NewGuid():N}",
-                // Validated against the contract's pattern before the store is called.
-                request.ContentSha256!,
-                timeProvider.GetUtcNow().Add(SessionLifetime),
-                idempotencyKey);
-            sessions[sessionId] = session;
-            return (payloadHash, sessionId);
-        });
 
-        if (!isNew && !string.Equals(registered.PayloadHash, payloadHash, StringComparison.Ordinal))
+        // Built before the registration rather than inside a GetOrAdd factory. ConcurrentDictionary
+        // does not promise a value factory runs once: under contention on one key it may run on
+        // several threads and keep a single result. A factory that also decided "did I create this?"
+        // by setting a captured flag therefore told every racing thread it had won, which skipped
+        // the payload check below for all but one of them — two simultaneous requests sharing a key
+        // but carrying different payloads got 201 and the winner's session instead of 409, with the
+        // idempotency contract failing under exactly the concurrency it exists to handle. The
+        // factory's side effect leaked too: every loser's session stayed in `sessions`, unreachable
+        // and never swept. The value overload has no factory, so winning is decided by identity.
+        var candidateId = $"upload-{Guid.NewGuid():N}";
+        var candidate = new Session(
+            candidateId,
+            $"doc-{Guid.NewGuid():N}",
+            // Validated against the contract's pattern before the store is called.
+            request.ContentSha256!,
+            timeProvider.GetUtcNow().Add(SessionLifetime),
+            idempotencyKey);
+
+        // Registered before the id can be observed through createKeys, so a replay that reads the
+        // winner's id always finds the session behind it.
+        sessions[candidateId] = candidate;
+        var registered = createKeys.GetOrAdd(idempotencyKey, (payloadHash, candidateId));
+        var isNew = string.Equals(registered.SessionId, candidateId, StringComparison.Ordinal);
+
+        if (!isNew)
         {
-            return (IdempotencyOutcome.Conflict, registered.SessionId, "", default);
+            // Lost the race, or this is an ordinary replay. Either way the candidate is unused.
+            sessions.TryRemove(candidateId, out _);
+            if (!string.Equals(registered.PayloadHash, payloadHash, StringComparison.Ordinal))
+            {
+                return (IdempotencyOutcome.Conflict, registered.SessionId, "", default);
+            }
         }
 
         var stored = sessions[registered.SessionId];
