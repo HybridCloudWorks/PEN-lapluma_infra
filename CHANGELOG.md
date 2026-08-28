@@ -5,6 +5,26 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ## Unreleased
 
+### Changed
+
+- **Ten approved Dependabot updates merged, and the version agreement between the twin core-zone
+  services restored.** The CodeQL actions moved from 4.37.6 to 4.37.8 across all three call sites
+  in the security workflow. The Core API took Microsoft.AspNetCore.Authentication.JwtBearer
+  10.0.10 → 10.0.11, Microsoft.Data.SqlClient 6.1.4 → 7.0.2, Azure.Identity 1.17.1 → 1.21.0, and
+  Microsoft.Azure.Cosmos 3.55.0 → 3.62.1; its test project took
+  Microsoft.AspNetCore.Mvc.Testing 10.0.10 → 10.0.11, Microsoft.NET.Test.Sdk 18.8.1 → 18.9.0, and
+  xunit.runner.visualstudio 3.1.5 → 4.0.0. Both .NET test suites pass on the combined result —
+  the SqlClient major bump and the xunit runner major bump included.
+
+  Dependabot only watched the Core API's directories, so the Workflow API — which shares five of
+  those packages — took none of the bumps and would have drifted silently: exactly the failure
+  `dependabot.yml`'s own preamble warns about. Its shared packages now match the Core API's
+  versions, and `dependabot.yml` gains the three missing entries (`nuget` for `src/workflow-api`
+  and `src/workflow-api.tests`, `docker` for `src/workflow-api`) so the two services move together
+  from here on. Merged head branches were removed; `claude/todo-implementation-g5qz9b`, fully
+  merged since pull request #21, still awaits deletion by an operator — this environment's git
+  path refuses branch deletions.
+
 ### Added
 
 - **The Workflow API — the app-facing hosting service — exists as `src/workflow-api`.** The iOS
