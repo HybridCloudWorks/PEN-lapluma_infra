@@ -79,11 +79,6 @@ public sealed class AuthenticatedFactory : WebApplicationFactory<global::Program
         builder.WithFixtureWorkflow().WithAuthenticationConfigured().WithTestAuthentication();
 }
 
-/// <summary>
-/// Adds a controllable clock and a mintable upload URL, so upload sessions can be created and
-/// expired without storage. The fake issuer returns a URL on the reserved example.invalid host —
-/// exactly the kind of value the client's stub treats as "do not actually PUT".
-/// </summary>
 /// <summary>A clock the tests can move, without a package dependency for four lines of code.</summary>
 public sealed class TestClock : TimeProvider
 {
@@ -94,6 +89,11 @@ public sealed class TestClock : TimeProvider
     public void Advance(TimeSpan by) => now = now.Add(by);
 }
 
+/// <summary>
+/// Adds a controllable clock and a mintable upload URL, so upload sessions can be created and
+/// expired without storage. The fake issuer returns a URL on the reserved example.invalid host —
+/// exactly the kind of value the client's stub treats as "do not actually PUT".
+/// </summary>
 public sealed class UploadReadyFactory : WebApplicationFactory<global::Program>
 {
     public TestClock Clock { get; } = new();
