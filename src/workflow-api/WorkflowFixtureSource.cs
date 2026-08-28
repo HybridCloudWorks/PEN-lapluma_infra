@@ -80,19 +80,17 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
         var payloadHash = Convert.ToHexStringLower(
             SHA256.HashData(Encoding.UTF8.GetBytes(displayLabel)));
 
-        var isNew = false;
-        var stored = created.GetOrAdd(idempotencyKey, _ =>
-        {
-            isNew = true;
-            var ordinal = Interlocked.Increment(ref createdCount);
-            return (payloadHash, new ClientDirectoryEntry(
-                $"folder-fixture-{ordinal + 1:0000}",
-                displayLabel,
-                1,
-                0,
-                null,
-                0));
-        });
+        // Built before the registration, for the reason spelled out in UploadSessionStore.Create:
+        // a ConcurrentDictionary value factory may run on several threads for one key, so deciding
+        // "did I create this?" inside it told every racing thread it had won and skipped the
+        // payload check for all but one. The value overload takes no factory, and identity decides.
+        // The ordinal advances on every call rather than only on a win, so numbers can skip; these
+        // ids need to be unique and readable, not dense.
+        var ordinal = Interlocked.Increment(ref createdCount);
+        var candidate = new ClientDirectoryEntry(
+            $"folder-fixture-{ordinal + 1:0000}", displayLabel, 1, 0, null, 0);
+        var stored = created.GetOrAdd(idempotencyKey, (payloadHash, candidate));
+        var isNew = ReferenceEquals(stored.Entry, candidate);
 
         if (!isNew && !string.Equals(stored.PayloadHash, payloadHash, StringComparison.Ordinal))
         {
