@@ -451,5 +451,47 @@ class ReviewIndexTests(ValidatorMutationHarness):
         self.assertIn("is not the fragment its heading generates", result.stderr)
 
 
+class SuiteRunnerTests(ValidatorMutationHarness):
+    """A suite that discovers nothing must be a failure, not a silent pass.
+
+    Only the single-suite mode is exercised, and never on the `tools` suite: running the whole
+    runner from inside a test it would itself discover would copy the tree and recurse.
+    """
+
+    def run_suite(self, tree: Path, suite: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, "tools/run_test_suites.py", suite],
+            cwd=tree,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_an_intact_suite_passes(self) -> None:
+        result = self.run_suite(self.copy_tree(), "src/functions")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_suite_whose_tests_were_renamed_away_is_rejected(self) -> None:
+        # `unittest discover` reports "Ran 0 tests ... OK" and exits 0 here, which is exactly the
+        # silence this runner exists to break.
+        tree = self.copy_tree()
+        renamed = tree / "src/functions/test_acquisition_contract.py"
+        renamed.rename(tree / "src/functions/acquisition_contract_checks.py")
+        result = self.run_suite(tree, "src/functions")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("discovered no tests", result.stderr)
+
+    def test_a_failing_test_is_still_a_failure(self) -> None:
+        # The empty-suite check must not swallow the ordinary case it sits in front of.
+        tree = self.copy_tree()
+        self.rewrite(
+            tree / "src/functions/test_acquisition_contract.py",
+            "import unittest",
+            "import unittest\n\n\nclass PlantedFailure(unittest.TestCase):\n"
+            "    def test_planted(self) -> None:\n        self.fail('planted')\n",
+        )
+        result = self.run_suite(tree, "src/functions")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -56,23 +56,45 @@ jobs:
         run: python tools/validate_foundation.py
 
       - name: Run Python contract tests
+        # Through the runner rather than `unittest discover` directly: discover prints
+        # "Ran 0 tests ... OK" and exits 0 when its pattern matches nothing, so a renamed or moved
+        # module takes its whole suite out of CI while every check stays green. The runner refuses
+        # a suite that discovered nothing.
         run: |
-          python -m unittest discover -s src/document-processing -p 'test_*.py'
-          python -m unittest discover -s src/functions -p 'test_*.py'
-          python -m unittest discover -s tools -p 'test_*.py'
+          python tools/run_test_suites.py
           python -m py_compile src/document-processing/*.py src/functions/*.py
 
       - name: Build .NET core API
         run: dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
 
       - name: Test .NET core API
-        run: dotnet test src/core-api.tests/LaPluma.CoreApi.Tests.csproj --configuration Release
+        # `dotnet test` exits 0 on a project that contains no tests, so the exit code alone cannot
+        # tell a passing suite from a vanished one. Require a passing count instead; if the
+        # runner's summary format ever changes, this fails loudly rather than quietly stopping.
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/core-api-tests.log"
+          dotnet test src/core-api.tests/LaPluma.CoreApi.Tests.csproj --configuration Release | tee "$log"
+          grep -Eq 'Passed:[[:space:]]+[1-9]' "$log" || {
+            echo "::error::The core API test run reported no passing tests."
+            exit 1
+          }
 
       - name: Build .NET workflow API
         run: dotnet build src/workflow-api/LaPluma.WorkflowApi.csproj --configuration Release
 
       - name: Test .NET workflow API
-        run: dotnet test src/workflow-api.tests/LaPluma.WorkflowApi.Tests.csproj --configuration Release
+        # `dotnet test` exits 0 on a project that contains no tests, so the exit code alone cannot
+        # tell a passing suite from a vanished one. Require a passing count instead; if the
+        # runner's summary format ever changes, this fails loudly rather than quietly stopping.
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/workflow-api-tests.log"
+          dotnet test src/workflow-api.tests/LaPluma.WorkflowApi.Tests.csproj --configuration Release | tee "$log"
+          grep -Eq 'Passed:[[:space:]]+[1-9]' "$log" || {
+            echo "::error::The workflow API test run reported no passing tests."
+            exit 1
+          }
 
       - name: Pin the Bicep CLI version
         run: |
