@@ -7,18 +7,24 @@ This repository is a placeholder-only planning and scaffold foundation. Nothing 
 deployed: no AZD environment exists, no Azure subscription has been contacted, and the Bicep
 entrypoint structurally accepts only `enableProvisioning: false`.
 
-The native iOS client lives in its own repository. The versioned package identity and composition
-handshake shared with it is
-[`contracts/catalog-package-compatibility.json`](contracts/catalog-package-compatibility.json).
+The native iOS client lives in its own repository. Two contracts are shared with it: the versioned
+package identity and composition handshake,
+[`contracts/catalog-package-compatibility.json`](contracts/catalog-package-compatibility.json), and
+the workflow API the client is generated from, [`contracts/openapi/`](contracts/openapi). The
+workflow contract is mirrored byte-identically from the app repository and pinned by SHA-256 in
+`tools/validate_foundation.py`, so editing the mirror without deliberately adopting a new revision
+fails the build.
 
 ## Repository layout
 
 | Path | Contents |
 |------|----------|
-| `contracts/` | OpenAPI 3.1 catalog contract and the iOS package-compatibility handshake |
+| `contracts/` | OpenAPI 3.1 catalog contract, the workflow and upload contracts under `openapi/`, and the iOS package-compatibility handshake |
 | `infra/` | Subscription-scope Bicep entrypoint, modules, and the AZD parameter file |
 | `src/core-api/` | .NET 10 catalog and health API |
 | `src/core-api.tests/` | xUnit tests for the catalog API, over the real request pipeline |
+| `src/workflow-api/` | .NET 10 workflow API: session, client directory, case workspace, document upload sessions |
+| `src/workflow-api.tests/` | xUnit tests for the workflow API, over the real request pipeline |
 | `src/document-processing/` | Python 3.13 isolated processing worker |
 | `src/functions/` | Durable Functions catalog-acquisition skeleton |
 | `tools/` | `validate_foundation.py`, the dependency-free contract and interlock validator |
@@ -45,12 +51,15 @@ python3 -m unittest discover -s src/functions -p 'test_*.py'
 # .NET build and tests
 dotnet build src/core-api/LaPluma.CoreApi.csproj --configuration Release
 dotnet test src/core-api.tests/LaPluma.CoreApi.Tests.csproj --configuration Release
+dotnet build src/workflow-api/LaPluma.WorkflowApi.csproj --configuration Release
+dotnet test src/workflow-api.tests/LaPluma.WorkflowApi.Tests.csproj --configuration Release
 
 # Bicep compilation (no provisioning)
 az bicep build --file infra/main.bicep
 
 # Container images
 docker build --tag lapluma-core-api:validation src/core-api
+docker build --tag lapluma-workflow-api:validation src/workflow-api
 docker build --tag lapluma-processing-worker:validation src/document-processing
 ```
 
@@ -89,10 +98,11 @@ Contract** page.
 | [`TODO.md`](TODO.md) | The engineering work queue |
 | [GitHub Wiki](https://github.com/HybridCloudWorks/PEN-lapluma_infra/wiki) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record, decision records, operational runbooks |
 
-The `wiki/` directory holds those pages as files, ready to publish. They are staged in the
-repository because publishing requires GitHub Wiki write access, which automation does not have
-(tracked as `R-17` in `REVIEW.md`). Once the pages are published, `wiki/` is deleted — see
-`TODO.md` item **6.1**.
+The `wiki/` directory holds those pages as files, ready to publish. They are staged rather than
+published because the wiki is a separate Git repository for access-control purposes: it is
+world-readable, but pushing to it needs a credential the automation that prepared the pages cannot
+be granted (tracked as `R-17` in `REVIEW.md`). A maintainer publishes them with a clone, a copy,
+and a push. Once the pages render, `wiki/` is deleted — see `TODO.md` item **6.1**.
 
 The classification rules that decide where a new document goes are on the wiki's **Documentation
 Standards** page.

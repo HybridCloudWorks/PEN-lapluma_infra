@@ -1,11 +1,15 @@
 targetScope = 'resourceGroup'
 
-// azure.yaml declares three services and the Bicep modelled nowhere to deploy them: no Container
-// Apps environments, no function app, no registry. The four delegated subnets had no consumers.
+// The hosting layer for the four services azure.yaml declares. This module exists because the Bicep
+// once modelled nowhere to deploy them: no Container Apps environments, no function app, no
+// registry, and four delegated subnets with no consumers.
 //
-// Three separate managed environments rather than one with three apps. An environment is the
+// Three separate managed environments rather than one shared by every app. An environment is the
 // logging and networking boundary, so sharing one would put the processing zone on the same
-// boundary as the core zone — the trust-zone split is the reason the subnets exist.
+// boundary as the core zone — the trust-zone split is the reason the subnets exist. The core
+// environment holds two apps, the Core API and the Workflow API, which is deliberate: they share a
+// trust zone and an identity, and differ in the data classification they serve rather than in the
+// boundary they need. ADR 0007 records that decision.
 
 @description('Base resource name.')
 @minLength(1)

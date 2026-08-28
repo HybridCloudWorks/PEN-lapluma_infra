@@ -47,6 +47,20 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- **The navigational and architectural documentation caught up with the Workflow API, and the
+  counts that had drifted were corrected.** A whole service existed that the documents a reader
+  navigates by did not mention. The README's layout table, quick-start commands, and shared-contract
+  description now cover `src/workflow-api`, `src/workflow-api.tests`, and `contracts/openapi`; the
+  Architecture Overview carries the Workflow API in its component, dependency, trust-zone, and
+  Azure-service tables, and its data-flow narrative now names the service that actually issues the
+  upload grant; the Configuration Contract documents the `Workflow__*` settings, and the `Catalog__*`
+  settings it had always omitted, on a page that promises every non-secret configuration input.
+
+  The drifted counts: `REVIEW.md` **R-17** and `TODO.md` **6.1** described fifteen staged wiki pages
+  and five architecture decision records when the directory holds twenty-two and seven.
+  `infra/modules/compute.bicep`'s header still described the three-service `azure.yaml` it was
+  written against and said nothing about why two apps now share the core environment.
+
 - **Ten approved Dependabot updates merged, and the version agreement between the twin core-zone
   services restored.** The CodeQL actions moved from 4.37.6 to 4.37.8 across all three call sites
   in the security workflow. The Core API took Microsoft.AspNetCore.Authentication.JwtBearer
