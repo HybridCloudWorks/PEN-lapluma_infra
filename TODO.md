@@ -544,8 +544,9 @@ place. What remains is the edge, which cannot be modelled until an address range
   relays, review, approval, history, admin, demo), and the two anonymous relay endpoints
   (`/relay/{token}`, `/relay/{token}/unlock`) are deliberately not mapped at all.
 - **Dependencies:** 5.2 (the SQL patterns and a provisioned environment), `REVIEW.md` **R-06** (the
-  audience the surface validates), **R-20** (the tenant-session service and opaque tokens), and for
-  the relay surface a dedicated security review — it is the only unauthenticated public surface in
+  audience the surface validates), **R-20** (the tenant-session service and opaque tokens), **R-21**
+  (the client directory's page size, which cannot be turned on before the app follows a cursor), and
+  for the relay surface a dedicated security review — it is the only unauthenticated public surface in
   the whole contract.
 - **Recommended action:** Replace the fixture with a durable store carrying tenant and person
   scoping from the start (RLS per the app repository's `docs/05-data-architecture.md`), move the

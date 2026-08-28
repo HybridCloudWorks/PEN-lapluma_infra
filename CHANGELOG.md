@@ -306,6 +306,28 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - Rewrote `README.md` so it covers only repository purpose, layout, requirements, quick start,
   configuration overview, conventions, and navigation.
 
+### Added
+
+- **`REVIEW.md` R-21 records a paging gap neither repository can close alone.** `GET /v1/clients` is
+  paginated in the contract — it takes a cursor and returns one — and neither side pages: the
+  service returns every matching entry with a null `nextCursor`, and the app's only call site asks
+  for a null cursor, reads the items, and never follows the cursor it gets back. Both halves are
+  internally consistent and both are wrong about the same thing. The reason this is a review item
+  rather than a commit is that either unilateral fix is worse than the current state: paging the
+  server without a client that follows the cursor truncates the directory *silently*, which on this
+  product is a person who never gets contacted, while leaving it unpaged means an unbounded response
+  on the busiest read in the workforce app. The item carries the ordering the fix needs — contract
+  page size ratified, app-side cursor loop shipped, server paging last — and
+  `WorkflowFixtureSource` now says in the code why its single page is deliberate rather than
+  unfinished.
+
+- **A validator rule holds `REVIEW.md`'s index to its contents.** With twenty-one items the index
+  is how the document is read, and nothing checked it: an item added to the body and not the index
+  is invisible, a row that keeps a stale title misdescribes what a reader will find, and a link
+  whose fragment no longer matches its heading still renders while going nowhere. All three are
+  now failures, each proven by a planted mutation. The mutate-a-copy-and-run-the-validator harness
+  the catalog rules use was extracted so this rule and the next one share it.
+
 ### Fixed
 
 - **Idempotency held only when nothing raced it.** Both Workflow API stores decided "did I create
