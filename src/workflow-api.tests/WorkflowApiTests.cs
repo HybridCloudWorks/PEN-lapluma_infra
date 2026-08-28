@@ -87,12 +87,11 @@ public sealed class WorkflowApiTests : IClassFixture<AuthenticatedFactory>
         var primaryCase = seed.GetProperty("primaryCase");
         Assert.Equal("folder-fixture-0001", primaryCase.GetProperty("folderID").GetString());
         Assert.Equal("COLLECTING", primaryCase.GetProperty("state").GetString());
-        // Mechanical counters only — a percentage-like field anywhere here is a contract breach.
+        // Mechanical counters only. The progress-language invariant itself is swept properly in
+        // ProgressLanguageInvariantTests, over every surface and at any depth; a substring check on
+        // one response body would pass just as happily on completionScore or pctComplete.
         var counters = primaryCase.GetProperty("counters");
         Assert.True(counters.TryGetProperty("fieldsFilled", out _));
-        Assert.DoesNotContain(
-            "percent",
-            (await response.Content.ReadAsStringAsync()).ToLowerInvariant());
     }
 
     [Fact]

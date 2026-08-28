@@ -242,18 +242,37 @@ place. What remains is the edge, which cannot be modelled until an address range
 ### 3.2 — Implement the invariant test suite
 
 - **Priority:** P1
-- **Description:** Cross-tenant, cross-folder, person-boundary, and agent-no-write invariant tests
-  are required to pass on every build. Today the repository has five Python contract tests and no
-  invariant tests at all.
-- **Dependencies:** 5.2. The Core API's authorization boundary exists now, so a token-scoped
-  test has something to assert against — supplying real tokens still needs `REVIEW.md` **R-06**.
-- **Recommended action:** Build an integration test project that asserts, against a running `dev`
-  environment: a token scoped to tenant A cannot read tenant B's data; a folder-scoped grant cannot
-  traverse to a sibling folder; a person boundary cannot be crossed by any API path; and no AI or
-  agent component can perform an authoritative write. Wire it into CI as a required check.
-- **Status:** Not started
+- **Description:** The app's invariant gate lists five failures whose override authority is
+  *none*: a cross-tenant leak, a percentage key present, a notification content leak, a non-human
+  approval accepted, and catalog personalization detected. They must pass on every build.
+
+  The **progress-language** invariant is now enforced, because it was the one that needed neither a
+  database nor a token. `validate_progress_language` in `tools/validate_foundation.py` rejects a
+  percentage-like key in either OpenAPI contract or in the wire models, and
+  `ProgressLanguageInvariantTests` sweeps every implemented response at any depth for what the
+  static rule cannot see — a computed property, a serializer naming policy, a run-time dictionary
+  key. Both normalise separators, so `pct_complete` and `pctComplete` read alike, and both carry a
+  test proving they fail when a percentage is planted.
+
+  **Catalog personalization** is partly covered too: the catalog contract rejects person, case, and
+  eligibility parameters, and a Core API test asserts the response is identical when they are
+  supplied anyway. The remaining three — cross-tenant, notification content, non-human approval —
+  have nothing to assert against yet: there is no tenancy, no notification payload, and the
+  approval endpoint answers 501.
+- **Dependencies:** 5.2 and 5.8 for the stores the boundary tests need, and `REVIEW.md` **R-06**
+  for tokens that carry a real tenant. The progress-language half had none of these, which is why
+  it landed first.
+- **Recommended action:** As tenancy arrives with the durable stores, add the authorization
+  invariants alongside it: a token scoped to tenant A cannot read tenant B's data; a folder-scoped
+  grant cannot traverse to a sibling folder; a person boundary cannot be crossed by any API path;
+  no AI or agent component can perform an authoritative write; and the approval endpoint rejects a
+  non-`user` principal. Write each one against the store as it lands rather than deferring the set.
+- **Status:** Partially implemented. The progress-language invariant is enforced statically and at
+  run time; the authorization-boundary invariants are not started and are gated as above.
 - **Notes for future engineers:** These are the tests that justify the trust-zone architecture. If
   they cannot be written against the implementation, the implementation has drifted from the design.
+  Keep the two progress-language rules in step: the C# regex in `ProgressLanguageInvariantTests`
+  mirrors `PERCENTAGE_LIKE` in the validator, and a term added to one belongs in both.
 
 ### 3.3 — Implement package round-trip fidelity verification
 
