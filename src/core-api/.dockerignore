@@ -1,7 +1,10 @@
-# The CI validate job runs `dotnet build` on the runner before `docker build`, which leaves
-# runner-generated obj/ (with project.assets.json pointing at the runner's package folders) in the
-# build context. `COPY . ./` then overwrites the restore the build stage just performed, and
-# `dotnet publish --no-restore` fails with NETSDK1064 for packages that exist only on the runner.
-# Excluding the outputs keeps the image build hermetic whatever ran before it.
-bin/
-obj/
+# Deny by default: `COPY . ./` must receive only intended source, never whatever else happens to
+# sit in a working copy (an .env, a certificate, an appsettings override, build output). Everything
+# is excluded, then exactly the files the build needs are re-included — the re-includes match one
+# path level (Sql/ excepted, re-included whole for the schema files), so nothing inside an
+# excluded directory (obj/'s generated .cs included) comes back. A new source directory must be
+# re-included here deliberately; that friction is the feature.
+*
+!LaPluma.CoreApi.csproj
+!*.cs
+!Sql/
