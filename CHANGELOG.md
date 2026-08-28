@@ -329,6 +329,25 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   leave nothing reachable behind it. The suite was verified against the previous implementation
   before the fix landed: it failed every run.
 
+- **Upload sessions now leave memory.** Nothing swept `UploadSessionStore`: every session the
+  process had ever issued — completed, abandoned, or hours dead — stayed in its map for the life of
+  the container, as did every idempotency key pointing at one, on a service pinned to a single
+  replica precisely because that state is in memory. An ordinary client could grow it without limit
+  just by starting uploads. A second consequence was quieter: once a session expired, the key that
+  created it kept resolving to a corpse, so a caller retrying under that key was handed a session
+  id that could never be completed and had no way to recover except to invent a new key.
+
+  Sessions are now dropped once they have been expired longer than a fifteen-minute retention
+  window, along with the keys that name them, by a sweep that runs at most once a minute and is
+  driven by creates — the only thing that adds to either map, so a store nobody is writing to is
+  one that is not growing. The window is the point: dropping a session the instant it expires would
+  answer a late completion with "no such session" instead of "you ran out of time", so the truthful
+  answer survives well past the deadline and only then is collected. `UploadSessionRetentionTests`
+  pins both edges and the boundary between them, and races thirty-two callers against the sweeper
+  on one key — resolving a session through the key map without allowing for a collection in flight
+  raised `KeyNotFoundException`, which would have been a 500 for whoever happened to be mid-call.
+  Each of the two defects was re-planted after the fix and failed only the tests meant to catch it.
+
 ### Added
 
 - Five architecture decision records, staged in `wiki/` with an index page and linked from the
