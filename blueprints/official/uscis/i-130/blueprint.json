@@ -14,25 +14,64 @@
     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "lastVerified": "2026-09-13T00:00:00Z"
   },
+  "sections": [
+    {
+      "sectionId": "sec_petitioner",
+      "title": "Information About Petitioner",
+      "isRepeatable": false,
+      "overflowStrategy": "ATTACHMENT_ADDENDUM"
+    },
+    {
+      "sectionId": "sec_beneficiary",
+      "title": "Information About Beneficiary",
+      "isRepeatable": false,
+      "overflowStrategy": "ATTACHMENT_ADDENDUM"
+    },
+    {
+      "sectionId": "sec_marriage_history",
+      "title": "Marital Information",
+      "isRepeatable": false,
+      "overflowStrategy": "ATTACHMENT_ADDENDUM",
+      "condition": {
+        "field": "beneficiary.relationship",
+        "operator": "equals",
+        "value": "Spouse"
+      }
+    },
+    {
+      "sectionId": "sec_beneficiary_children",
+      "title": "Beneficiary Children",
+      "isRepeatable": true,
+      "maxOccurs": 5,
+      "overflowStrategy": "ATTACHMENT_ADDENDUM"
+    }
+  ],
   "fields": [
     {
       "canonicalPath": "petitioner.given_name",
+      "sectionId": "sec_petitioner",
       "type": "string",
       "label": "Petitioner Given Name",
       "required": true,
+      "maxLength": 30,
+      "characterSet": "UNICODE_STANDARD",
       "attributedRole": "PETITIONER",
       "pdfFieldMapping": "form1[0].#subform[0].Pt1Line1a_GivenName[0]"
     },
     {
       "canonicalPath": "petitioner.family_name",
+      "sectionId": "sec_petitioner",
       "type": "string",
       "label": "Petitioner Family Name",
       "required": true,
+      "maxLength": 30,
+      "characterSet": "UNICODE_STANDARD",
       "attributedRole": "PETITIONER",
       "pdfFieldMapping": "form1[0].#subform[0].Pt1Line1b_FamilyName[0]"
     },
     {
       "canonicalPath": "petitioner.dob",
+      "sectionId": "sec_petitioner",
       "type": "date",
       "label": "Petitioner Date of Birth",
       "required": true,
@@ -40,6 +79,7 @@
     },
     {
       "canonicalPath": "petitioner.ssn",
+      "sectionId": "sec_petitioner",
       "type": "string",
       "label": "Social Security Number",
       "required": false,
@@ -47,24 +87,56 @@
     },
     {
       "canonicalPath": "beneficiary.given_name",
+      "sectionId": "sec_beneficiary",
       "type": "string",
       "label": "Beneficiary Given Name",
       "required": true,
+      "maxLength": 30,
+      "characterSet": "UNICODE_STANDARD",
       "attributedRole": "BENEFICIARY"
     },
     {
       "canonicalPath": "beneficiary.family_name",
+      "sectionId": "sec_beneficiary",
       "type": "string",
       "label": "Beneficiary Family Name",
       "required": true,
+      "maxLength": 30,
+      "characterSet": "UNICODE_STANDARD",
       "attributedRole": "BENEFICIARY"
     },
     {
       "canonicalPath": "beneficiary.relationship",
+      "sectionId": "sec_beneficiary",
       "type": "choice",
       "label": "Relationship to Petitioner",
       "required": true,
+      "choices": ["Spouse", "Parent", "Child", "Sibling"],
       "attributedRole": "BENEFICIARY"
+    },
+    {
+      "canonicalPath": "marriage.date",
+      "sectionId": "sec_marriage_history",
+      "type": "date",
+      "label": "Date of Current Marriage",
+      "required": false,
+      "condition": {
+        "field": "beneficiary.relationship",
+        "operator": "equals",
+        "value": "Spouse"
+      },
+      "attributedRole": "PETITIONER"
+    },
+    {
+      "canonicalPath": "beneficiary_children[].name",
+      "sectionId": "sec_beneficiary_children",
+      "type": "string",
+      "label": "Child Full Name",
+      "required": false,
+      "maxLength": 40,
+      "characterSet": "UNICODE_STANDARD",
+      "attributedRole": "BENEFICIARY",
+      "pdfFieldMapping": "form1[0].#subform[0].Pt4Line{index}a_ChildName[0]"
     }
   ],
   "validationRules": [
@@ -79,6 +151,12 @@
       "type": "range",
       "expression": "petitioner.dob:1900-01-01:2026-09-14",
       "errorMessage": "Date of birth must be valid past date"
+    },
+    {
+      "ruleId": "spouse_marriage_date_required",
+      "type": "conditional_required",
+      "expression": "when:beneficiary.relationship==Spouse:then_required:marriage.date",
+      "errorMessage": "Date of current marriage is required when petitioning for a spouse"
     }
   ],
   "evidenceRequirements": [
@@ -110,7 +188,45 @@
       "fixtureName": "valid_spouse_petition",
       "expectedValid": true,
       "inputValues": {
-        "petitioner.given_name": "Maria",
+        "petitioner.given_name": "María",
+        "petitioner.family_name": "Santos-Hernández",
+        "petitioner.dob": "1985-06-15",
+        "petitioner.ssn": "123-45-6789",
+        "beneficiary.given_name": "Carlos",
+        "beneficiary.family_name": "Santos",
+        "beneficiary.relationship": "Spouse",
+        "marriage.date": "2015-10-24"
+      }
+    },
+    {
+      "fixtureName": "invalid_missing_petitioner_name",
+      "expectedValid": false,
+      "inputValues": {
+        "beneficiary.given_name": "Carlos",
+        "beneficiary.family_name": "Santos",
+        "beneficiary.relationship": "Spouse",
+        "marriage.date": "2015-10-24"
+      }
+    },
+    {
+      "fixtureName": "invalid_bad_ssn",
+      "expectedValid": false,
+      "inputValues": {
+        "petitioner.given_name": "María",
+        "petitioner.family_name": "Santos",
+        "petitioner.dob": "1985-06-15",
+        "petitioner.ssn": "BAD-SSN",
+        "beneficiary.given_name": "Carlos",
+        "beneficiary.family_name": "Santos",
+        "beneficiary.relationship": "Spouse",
+        "marriage.date": "2015-10-24"
+      }
+    },
+    {
+      "fixtureName": "invalid_spouse_missing_marriage_date",
+      "expectedValid": false,
+      "inputValues": {
+        "petitioner.given_name": "María",
         "petitioner.family_name": "Santos",
         "petitioner.dob": "1985-06-15",
         "petitioner.ssn": "123-45-6789",
@@ -120,25 +236,16 @@
       }
     },
     {
-      "fixtureName": "invalid_missing_petitioner_name",
-      "expectedValid": false,
+      "fixtureName": "valid_parent_petition_no_marriage_date",
+      "expectedValid": true,
       "inputValues": {
-        "beneficiary.given_name": "Carlos",
-        "beneficiary.family_name": "Santos",
-        "beneficiary.relationship": "Spouse"
-      }
-    },
-    {
-      "fixtureName": "invalid_bad_ssn",
-      "expectedValid": false,
-      "inputValues": {
-        "petitioner.given_name": "Maria",
+        "petitioner.given_name": "María",
         "petitioner.family_name": "Santos",
         "petitioner.dob": "1985-06-15",
-        "petitioner.ssn": "BAD-SSN",
-        "beneficiary.given_name": "Carlos",
-        "beneficiary.family_name": "Santos",
-        "beneficiary.relationship": "Spouse"
+        "petitioner.ssn": "123-45-6789",
+        "beneficiary.given_name": "Elena",
+        "beneficiary.family_name": "Hernández",
+        "beneficiary.relationship": "Parent"
       }
     }
   ]
