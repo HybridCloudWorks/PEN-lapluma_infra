@@ -115,6 +115,14 @@ jobs:
             exit 1
           fi
 
+      - name: Pin the Terraform CLI version
+        run: |
+          TERRAFORM_VERSION="1.9.5"
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o /tmp/terraform.zip
+          sudo unzip -q -o /tmp/terraform.zip -d /usr/local/bin
+          rm /tmp/terraform.zip
+          terraform version
+
       - name: Validate Terraform configurations across environments
         run: |
           terraform fmt -check -recursive infra/terraform
