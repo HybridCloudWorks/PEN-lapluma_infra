@@ -198,6 +198,37 @@ public sealed class WorkflowApiTests : IClassFixture<AuthenticatedFactory>
         public Task<CaseWorkspace?> GetCaseWorkspaceAsync(
             string caseId, CancellationToken cancellationToken) =>
             Task.FromResult<CaseWorkspace?>(null);
+
+        public Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ReviewQueueItem>>([]);
+
+        public Task<RecordReviewDecisionOutcome> RecordReviewDecisionAsync(
+            string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
+            Task.FromResult(new RecordReviewDecisionOutcome(ReviewDecisionStatus.NotFound));
+
+        public Task<CreateDraftPreviewOutcome> CreateDraftPreviewAsync(
+            string caseId, CancellationToken cancellationToken) =>
+            Task.FromResult(new CreateDraftPreviewOutcome(DraftPreviewStatus.NotFound));
+
+        public Task<CreateStepUpChallengeOutcome> CreateStepUpChallengeAsync(
+            string caseId, string userId, CancellationToken cancellationToken) =>
+            Task.FromResult(new CreateStepUpChallengeOutcome(StepUpChallengeStatus.NotFound));
+
+        public Task<ApproveCaseOutcome> ApproveCaseAsync(
+            string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
+            Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.NotFound));
+
+        public Task<IReadOnlyList<CaseHistoryEvent>> GetCaseHistoryAsync(
+            string caseId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<CaseHistoryEvent>>([]);
+
+        public Task<CommitSectionOutcome> CommitSectionAsync(
+            string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken) =>
+            Task.FromResult(new CommitSectionOutcome(CommitSectionStatus.NotFound));
+
+        public Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
+            string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken) =>
+            Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.NotFound));
     }
 
     private sealed class EmptyDirectoryFactory : WebApplicationFactory<global::Program>
@@ -227,7 +258,7 @@ public sealed class WorkflowApiTests : IClassFixture<AuthenticatedFactory>
     public async Task Unbuilt_contract_operations_answer_501_not_404()
     {
         // Mapped explicitly so "not built yet" is distinguishable from "wrong URL".
-        var response = await Client().GetAsync("/v1/review-queue");
+        var response = await Client().GetAsync("/v1/cases/case-fixture-0001/guided-finish");
 
         Assert.Equal(HttpStatusCode.NotImplemented, response.StatusCode);
         Assert.Equal(

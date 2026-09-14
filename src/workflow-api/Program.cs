@@ -280,6 +280,184 @@ v1.MapPost("/documents/upload-sessions/{sessionId}/complete", async (
     };
 });
 
+v1.MapGet("/review-queue", async (
+    HttpContext context,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await source.GetReviewQueueAsync(cancellationToken)));
+
+v1.MapPost("/cases/{caseId}/review-decisions", async (
+    HttpContext context,
+    string caseId,
+    ReviewDecisionRequest request,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    if (RequireIdempotencyKey(context) is { } keyProblem)
+    {
+        return keyProblem;
+    }
+
+    var outcomeStr = request.Outcome?.ToUpperInvariant();
+    if (outcomeStr is not ("CHANGES_REQUESTED" or "READY_FOR_APPROVAL"))
+    {
+        return WorkflowProblem.Result(
+            context, "review-outcome-invalid", "outcome must be CHANGES_REQUESTED or READY_FOR_APPROVAL", 422);
+    }
+
+    var reviewerId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "reviewer-unidentified";
+    var outcome = await source.RecordReviewDecisionAsync(
+        caseId, reviewerId, request, IdempotencyKey(context), cancellationToken);
+
+    return outcome.Status switch
+    {
+        ReviewDecisionStatus.Success => Results.Created($"/v1/cases/{caseId}/review-decisions", outcome.Decision),
+        ReviewDecisionStatus.NotFound => WorkflowProblem.Result(context, "not-found", "Missing or unauthorized", 404),
+        ReviewDecisionStatus.InvalidState => WorkflowProblem.Result(context, "review-state", "Case is not in review", 409),
+        _ => WorkflowProblem.Result(context, "idempotency-key-conflict", "Idempotency key was already used with a different payload", 409),
+    };
+});
+
+v1.MapPost("/cases/{caseId}/draft-preview", async (
+    HttpContext context,
+    string caseId,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    if (RequireIdempotencyKey(context) is { } keyProblem)
+    {
+        return keyProblem;
+    }
+
+    var outcome = await source.CreateDraftPreviewAsync(caseId, cancellationToken);
+    return outcome.Status switch
+    {
+        DraftPreviewStatus.Success => Results.Created($"/v1/cases/{caseId}/draft-preview", outcome.Preview),
+        DraftPreviewStatus.NotFound => WorkflowProblem.Result(context, "not-found", "Missing or unauthorized", 404),
+        _ => WorkflowProblem.Result(context, "preview-state", "Preview is not available at this stage", 409),
+    };
+});
+
+v1.MapPost("/cases/{caseId}/step-up-challenge", async (
+    HttpContext context,
+    string caseId,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    if (RequireIdempotencyKey(context) is { } keyProblem)
+    {
+        return keyProblem;
+    }
+
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "approver-unidentified";
+    var outcome = await source.CreateStepUpChallengeAsync(caseId, userId, cancellationToken);
+
+    return outcome.Status switch
+    {
+        StepUpChallengeStatus.Success => Results.Created($"/v1/cases/{caseId}/step-up-challenge", outcome.Challenge),
+        _ => WorkflowProblem.Result(context, "not-found", "Missing or unauthorized", 404),
+    };
+});
+
+v1.MapPost("/cases/{caseId}/approval", async (
+    HttpContext context,
+    string caseId,
+    CaseApprovalRequest request,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    if (RequireIdempotencyKey(context) is { } keyProblem)
+    {
+        return keyProblem;
+    }
+
+    if (!request.Attested || string.IsNullOrWhiteSpace(request.StepUpChallenge))
+    {
+        return WorkflowProblem.Result(
+            context, "step-up-required", "Step-up authentication and attestation are required", 401);
+    }
+
+    var approverId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "user-fixture-approver";
+    var outcome = await source.ApproveCaseAsync(caseId, approverId, request, IdempotencyKey(context), cancellationToken);
+
+    return outcome.Status switch
+    {
+        ApproveCaseStatus.Success => Results.Created($"/v1/cases/{caseId}/approval", outcome.Record),
+        ApproveCaseStatus.NotFound => WorkflowProblem.Result(context, "not-found", "Missing or unauthorized", 404),
+        ApproveCaseStatus.StepUpRequired => WorkflowProblem.Result(context, "step-up-required", "Step-up authentication and attestation are required", 401),
+        ApproveCaseStatus.SeparationOfDutiesViolation => WorkflowProblem.Result(context, "separation-of-duties", "Approver must be distinct from preparer and reviewer", 403),
+        ApproveCaseStatus.InvalidState => WorkflowProblem.Result(context, "approval-state", "Case is not ready for approval", 409),
+        ApproveCaseStatus.StalePreview => WorkflowProblem.Result(context, "stale-preview", "Preview is no longer current", 409),
+        _ => WorkflowProblem.Result(context, "idempotency-key-conflict", "Idempotency key was already used with a different payload", 409),
+    };
+});
+
+v1.MapGet("/cases/{caseId}/history", async (
+    HttpContext context,
+    string caseId,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await source.GetCaseHistoryAsync(caseId, cancellationToken)));
+
+v1.MapPost("/cases/{caseId}/sections/{sectionId}/commit", async (
+    HttpContext context,
+    string caseId,
+    string sectionId,
+    CommitSectionRequest request,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    if (RequireIdempotencyKey(context) is { } keyProblem)
+    {
+        return keyProblem;
+    }
+
+    var baseRevision = request.BaseRevision;
+    var ifMatch = context.Request.Headers["If-Match"].ToString().Trim('"');
+    if (int.TryParse(ifMatch, out var parsedIfMatch))
+    {
+        baseRevision = parsedIfMatch;
+    }
+
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "caller-unidentified";
+    var outcome = await source.CommitSectionAsync(
+        caseId, sectionId, baseRevision, request.Values ?? [], userId, IdempotencyKey(context), cancellationToken);
+
+    return outcome.Status switch
+    {
+        CommitSectionStatus.Success => Results.Ok(outcome.Result),
+        CommitSectionStatus.NotFound => WorkflowProblem.Result(context, "not-found", "Missing or unauthorized", 404),
+        CommitSectionStatus.VersionConflict => WorkflowProblem.Result(context, "version-conflict", "This section changed on another device", 412),
+        _ => WorkflowProblem.Result(context, "idempotency-key-conflict", "Idempotency key was already used with a different payload", 409),
+    };
+});
+
+v1.MapPost("/cases/{caseId}/package-generation", async (
+    HttpContext context,
+    string caseId,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    if (RequireIdempotencyKey(context) is { } keyProblem)
+    {
+        return keyProblem;
+    }
+
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "caller-unidentified";
+    var outcome = await source.RequestPackageGenerationAsync(caseId, userId, IdempotencyKey(context), cancellationToken);
+
+    return outcome.Status switch
+    {
+        PackageGenerationStatus.Success => Results.Created($"/v1/cases/{caseId}/package", outcome.Package),
+        PackageGenerationStatus.NotFound => WorkflowProblem.Result(context, "not-found", "Missing or unauthorized", 404),
+        PackageGenerationStatus.InvalidState => WorkflowProblem.Result(context, "case-state-forbids-generation", "The application's current state does not allow generating forms", 409),
+        PackageGenerationStatus.ApprovalInvalidated => WorkflowProblem.Result(context, "approval-invalidated", "Case approval was invalidated by subsequent field edits", 409),
+        PackageGenerationStatus.EditionDrift => WorkflowProblem.Result(context, "form-edition-drift", "This application is pinned to a replaced form edition", 409),
+        PackageGenerationStatus.HumanConfirmationRequired => WorkflowProblem.Result(context, "human-confirmation-required", "Every required value must be confirmed by a human", 409),
+        _ => WorkflowProblem.Result(context, "idempotency-key-conflict", "Idempotency key was already used with a different payload", 409),
+    };
+});
+
 // Every remaining contract operation is mapped explicitly and answers 501, so "not built yet" is
 // distinguishable from "wrong URL": an unmapped path is a routing 404, these are a typed problem.
 // The two anonymous relay endpoints (GET /relay/{token}, POST /relay/{token}/unlock) are
@@ -292,7 +470,6 @@ foreach (var (method, pattern) in new (string Method, string Pattern)[]
     ("POST", "/clients/{clientId}/invitations"),
     ("PUT", "/cases/{caseId}/assignments"),
     ("POST", "/cases/{caseId}/transitions"),
-    ("POST", "/cases/{caseId}/sections/{sectionId}/commit"),
     ("POST", "/cases/{caseId}/evidence-links"),
     ("GET", "/cases/{caseId}/guided-finish"),
     ("GET", "/cases/{caseId}/proof-map"),
@@ -304,12 +481,6 @@ foreach (var (method, pattern) in new (string Method, string Pattern)[]
     ("POST", "/evidence-relays/{relayId}/reject"),
     ("POST", "/relay-upload-sessions"),
     ("POST", "/relay-upload-sessions/{sessionId}/complete"),
-    ("GET", "/review-queue"),
-    ("POST", "/cases/{caseId}/review-decisions"),
-    ("POST", "/cases/{caseId}/draft-preview"),
-    ("POST", "/cases/{caseId}/step-up-challenge"),
-    ("POST", "/cases/{caseId}/approval"),
-    ("GET", "/cases/{caseId}/history"),
     ("GET", "/admin/members"),
     ("GET", "/admin/sessions"),
     ("GET", "/admin/audit-summary"),

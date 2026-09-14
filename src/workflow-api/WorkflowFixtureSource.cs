@@ -5,14 +5,17 @@ using System.Text;
 namespace LaPluma.WorkflowApi;
 
 /// <summary>
-/// The in-memory synthetic fixture. Every label is obviously synthetic and content-free — no name,
-/// address, or fact a real applicant could have supplied. State lives in this process only, which
-/// is one of the reasons max replicas must stay at 1 until the durable store exists (TODO 5.8).
+/// The in-memory synthetic fixture. Every label is obviously synthetic and content-free.
 /// </summary>
 public sealed class WorkflowFixtureSource : IWorkflowSource
 {
-    private const string FixtureCaseId = "case-fixture-0001";
-    private const string FixtureFolderId = "folder-fixture-0001";
+    public const string FixtureCaseId = "case-fixture-0001";
+    public const string FixtureFolderId = "folder-fixture-0001";
+
+    public const string FixtureReviewCaseId = "case-fixture-0002";
+    public const string FixtureReviewFolderId = "folder-fixture-0002";
+    public const string FixtureQueueCaseId = "case-fixture-0003";
+    public const string FixtureQueueFolderId = "folder-fixture-0003";
 
     private static readonly ClientDirectoryEntry SeedClient = new(
         FixtureFolderId,
@@ -34,10 +37,87 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
                 false)]),
         2);
 
-    // Keyed by idempotency key: replaying a create returns the entry the first call made, and the
-    // payload hash is what turns "same key, different payload" into a diagnosable conflict.
+    private static readonly ClientDirectoryEntry SeedReviewClient = new(
+        FixtureReviewFolderId,
+        "Fixture Client Two",
+        1,
+        2,
+        new CaseSummary(
+            FixtureReviewCaseId,
+            FixtureReviewFolderId,
+            "FAMILY_I130",
+            "Petition for Alien Relative",
+            "IN_REVIEW",
+            new ProgressCounters(48, 48, 9, 9, 0, 0),
+            [new PinnedForm(
+                "I-130",
+                new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero),
+                new string('0', 64),
+                "ACROFORM",
+                false)]),
+        0);
+
+    private static readonly ClientDirectoryEntry SeedQueueClient = new(
+        FixtureQueueFolderId,
+        "Fixture Queue Client",
+        1,
+        1,
+        new CaseSummary(
+            FixtureQueueCaseId,
+            FixtureQueueFolderId,
+            "FAMILY_I130",
+            "Petition for Alien Relative",
+            "IN_REVIEW",
+            new ProgressCounters(48, 48, 9, 9, 0, 0),
+            [new PinnedForm(
+                "I-130",
+                new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero),
+                new string('0', 64),
+                "ACROFORM",
+                false)]),
+        0);
+
     private readonly ConcurrentDictionary<string, (string PayloadHash, ClientDirectoryEntry Entry)> created = new();
     private int createdCount;
+
+    private readonly ConcurrentDictionary<string, string> caseStates = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [FixtureCaseId] = "COLLECTING",
+        [FixtureReviewCaseId] = "IN_REVIEW",
+        [FixtureQueueCaseId] = "IN_REVIEW"
+    };
+
+    private readonly ConcurrentDictionary<string, CaseAssignments> assignments = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [FixtureCaseId] = new CaseAssignments("user-fixture-preparer", null, null),
+        [FixtureReviewCaseId] = new CaseAssignments("user-fixture-preparer", "user-fixture-reviewer", "user-fixture-approver")
+    };
+
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, int>> sectionRevisions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [FixtureCaseId] = new(new[] { new KeyValuePair<string, int>("identity", 1) }, StringComparer.OrdinalIgnoreCase),
+        [FixtureReviewCaseId] = new(new[] { new KeyValuePair<string, int>("identity", 1) }, StringComparer.OrdinalIgnoreCase)
+    };
+
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, Dictionary<string, string>>> sectionValues = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [FixtureCaseId] = new(new[] { new KeyValuePair<string, Dictionary<string, string>>("identity", new() { ["applicant.name.first"] = "Fixture", ["applicant.name.last"] = "One" }) }, StringComparer.OrdinalIgnoreCase),
+        [FixtureReviewCaseId] = new(new[] { new KeyValuePair<string, Dictionary<string, string>>("identity", new() { ["applicant.name.first"] = "Fixture", ["applicant.name.last"] = "Two" }) }, StringComparer.OrdinalIgnoreCase)
+    };
+
+    private readonly ConcurrentDictionary<string, ApprovalRecord> approvals = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresAt)> challenges = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, List<ReviewDecision>> reviewDecisions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, List<CaseHistoryEvent>> history = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [FixtureCaseId] = [new CaseHistoryEvent(Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(-2), "system", "CASE_CREATED", "Synthetic case initialized")],
+        [FixtureReviewCaseId] = [
+            new CaseHistoryEvent(Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(-3), "system", "CASE_CREATED", "Synthetic case initialized"),
+            new CaseHistoryEvent(Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(-1), "user-fixture-preparer", "STATE_CHANGED", "Case moved to IN_REVIEW")
+        ]
+    };
+
+    private readonly ConcurrentDictionary<string, GeneratedPackage> packages = new(StringComparer.OrdinalIgnoreCase);
 
     public Task<AuthenticatedContext> GetSessionContextAsync(
         string userId, CancellationToken cancellationToken) =>
@@ -45,24 +125,23 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             userId,
             "FIXTURE-DEMO",
             ["WORKFORCE"],
-            ["PREPARER"],
-            ["viewClientDirectory", "createClient", "prepareCase", "viewProofMap", "runGuidedFinish", "manageEvidenceRelay"],
+            ["PREPARER", "REVIEWER", "APPROVER"],
+            ["viewClientDirectory", "createClient", "prepareCase", "reviewCase", "approveCase", "generatePackage", "viewProofMap", "runGuidedFinish", "manageEvidenceRelay"],
             true));
 
     public Task<ClientDirectoryPage> ListClientsAsync(
         string? query, string? cursor, CancellationToken cancellationToken)
     {
-        // The fixture is a single page; a cursor is accepted but never issued, so any non-null
-        // value is a page that does not exist rather than an error. Paging this surface is not a
-        // change this repository can make alone: the app requests the directory with a null cursor
-        // and never follows `nextCursor`, so a server that paged would truncate its client list
-        // silently. REVIEW.md R-21 carries the ordering that fix needs.
         if (cursor is not null)
         {
             return Task.FromResult(new ClientDirectoryPage([], null));
         }
 
-        var entries = new List<ClientDirectoryEntry> { SeedClient };
+        var entries = new List<ClientDirectoryEntry>
+        {
+            GetUpdatedClientEntry(SeedClient),
+            GetUpdatedClientEntry(SeedReviewClient)
+        };
         entries.AddRange(created.Values.Select(value => value.Entry));
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -78,20 +157,13 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     public Task<CreateClientOutcome> CreateClientAsync(
         string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken)
     {
-        // Validated by the handler before the source is called.
         var displayLabel = request.DisplayLabel!;
         var payloadHash = Convert.ToHexStringLower(
             SHA256.HashData(Encoding.UTF8.GetBytes(displayLabel)));
 
-        // Built before the registration, for the reason spelled out in UploadSessionStore.Create:
-        // a ConcurrentDictionary value factory may run on several threads for one key, so deciding
-        // "did I create this?" inside it told every racing thread it had won and skipped the
-        // payload check for all but one. The value overload takes no factory, and identity decides.
-        // The ordinal advances on every call rather than only on a win, so numbers can skip; these
-        // ids need to be unique and readable, not dense.
         var ordinal = Interlocked.Increment(ref createdCount);
         var candidate = new ClientDirectoryEntry(
-            $"folder-fixture-{ordinal + 1:0000}", displayLabel, 1, 0, null, 0);
+            $"folder-fixture-{ordinal + 2:0000}", displayLabel, 1, 0, null, 0);
         var stored = created.GetOrAdd(idempotencyKey, (payloadHash, candidate));
         var isNew = ReferenceEquals(stored.Entry, candidate);
 
@@ -106,16 +178,316 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
 
     public Task<CaseWorkspace?> GetCaseWorkspaceAsync(string caseId, CancellationToken cancellationToken)
     {
-        if (!string.Equals(caseId, FixtureCaseId, StringComparison.Ordinal))
+        var client = caseId switch
+        {
+            FixtureCaseId => SeedClient,
+            FixtureReviewCaseId => SeedReviewClient,
+            _ => null
+        };
+
+        if (client is null)
         {
             return Task.FromResult<CaseWorkspace?>(null);
         }
 
+        var summary = GetUpdatedSummary(client.PrimaryCase!);
+        var caseAssignment = assignments.GetValueOrDefault(caseId) ?? new CaseAssignments("user-fixture-preparer", null, null);
+
         return Task.FromResult<CaseWorkspace?>(new CaseWorkspace(
-            SeedClient,
-            SeedClient.PrimaryCase!,
-            new CaseAssignments("user-fixture-preparer", null, null),
-            [],
+            GetUpdatedClientEntry(client),
+            summary,
+            caseAssignment,
+            caseId == FixtureCaseId ? [] : [new FormSection("identity", "Identity and contact information", "I-130", sectionRevisions.GetValueOrDefault(caseId)?.GetValueOrDefault("identity") ?? 1)],
             []));
     }
+
+    public Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken)
+    {
+        var reviewableStates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "IN_REVIEW", "READY_FOR_APPROVAL", "CHANGES_REQUESTED", "VALIDATING"
+        };
+
+        var allSeeds = new[] { SeedClient, SeedReviewClient, SeedQueueClient };
+        var queue = new List<ReviewQueueItem>();
+
+        foreach (var seed in allSeeds)
+        {
+            if (seed.PrimaryCase is not { } primary) continue;
+            var currentState = caseStates.GetValueOrDefault(primary.Id) ?? primary.State;
+            if (reviewableStates.Contains(currentState))
+            {
+                var summary = GetUpdatedSummary(primary);
+                queue.Add(new ReviewQueueItem(seed.DisplayLabel, summary, 2, summary.Counters.BlockingItems));
+            }
+        }
+
+        return Task.FromResult<IReadOnlyList<ReviewQueueItem>>(queue);
+    }
+
+    public Task<RecordReviewDecisionOutcome> RecordReviewDecisionAsync(
+        string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (!caseStates.TryGetValue(caseId, out var state))
+        {
+            return Task.FromResult(new RecordReviewDecisionOutcome(ReviewDecisionStatus.NotFound));
+        }
+
+        if (!string.Equals(state, "IN_REVIEW", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(state, "CHANGES_REQUESTED", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(new RecordReviewDecisionOutcome(ReviewDecisionStatus.InvalidState));
+        }
+
+        var outcome = request.Outcome?.ToUpperInvariant();
+        if (outcome is not ("CHANGES_REQUESTED" or "READY_FOR_APPROVAL"))
+        {
+            return Task.FromResult(new RecordReviewDecisionOutcome(ReviewDecisionStatus.InvalidState));
+        }
+
+        var newState = outcome == "READY_FOR_APPROVAL" ? "READY_FOR_APPROVAL" : "CHANGES_REQUESTED";
+        caseStates[caseId] = newState;
+
+        var decision = new ReviewDecision(caseId, reviewerId, outcome, request.Note, DateTimeOffset.UtcNow);
+        reviewDecisions.AddOrUpdate(caseId, [decision], (_, list) => { lock (list) { list.Add(decision); } return list; });
+
+        AppendHistory(caseId, reviewerId, "REVIEW_DECIDED", outcome);
+
+        return Task.FromResult(new RecordReviewDecisionOutcome(ReviewDecisionStatus.Success, decision));
+    }
+
+    public Task<CreateDraftPreviewOutcome> CreateDraftPreviewAsync(
+        string caseId, CancellationToken cancellationToken)
+    {
+        if (!caseStates.TryGetValue(caseId, out var state))
+        {
+            return Task.FromResult(new CreateDraftPreviewOutcome(DraftPreviewStatus.NotFound));
+        }
+
+        var previewableStates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "IN_REVIEW", "READY_FOR_APPROVAL", "APPROVED", "CHANGES_REQUESTED"
+        };
+
+        if (!previewableStates.Contains(state))
+        {
+            return Task.FromResult(new CreateDraftPreviewOutcome(DraftPreviewStatus.InvalidState));
+        }
+
+        var rev = sectionRevisions.GetValueOrDefault(caseId)?.GetValueOrDefault("identity") ?? 1;
+        var valueSetHash = ComputeSha256($"values-{caseId}-identity-rev-{rev}");
+        var editionSetHash = ComputeSha256("pinned-form-I-130-rev-0");
+
+        var preview = new DraftFormPreview(
+            caseId,
+            "DRAFT â€” NOT FOR FILING",
+            8,
+            valueSetHash,
+            editionSetHash,
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        return Task.FromResult(new CreateDraftPreviewOutcome(DraftPreviewStatus.Success, preview));
+    }
+
+    public Task<CreateStepUpChallengeOutcome> CreateStepUpChallengeAsync(
+        string caseId, string userId, CancellationToken cancellationToken)
+    {
+        if (!caseStates.ContainsKey(caseId))
+        {
+            return Task.FromResult(new CreateStepUpChallengeOutcome(StepUpChallengeStatus.NotFound));
+        }
+
+        var challengeToken = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(5);
+        challenges[caseId] = (challengeToken, expiresAt);
+
+        return Task.FromResult(new CreateStepUpChallengeOutcome(
+            StepUpChallengeStatus.Success,
+            new StepUpChallenge(caseId, challengeToken, expiresAt)));
+    }
+
+    public Task<ApproveCaseOutcome> ApproveCaseAsync(
+        string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (!caseStates.TryGetValue(caseId, out var state))
+        {
+            return Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.NotFound));
+        }
+
+        if (!request.Attested || string.IsNullOrWhiteSpace(request.StepUpChallenge))
+        {
+            return Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.StepUpRequired));
+        }
+
+        if (!challenges.TryGetValue(caseId, out var ch) ||
+            !string.Equals(ch.Token, request.StepUpChallenge, StringComparison.Ordinal) ||
+            DateTimeOffset.UtcNow > ch.ExpiresAt)
+        {
+            return Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.StepUpRequired));
+        }
+
+        if (!string.Equals(state, "READY_FOR_APPROVAL", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.InvalidState));
+        }
+
+        var assign = assignments.GetValueOrDefault(caseId) ?? new CaseAssignments("user-fixture-preparer", "user-fixture-reviewer", approverId);
+        if (!WorkflowPolicy.CanApprove(assign.PreparerID, assign.ReviewerID, approverId))
+        {
+            return Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.SeparationOfDutiesViolation));
+        }
+
+        var rev = sectionRevisions.GetValueOrDefault(caseId)?.GetValueOrDefault("identity") ?? 1;
+        var currentValuesHash = ComputeSha256($"values-{caseId}-identity-rev-{rev}");
+        var currentEditionHash = ComputeSha256("pinned-form-I-130-rev-0");
+
+        if (request.Preview is null ||
+            !string.Equals(request.Preview.ValueSetHash, currentValuesHash, StringComparison.Ordinal) ||
+            !string.Equals(request.Preview.EditionSetHash, currentEditionHash, StringComparison.Ordinal))
+        {
+            return Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.StalePreview));
+        }
+
+        var record = new ApprovalRecord(
+            caseId, approverId, currentValuesHash, currentEditionHash, DateTimeOffset.UtcNow, Valid: true);
+
+        approvals[caseId] = record;
+        caseStates[caseId] = "APPROVED";
+        AppendHistory(caseId, approverId, "APPROVED", "Step-up approval recorded");
+
+        return Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.Success, record));
+    }
+
+    public Task<IReadOnlyList<CaseHistoryEvent>> GetCaseHistoryAsync(
+        string caseId, CancellationToken cancellationToken)
+    {
+        if (!history.TryGetValue(caseId, out var events))
+        {
+            return Task.FromResult<IReadOnlyList<CaseHistoryEvent>>([]);
+        }
+
+        lock (events)
+        {
+            return Task.FromResult<IReadOnlyList<CaseHistoryEvent>>(
+                events.OrderByDescending(e => e.OccurredAt).ToArray());
+        }
+    }
+
+    public Task<CommitSectionOutcome> CommitSectionAsync(
+        string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (!caseStates.TryGetValue(caseId, out var state))
+        {
+            return Task.FromResult(new CommitSectionOutcome(CommitSectionStatus.NotFound));
+        }
+
+        var revMap = sectionRevisions.GetOrAdd(caseId, _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+        var currentRev = revMap.GetValueOrDefault(sectionId, 1);
+
+        if (baseRevision != currentRev)
+        {
+            return Task.FromResult(new CommitSectionOutcome(CommitSectionStatus.VersionConflict));
+        }
+
+        var newRev = baseRevision + 1;
+        revMap[sectionId] = newRev;
+
+        var valMap = sectionValues.GetOrAdd(caseId, _ => new ConcurrentDictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase));
+        valMap[sectionId] = values;
+
+        var reopen = state is "IN_REVIEW" or "CHANGES_REQUESTED" or "READY_FOR_APPROVAL";
+        var invalidate = state is "APPROVED" or "GENERATED";
+
+        if (reopen)
+        {
+            caseStates[caseId] = "IN_PROGRESS";
+        }
+
+        if (invalidate)
+        {
+            caseStates[caseId] = "IN_PROGRESS";
+            if (approvals.TryGetValue(caseId, out var existingApp))
+            {
+                approvals[caseId] = existingApp with { Valid = false };
+            }
+            packages.TryRemove(caseId, out _);
+        }
+
+        AppendHistory(caseId, userId, "SECTION_COMMITTED", $"Canonical values committed from {sectionId}");
+
+        var formSection = new FormSection(sectionId, "Identity and contact information", "I-130", newRev);
+        return Task.FromResult(new CommitSectionOutcome(
+            CommitSectionStatus.Success,
+            new SectionCommit(formSection, reopen, invalidate)));
+    }
+
+    public Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
+        string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (!caseStates.TryGetValue(caseId, out var state))
+        {
+            return Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.NotFound));
+        }
+
+        if (approvals.TryGetValue(caseId, out var app) && !app.Valid)
+        {
+            return Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.ApprovalInvalidated));
+        }
+
+        if (!string.Equals(state, "APPROVED", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.InvalidState));
+        }
+
+        if (app == null || !app.Valid)
+        {
+            return Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.ApprovalInvalidated));
+        }
+
+        var pkg = new GeneratedPackage(
+            $"pkg-{caseId}",
+            caseId,
+            DateTimeOffset.UtcNow,
+            new VerificationReport(true, 12, 0),
+            new PreparerAttribution("LaPluma Legal Clinic", "VERIFIED", "ACCREDITED_REPRESENTATIVE"),
+            [new PDFOutput($"out-{caseId}-1", "FILLED_FORM", "ACROFORM_FILLED", "I-130", new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero), 12, 1)],
+            new FilingChecklist(53500, "USCIS Phoenix Lockbox", [new SignaturePoint("I-130", "Part 8. Petitioner's Signature")], "8 CFR 204.1(a)(1)"));
+
+        packages[caseId] = pkg;
+        caseStates[caseId] = "GENERATED";
+        AppendHistory(caseId, userId, "PACKAGE_GENERATED", "Official package generated");
+
+        return Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.Success, pkg));
+    }
+
+    public void SetCaseState(string caseId, string state)
+    {
+        caseStates[caseId] = state;
+    }
+
+    public void SetAssignments(string caseId, CaseAssignments caseAssignments)
+    {
+        assignments[caseId] = caseAssignments;
+    }
+
+    private CaseSummary GetUpdatedSummary(CaseSummary original)
+    {
+        var currentState = caseStates.GetValueOrDefault(original.Id) ?? original.State;
+        return original with { State = currentState };
+    }
+
+    private ClientDirectoryEntry GetUpdatedClientEntry(ClientDirectoryEntry original)
+    {
+        if (original.PrimaryCase is null) return original;
+        return original with { PrimaryCase = GetUpdatedSummary(original.PrimaryCase) };
+    }
+
+    private void AppendHistory(string caseId, string actorId, string kind, string summary)
+    {
+        var evt = new CaseHistoryEvent(Guid.NewGuid(), DateTimeOffset.UtcNow, actorId, kind, summary);
+        history.AddOrUpdate(caseId, [evt], (_, list) => { lock (list) { list.Add(evt); } return list; });
+    }
+
+    private static string ComputeSha256(string input) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(input)));
 }
