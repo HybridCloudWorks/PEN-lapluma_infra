@@ -178,6 +178,7 @@ var library = app.MapGroup("/v1/library").RequireAuthorization(CatalogAuthentica
 
 library.MapGet("/collections", async Task<IResult> (
     HttpContext context,
+    string? query,
     ILibraryAccessService libraryService,
     CancellationToken cancellationToken) =>
 {
@@ -188,6 +189,14 @@ library.MapGet("/collections", async Task<IResult> (
     }
 
     var collections = await libraryService.GetAssignedCollectionsAsync(tenantId, cancellationToken);
+    if (!string.IsNullOrWhiteSpace(query))
+    {
+        var q = query.Trim();
+        collections = collections.Where(c =>
+            c.CollectionId.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            c.Title.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            (c.Description != null && c.Description.Contains(q, StringComparison.OrdinalIgnoreCase))).ToList();
+    }
     return Results.Ok(collections);
 });
 
@@ -213,6 +222,7 @@ library.MapGet("/collections/{namespace}/{collectionId}", async Task<IResult> (
 
 library.MapGet("/blueprints", async Task<IResult> (
     HttpContext context,
+    string? query,
     ILibraryAccessService libraryService,
     CancellationToken cancellationToken) =>
 {
@@ -223,6 +233,14 @@ library.MapGet("/blueprints", async Task<IResult> (
     }
 
     var blueprints = await libraryService.ListEffectiveBlueprintsAsync(tenantId, cancellationToken);
+    if (!string.IsNullOrWhiteSpace(query))
+    {
+        var q = query.Trim();
+        blueprints = blueprints.Where(b =>
+            b.BlueprintId.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            b.Title.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            (b.Issuer != null && b.Issuer.Contains(q, StringComparison.OrdinalIgnoreCase))).ToList();
+    }
     return Results.Ok(blueprints);
 });
 

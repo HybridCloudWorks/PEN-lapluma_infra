@@ -56,7 +56,11 @@ public sealed class TenantTestFactory : WebApplicationFactory<global::Program>
     }
 }
 
-public sealed class LibraryAccessControlTests : IClassFixture<TenantTestFactory>
+[CollectionDefinition("TenantAccessCollection", DisableParallelization = true)]
+public class TenantAccessCollection : ICollectionFixture<TenantTestFactory> { }
+
+[Collection("TenantAccessCollection")]
+public sealed class LibraryAccessControlTests
 {
     private readonly TenantTestFactory _factory;
 
