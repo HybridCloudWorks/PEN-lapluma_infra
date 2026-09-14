@@ -75,5 +75,19 @@ module "compute" {
   core_api_sa_email          = module.iam.core_api_sa_email
   workflow_api_sa_email      = module.iam.workflow_api_sa_email
   processing_worker_sa_email = module.iam.processing_worker_sa_email
+  gateway_sa_email           = module.iam.gateway_sa_email
   db_connection_name         = module.database.instance_connection_name
 }
+
+module "gateway" {
+  source           = "../../modules/gateway"
+  project_id       = var.project_id
+  environment      = var.environment
+  region           = var.region
+  core_api_url     = module.compute.core_api_url
+  workflow_api_url = module.compute.workflow_api_url
+  gateway_sa_email = module.iam.gateway_sa_email
+  oidc_issuer      = var.oidc_issuer
+  oidc_audience    = var.oidc_audience
+}
+

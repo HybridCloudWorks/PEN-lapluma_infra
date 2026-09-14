@@ -21,3 +21,7 @@ output "processing_worker_sa_email" {
 output "acquisition_sa_email" {
   value = google_service_account.acquisition_sa.email
 }
+
+output "gateway_sa_email" {
+  value = google_service_account.gateway_sa.email
+}

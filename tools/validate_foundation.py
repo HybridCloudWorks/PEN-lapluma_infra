@@ -1149,6 +1149,53 @@ def validate_uscis_manifest() -> list[str]:
     return failures
 
 
+def validate_identity_and_roles() -> Failures:
+    """Validate INT-02 identity, authorization, and separation-of-duty invariants."""
+    failures = Failures()
+    require = failures.require
+
+    sql_path = ROOT / "infra" / "sql" / "005_database_roles_and_permissions.sql"
+    require(sql_path.is_file(), f"Database roles and permissions DDL missing at {sql_path}")
+    if sql_path.is_file():
+        sql_text = sql_path.read_text(encoding="utf-8")
+        require("lapluma_app_core" in sql_text, "005 DDL must declare lapluma_app_core role")
+        require("lapluma_app_workflow" in sql_text, "005 DDL must declare lapluma_app_workflow role")
+        require("lapluma_library_admin" in sql_text, "005 DDL must declare lapluma_library_admin role")
+        require(
+            "REVOKE ALL ON SCHEMA workflow FROM lapluma_app_core" in sql_text,
+            "Core API must be explicitly revoked from workflow schema",
+        )
+        require(
+            "REVOKE ALL ON SCHEMA workflow FROM lapluma_library_admin" in sql_text,
+            "Library Admin must be explicitly revoked from workflow schema",
+        )
+        require(
+            "REVOKE INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA library FROM lapluma_app_workflow" in sql_text,
+            "Workflow API must be revoked from mutating library tables",
+        )
+
+    # Validate Terraform IAM module
+    iam_tf = ROOT / "infra" / "terraform" / "modules" / "iam" / "main.tf"
+    require(iam_tf.is_file(), f"IAM module missing at {iam_tf}")
+    if iam_tf.is_file():
+        iam_text = iam_tf.read_text(encoding="utf-8")
+        require("resource \"google_service_account\" \"gateway_sa\"" in iam_text, "IAM module must declare gateway_sa")
+        require("google_iam_workload_identity_pool" in iam_text, "IAM module must declare workload identity pool")
+
+    # Validate Terraform Compute module
+    compute_tf = ROOT / "infra" / "terraform" / "modules" / "compute" / "main.tf"
+    require(compute_tf.is_file(), f"Compute module missing at {compute_tf}")
+    if compute_tf.is_file():
+        compute_text = compute_tf.read_text(encoding="utf-8")
+        require("allUsers" not in compute_text, "Cloud Run services must NOT allow unauthenticated allUsers invoker")
+        require(
+            "roles/run.invoker" in compute_text,
+            "Cloud Run services must restrict invoker to authorized callers",
+        )
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1169,6 +1216,7 @@ def main() -> int:
         *validate_review_index(),
         *validate_blueprints(),
         *validate_uscis_manifest(),
+        *validate_identity_and_roles(),
     ]
     if failures:
 

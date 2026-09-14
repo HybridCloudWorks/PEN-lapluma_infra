@@ -67,6 +67,13 @@ resource "google_service_account" "acquisition_sa" {
   display_name = "LaPluma Official Form Acquisition SA (${var.environment})"
 }
 
+# API Gateway Identity (assumed by API Gateway to securely invoke backends)
+resource "google_service_account" "gateway_sa" {
+  account_id   = "lp-gw-${var.environment}"
+  display_name = "LaPluma API Gateway SA (${var.environment})"
+  description  = "Identity assumed by API Gateway to invoke backend Cloud Run services"
+}
+
 # Cloud SQL client access for Core and Workflow APIs only
 resource "google_project_iam_member" "core_api_cloudsql" {
   project = var.project_id
