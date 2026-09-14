@@ -82,3 +82,33 @@ resource "google_storage_bucket_iam_member" "processing_worker_scratch_admin" {
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${var.processing_worker_sa_email}"
 }
+
+# Quarantine / staging bucket for direct-to-storage uploads prior to verification (INT-05 / ADR-019)
+resource "google_storage_bucket" "quarantine_bucket" {
+  name                        = "lp-quarantine-${var.environment}-${var.project_id}"
+  location                    = var.region
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 1 # Auto-expire abandoned or uncompleted upload sessions after 24h
+    }
+  }
+}
+
+resource "google_storage_bucket_iam_member" "workflow_api_quarantine_admin" {
+  bucket = google_storage_bucket.quarantine_bucket.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${var.workflow_api_sa_email}"
+}
+
+resource "google_storage_bucket_iam_member" "processing_worker_quarantine_read" {
+  bucket = google_storage_bucket.quarantine_bucket.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.processing_worker_sa_email}"
+}
