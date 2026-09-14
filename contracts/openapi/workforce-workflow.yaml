@@ -143,17 +143,60 @@ paths:
         '409': {description: Session already consumed by a different request}
         '422': {description: Digest, size, page, type, or sanitization validation failed}
   /review-queue:
-    get: {operationId: getReviewQueue, responses: {'200': {description: Assigned cases}}}
+    get:
+      operationId: getReviewQueue
+      responses:
+        '200': {description: Assigned cases awaiting review, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ReviewQueueItem'}}}}}
   /cases/{caseId}/review-decisions:
-    post: {operationId: recordReviewDecision, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Decision recorded}}}
+    post:
+      operationId: recordReviewDecision
+      parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecisionRequest'}}}}
+      responses:
+        '201': {description: Decision recorded, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Case is not in review}
   /cases/{caseId}/draft-preview:
-    post: {operationId: createDraftPreview, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Short-lived non-exportable watermarked preview}}}
+    post:
+      operationId: createDraftPreview
+      parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '201': {description: Short-lived non-exportable watermarked preview, content: {application/json: {schema: {$ref: '#/components/schemas/DraftFormPreview'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Preview is not available at this stage}
   /cases/{caseId}/step-up-challenge:
-    post: {operationId: createApprovalChallenge, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Step-up challenge}}}
+    post:
+      operationId: createApprovalChallenge
+      parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '201': {description: Step-up challenge, content: {application/json: {schema: {$ref: '#/components/schemas/StepUpChallenge'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
   /cases/{caseId}/approval:
-    post: {operationId: approveCase, parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}], responses: {'201': {description: Hash-bound approval}}}
+    post:
+      operationId: approveCase
+      parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CaseApprovalRequest'}}}}
+      responses:
+        '201': {description: Hash-bound approval, content: {application/json: {schema: {$ref: '#/components/schemas/ApprovalRecord'}}}}
+        '401': {description: Step-up authentication and attestation required}
+        '403': {description: Approver must be distinct from preparer and reviewer}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Stale preview or case not ready for approval}
   /cases/{caseId}/history:
-    get: {operationId: getCaseHistory, parameters: [{$ref: '#/components/parameters/CaseId'}], responses: {'200': {description: Audited history}}}
+    get:
+      operationId: getCaseHistory
+      parameters: [{$ref: '#/components/parameters/CaseId'}]
+      responses:
+        '200': {description: Audited history, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/CaseHistoryEvent'}}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /cases/{caseId}/package-generation:
+    post:
+      operationId: requestPackageGeneration
+      parameters: [{$ref: '#/components/parameters/CaseId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '201': {description: Official package generated, content: {application/json: {schema: {$ref: '#/components/schemas/GeneratedPackage'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: Unapproved, invalidated, or form edition drift}
   /admin/members:
     get: {operationId: listWorkspaceMembers, responses: {'200': {description: Members without implicit content access}}}
   /admin/sessions:
@@ -304,3 +347,92 @@ components:
         relayId: {type: string}
         documentId: {type: string}
         status: {type: string, const: RECEIVED}
+
+    ReviewQueueItem:
+      type: object
+      required: [clientLabel, caseSummary, ageDays, blockerCount]
+      properties:
+        clientLabel: {type: string}
+        caseSummary: {$ref: '#/components/schemas/CaseSummary'}
+        ageDays: {type: integer, minimum: 0}
+        blockerCount: {type: integer, minimum: 0}
+    CaseSummary:
+      type: object
+      required: [id, folderID, packageCode, packageTitle, state, counters, pinnedForms]
+      properties:
+        id: {type: string}
+        folderID: {type: string}
+        packageCode: {type: string}
+        packageTitle: {type: string}
+        state: {type: string}
+        counters: {type: object}
+        pinnedForms: {type: array, items: {type: object}}
+    ReviewDecisionRequest:
+      type: object
+      required: [outcome]
+      properties:
+        outcome: {type: string, enum: [CHANGES_REQUESTED, READY_FOR_APPROVAL]}
+        note: {type: [string, 'null']}
+    ReviewDecision:
+      type: object
+      required: [caseId, reviewerId, outcome, decidedAt]
+      properties:
+        caseId: {type: string}
+        reviewerId: {type: string}
+        outcome: {type: string, enum: [CHANGES_REQUESTED, READY_FOR_APPROVAL]}
+        note: {type: [string, 'null']}
+        decidedAt: {type: string, format: date-time}
+    DraftFormPreview:
+      type: object
+      required: [caseId, watermark, pageCount, valueSetHash, editionSetHash, expiresAt]
+      properties:
+        caseId: {type: string}
+        watermark: {type: string}
+        pageCount: {type: integer, minimum: 1}
+        valueSetHash: {type: string}
+        editionSetHash: {type: string}
+        expiresAt: {type: string, format: date-time}
+    StepUpChallenge:
+      type: object
+      required: [caseId, challengeToken, expiresAt]
+      properties:
+        caseId: {type: string}
+        challengeToken: {type: string}
+        expiresAt: {type: string, format: date-time}
+    CaseApprovalRequest:
+      type: object
+      required: [preview, stepUpChallenge, attested]
+      properties:
+        preview: {$ref: '#/components/schemas/DraftFormPreview'}
+        stepUpChallenge: {type: string}
+        attested: {type: boolean}
+    ApprovalRecord:
+      type: object
+      required: [caseId, approverId, valueSetHash, editionSetHash, attestedAt, valid]
+      properties:
+        caseId: {type: string}
+        approverId: {type: string}
+        valueSetHash: {type: string}
+        editionSetHash: {type: string}
+        attestedAt: {type: string, format: date-time}
+        valid: {type: boolean}
+    CaseHistoryEvent:
+      type: object
+      required: [id, occurredAt, actorId, kind, summary]
+      properties:
+        id: {type: string, format: uuid}
+        occurredAt: {type: string, format: date-time}
+        actorId: {type: string}
+        kind: {type: string}
+        summary: {type: string}
+    GeneratedPackage:
+      type: object
+      required: [id, caseId, generatedAt, verification, preparer, outputs, filingChecklist]
+      properties:
+        id: {type: string}
+        caseId: {type: string}
+        generatedAt: {type: string, format: date-time}
+        verification: {type: object}
+        preparer: {type: object}
+        outputs: {type: array, items: {type: object}}
+        filingChecklist: {type: object}

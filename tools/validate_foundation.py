@@ -339,7 +339,7 @@ def validate_priority_and_modes() -> Failures:
 # divergence; adopting a newer revision is a deliberate act that updates this constant in the same
 # change. The cross-repository pin (the app ledger's LAPLUMA_CONTRACT_REVISION) is still format
 # agreed only — see R-19.
-WORKFORCE_WORKFLOW_SHA256 = "09b0bce5fc03d244cd77a6a40b415827823e0c095019198f031dc72a223a8d9a"
+WORKFORCE_WORKFLOW_SHA256 = "34db3365f6e9348b7b55e57b3a285d4e7a150df4b9ad7983512a2975921b5d5f"
 
 
 def validate_workflow_contract() -> Failures:

@@ -110,3 +110,109 @@ public sealed record UploadReceipt(
     string DocumentId,
     string ContentSha256,
     string ProcessingState);
+
+// MARK: Review, Approval, and Output Models (Phase 6 / INT-06 / INF-11)
+public sealed record ReviewQueueItem(
+    string ClientLabel,
+    CaseSummary CaseSummary,
+    int AgeDays,
+    int BlockerCount);
+
+public sealed record ReviewDecisionRequest(
+    string? Outcome,
+    string? Note);
+
+public sealed record ReviewDecision(
+    string CaseId,
+    string ReviewerId,
+    string Outcome,
+    string? Note,
+    DateTimeOffset DecidedAt);
+
+public sealed record DraftFormPreview(
+    string CaseId,
+    string Watermark,
+    int PageCount,
+    string ValueSetHash,
+    string EditionSetHash,
+    DateTimeOffset ExpiresAt);
+
+public sealed record StepUpChallenge(
+    string CaseId,
+    string ChallengeToken,
+    DateTimeOffset ExpiresAt);
+
+public sealed record CaseApprovalRequest(
+    DraftFormPreview? Preview,
+    string? StepUpChallenge,
+    bool Attested);
+
+public sealed record ApprovalRecord(
+    string CaseId,
+    string ApproverId,
+    string ValueSetHash,
+    string EditionSetHash,
+    DateTimeOffset AttestedAt,
+    bool Valid = true);
+
+public sealed record CaseHistoryEvent(
+    Guid Id,
+    DateTimeOffset OccurredAt,
+    string ActorId,
+    string Kind,
+    string Summary);
+
+public sealed record CommitSectionRequest(
+    int BaseRevision,
+    Dictionary<string, string>? Values);
+
+public sealed record SectionCommit(
+    FormSection Section,
+    bool ReopenedReview,
+    bool InvalidatedApproval);
+
+public sealed record VerificationReport(
+    bool Passed,
+    int FieldsVerified,
+    int Mismatches);
+
+public sealed record PreparerAttribution(
+    string OrganizationName,
+    string VerificationStatus,
+    string? VerificationType);
+
+public sealed record PDFOutput(
+    string Id,
+    string Kind,
+    string FillMode,
+    string? FormNumber,
+    DateTimeOffset? EditionDate,
+    int PageCount,
+    int SortOrder,
+    string? Reason = null);
+
+public sealed record SignaturePoint(
+    string FormNumber,
+    string PartLabel);
+
+public sealed record FilingChecklist(
+    int? FeeUSDCents,
+    string? FilingAddress,
+    IReadOnlyList<SignaturePoint> WetInkSignaturePoints,
+    string? Citation);
+
+public sealed record GeneratedPackage(
+    string Id,
+    string CaseId,
+    DateTimeOffset GeneratedAt,
+    VerificationReport Verification,
+    PreparerAttribution Preparer,
+    IReadOnlyList<PDFOutput> Outputs,
+    FilingChecklist FilingChecklist);
+
+public sealed record PackageGenerationReadiness(
+    bool CaseStateAllowsGeneration,
+    int UnconfirmedRequiredFields,
+    int OpenProposals,
+    int BlockingDiscrepancies,
+    IReadOnlyList<string> FormsWithEditionDrift);
