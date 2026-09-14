@@ -458,6 +458,49 @@ v1.MapPost("/cases/{caseId}/package-generation", async (
     };
 });
 
+v1.MapGet("/cases/{caseId}/packages/{packageId}/download", async (
+    HttpContext context,
+    string caseId,
+    string packageId,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "caller-unidentified";
+    var outcome = await source.GetPackageDownloadAsync(caseId, packageId, userId, cancellationToken);
+
+    return outcome.Status switch
+    {
+        PackageDownloadStatus.Success => Results.Ok(outcome.Grant),
+        PackageDownloadStatus.NotFound => WorkflowProblem.Result(context, "not-found", "Missing or unauthorized", 404),
+        PackageDownloadStatus.ApprovalInvalidated => WorkflowProblem.Result(context, "approval-invalidated", "Case approval was invalidated by subsequent field edits", 409),
+        PackageDownloadStatus.NotReady => WorkflowProblem.Result(context, "package-not-ready", "Package is not ready for download", 409),
+        _ => WorkflowProblem.Result(context, "download-failed", "Unable to issue download grant", 500),
+    };
+});
+
+v1.MapPost("/events/workflow", async (
+    HttpContext context,
+    PubSubWorkflowEvent workflowEvent,
+    IWorkflowSource source,
+    CancellationToken cancellationToken) =>
+{
+    if (RequireIdempotencyKey(context) is { } keyProblem)
+    {
+        return keyProblem;
+    }
+
+    var outcome = await source.ProcessWorkflowEventAsync(workflowEvent, IdempotencyKey(context), cancellationToken);
+
+    return outcome.Status switch
+    {
+        WorkflowEventProcessingStatus.Processed => Results.Ok(outcome.Receipt),
+        WorkflowEventProcessingStatus.DuplicateIgnored => Results.Ok(outcome.Receipt),
+        WorkflowEventProcessingStatus.RegressionPrevented => Results.Ok(outcome.Receipt),
+        WorkflowEventProcessingStatus.Quarantined => Results.Ok(outcome.Receipt),
+        _ => WorkflowProblem.Result(context, "bad-event-payload", "Invalid event payload", 400),
+    };
+});
+
 // Every remaining contract operation is mapped explicitly and answers 501, so "not built yet" is
 // distinguishable from "wrong URL": an unmapped path is a routing 404, these are a typed problem.
 // The two anonymous relay endpoints (GET /relay/{token}, POST /relay/{token}/unlock) are

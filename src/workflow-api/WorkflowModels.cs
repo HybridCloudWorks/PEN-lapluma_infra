@@ -201,6 +201,14 @@ public sealed record FilingChecklist(
     IReadOnlyList<SignaturePoint> WetInkSignaturePoints,
     string? Citation);
 
+public sealed record ScopedDownloadGrant(
+    string PackageId,
+    string CaseId,
+    Uri DownloadUrl,
+    DateTimeOffset ExpiresAt,
+    string ContentSha256,
+    long SizeBytes);
+
 public sealed record GeneratedPackage(
     string Id,
     string CaseId,
@@ -208,7 +216,11 @@ public sealed record GeneratedPackage(
     VerificationReport Verification,
     PreparerAttribution Preparer,
     IReadOnlyList<PDFOutput> Outputs,
-    FilingChecklist FilingChecklist);
+    FilingChecklist FilingChecklist,
+    ScopedDownloadGrant? DownloadGrant = null,
+    string? ValuesHash = null,
+    string? BlueprintRevisionHash = null,
+    string? ApprovalId = null);
 
 public sealed record PackageGenerationReadiness(
     bool CaseStateAllowsGeneration,
@@ -216,3 +228,18 @@ public sealed record PackageGenerationReadiness(
     int OpenProposals,
     int BlockingDiscrepancies,
     IReadOnlyList<string> FormsWithEditionDrift);
+
+public sealed record PubSubWorkflowEvent(
+    string EventId,
+    string EventType,
+    string CaseId,
+    DateTimeOffset OccurredAt,
+    string? CorrelationId = null,
+    Dictionary<string, object>? Payload = null);
+
+public sealed record WorkflowEventReceipt(
+    string EventId,
+    string Status,
+    DateTimeOffset ProcessedAt,
+    string? CorrelationId = null);
+

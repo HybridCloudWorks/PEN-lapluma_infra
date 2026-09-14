@@ -229,6 +229,14 @@ public sealed class WorkflowApiTests : IClassFixture<AuthenticatedFactory>
         public Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
             string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken) =>
             Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.NotFound));
+
+        public Task<PackageDownloadOutcome> GetPackageDownloadAsync(
+            string caseId, string packageId, string userId, CancellationToken cancellationToken) =>
+            Task.FromResult(new PackageDownloadOutcome(PackageDownloadStatus.NotFound));
+
+        public Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
+            PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken) =>
+            Task.FromResult(new WorkflowEventOutcome(WorkflowEventProcessingStatus.Processed, new WorkflowEventReceipt(workflowEvent.EventId, "PROCESSED", DateTimeOffset.UtcNow)));
     }
 
     private sealed class EmptyDirectoryFactory : WebApplicationFactory<global::Program>

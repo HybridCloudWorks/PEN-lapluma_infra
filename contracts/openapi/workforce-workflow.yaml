@@ -197,6 +197,43 @@ paths:
         '201': {description: Official package generated, content: {application/json: {schema: {$ref: '#/components/schemas/GeneratedPackage'}}}}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {description: Unapproved, invalidated, or form edition drift}
+  /cases/{caseId}/packages/{packageId}/download:
+    get:
+      operationId: getPackageDownload
+      parameters:
+        - {$ref: '#/components/parameters/CaseId'}
+        - {name: packageId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Short-lived scoped download grant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScopedDownloadGrant'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Approval invalidated or case not in approved/generated state
+  /events/workflow:
+    post:
+      operationId: ingestWorkflowEvent
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PubSubWorkflowEvent'
+      responses:
+        '200':
+          description: Event processed or acknowledged idempotently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowEventReceipt'
+        '400':
+          description: Malformed or unparseable event payload
   /admin/members:
     get: {operationId: listWorkspaceMembers, responses: {'200': {description: Members without implicit content access}}}
   /admin/sessions:
@@ -436,3 +473,35 @@ components:
         preparer: {type: object}
         outputs: {type: array, items: {type: object}}
         filingChecklist: {type: object}
+        downloadGrant: {$ref: '#/components/schemas/ScopedDownloadGrant'}
+        valuesHash: {type: string}
+        blueprintRevisionHash: {type: string}
+        approvalId: {type: string}
+    ScopedDownloadGrant:
+      type: object
+      required: [packageId, caseId, downloadUrl, expiresAt, contentSha256, sizeBytes]
+      properties:
+        packageId: {type: string}
+        caseId: {type: string}
+        downloadUrl: {type: string, format: uri}
+        expiresAt: {type: string, format: date-time}
+        contentSha256: {type: string}
+        sizeBytes: {type: integer, minimum: 1}
+    PubSubWorkflowEvent:
+      type: object
+      required: [eventId, eventType, caseId, occurredAt]
+      properties:
+        eventId: {type: string}
+        eventType: {type: string, enum: [DOCUMENT_EXTRACTED, EXTRACTION_FAILED, QUARANTINE_PROMOTED, PACKAGE_COMPILED]}
+        caseId: {type: string}
+        occurredAt: {type: string, format: date-time}
+        correlationId: {type: string}
+        payload: {type: object}
+    WorkflowEventReceipt:
+      type: object
+      required: [eventId, status, processedAt]
+      properties:
+        eventId: {type: string}
+        status: {type: string, enum: [PROCESSED, DUPLICATE_IGNORED, REGRESSION_PREVENTED, QUARANTINED]}
+        processedAt: {type: string, format: date-time}
+        correlationId: {type: string}
