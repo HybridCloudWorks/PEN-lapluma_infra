@@ -1,5 +1,8 @@
 # Azure deployment plan
 
+**Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
+
+
 Planning source recorded 2026-08-02, migrated from the repository on 2026-08-07.
 
 This page describes the **plan and the process**. It deliberately carries no task checkboxes and no

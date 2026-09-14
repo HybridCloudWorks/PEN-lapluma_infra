@@ -1,5 +1,10 @@
 # LaPluma infrastructure wiki
 
+[Approved GCP target and Document Library](GCP-Document-Library-Decision.md) · [Cost model](GCP-Cost-Model.md) · [Board handoff](GCP-Board-Handoff.md)
+
+The pages below describe the existing Azure scaffold. The approved target supersedes conflicting cloud assumptions; migration has not been implemented.
+
+
 Long-form documentation for the `PEN-lapluma_infra` repository: the backend contracts, Azure
 infrastructure as code, and backend services for the LaPluma `lapluma-app-0.2` supervised pilot.
 
