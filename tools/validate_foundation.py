@@ -1257,6 +1257,34 @@ def validate_gcp_environments() -> Failures:
     return failures
 
 
+def validate_institution_onboarding() -> Failures:
+    """Validate INT-13 repeatable LaPluma-managed institution onboarding tooling and runbook."""
+    failures = Failures()
+    require = failures.require
+
+    runbook_md = ROOT / "docs" / "runbooks" / "operator-institution-onboarding.md"
+    require(runbook_md.is_file(), f"Institution onboarding runbook missing at {runbook_md}")
+    if runbook_md.is_file():
+        runbook_text = runbook_md.read_text(encoding="utf-8")
+        require("Zero Self-Approval" in runbook_text, "Runbook missing Zero Self-Approval invariant")
+        require("reviewer != author" in runbook_text, "Runbook missing reviewer != author invariant")
+        require("clinic-sf-01_onboard.up.sql" in runbook_text, "Runbook missing up.sql reference")
+        require("clinic-sf-01_onboard.down.sql" in runbook_text, "Runbook missing down.sql reference")
+
+    tool_py = ROOT / "tools" / "onboard_institution.py"
+    require(tool_py.is_file(), f"Institution onboarding tool missing at {tool_py}")
+    if tool_py.is_file():
+        tool_text = tool_py.read_text(encoding="utf-8")
+        require("class InstitutionOnboardingManager" in tool_text, "Tool missing InstitutionOnboardingManager class")
+        require("self-approval prohibited" in tool_text, "Tool missing self-approval check")
+        require("def generate_sql" in tool_text, "Tool missing generate_sql method")
+
+    test_py = ROOT / "tools" / "test_onboard_institution.py"
+    require(test_py.is_file(), f"Institution onboarding test missing at {test_py}")
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1279,6 +1307,7 @@ def main() -> int:
         *validate_uscis_manifest(),
         *validate_identity_and_roles(),
         *validate_gcp_environments(),
+        *validate_institution_onboarding(),
     ]
     if failures:
 
