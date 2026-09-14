@@ -355,7 +355,8 @@ def validate_workflow_contract() -> Failures:
 
     mirror = ROOT / "contracts/openapi/workforce-workflow.yaml"
     authored = ROOT / "contracts/openapi/documents-upload.yaml"
-    missing = [path for path in (mirror, authored) if not path.exists()]
+    library = ROOT / "contracts/openapi/document-library.yaml"
+    missing = [path for path in (mirror, authored, library) if not path.exists()]
     for path in missing:
         require(False, f"workflow contract missing: {path.relative_to(ROOT)}")
     if missing:
@@ -370,7 +371,8 @@ def validate_workflow_contract() -> Failures:
 
     mirror_text = mirror_bytes.decode("utf-8")
     authored_text = authored.read_text(encoding="utf-8")
-    for text, name in ((mirror_text, mirror.name), (authored_text, authored.name)):
+    library_text = library.read_text(encoding="utf-8")
+    for text, name in ((mirror_text, mirror.name), (authored_text, authored.name), (library_text, library.name)):
         require(
             text.startswith("openapi: 3.1.0\n"),
             f"{name} must declare OpenAPI 3.1.0 on its first line",
@@ -400,6 +402,24 @@ def validate_workflow_contract() -> Failures:
         "security: []" not in authored_text,
         "the upload contract must not declare anonymous operations",
     )
+    require(
+        "title: LaPluma Document Library API" in library_text,
+        "document library contract title drifted",
+    )
+    require(
+        "security: []" not in library_text,
+        "the document library contract must not declare anonymous operations",
+    )
+    for operation in (
+        "listLibraryCollections", "getLibraryCollection",
+        "listLibraryBlueprints", "getLibraryBlueprint",
+        "listPackageMappings", "publishBlueprint",
+        "checkBlueprintDrift", "rollbackBlueprint", "assignTenantCollection"
+    ):
+        require(
+            f"operationId: {operation}" in library_text,
+            f"document library contract missing required operation: {operation}",
+        )
     return failures
 
 
@@ -453,7 +473,11 @@ def validate_progress_language() -> Failures:
     # The YAML contracts have no parser here, so match declaration-shaped keys instead: a key at
     # the start of a line, and the inline `{key: value}` form the workflow contract uses heavily.
     yaml_key = re.compile(r"(?:^\s*|[{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:", re.MULTILINE)
-    for relative in ("contracts/openapi/workforce-workflow.yaml", "contracts/openapi/documents-upload.yaml"):
+    for relative in (
+        "contracts/openapi/workforce-workflow.yaml",
+        "contracts/openapi/documents-upload.yaml",
+        "contracts/openapi/document-library.yaml",
+    ):
         text = (ROOT / relative).read_text(encoding="utf-8")
         for match in yaml_key.finditer(text):
             name = match.group(1)
