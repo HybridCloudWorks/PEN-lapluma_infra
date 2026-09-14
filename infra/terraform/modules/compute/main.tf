@@ -99,3 +99,25 @@ resource "google_cloud_run_v2_service" "processing_worker" {
     }
   }
 }
+
+# ------------------------------------------------------------------------------
+# IAM Access Restrictions (INT-02)
+# Direct public invocation is denied; only API Gateway SA holds run.invoker
+# ------------------------------------------------------------------------------
+resource "google_cloud_run_v2_service_iam_member" "core_api_gateway_invoker" {
+  count    = var.gateway_sa_email != "" ? 1 : 0
+  project  = google_cloud_run_v2_service.core_api.project
+  location = google_cloud_run_v2_service.core_api.location
+  name     = google_cloud_run_v2_service.core_api.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.gateway_sa_email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "workflow_api_gateway_invoker" {
+  count    = var.gateway_sa_email != "" ? 1 : 0
+  project  = google_cloud_run_v2_service.workflow_api.project
+  location = google_cloud_run_v2_service.workflow_api.location
+  name     = google_cloud_run_v2_service.workflow_api.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.gateway_sa_email}"
+}

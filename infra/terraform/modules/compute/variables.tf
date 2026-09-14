@@ -41,3 +41,9 @@ variable "processing_worker_sa_email" {
 variable "db_connection_name" {
   type = string
 }
+
+variable "gateway_sa_email" {
+  type        = string
+  description = "Service account email of API Gateway authorized to invoke Cloud Run services"
+  default     = ""
+}
