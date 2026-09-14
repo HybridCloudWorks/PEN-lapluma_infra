@@ -246,6 +246,107 @@ library.MapGet("/blueprints/{namespace}/{blueprintId}", async Task<IResult> (
         : CatalogProblem.Result(context, "library-blueprint-not-found", "Document blueprint not found", 404);
 });
 
+library.MapPost("/blueprints/{namespace}/{blueprintId}/{revision}/review", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string blueprintId,
+    int revision,
+    BlueprintReviewRequest request,
+    IBlueprintPublicationService publicationService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.Equals(request.ReviewerId.Trim(), request.AuthorId.Trim(), StringComparison.OrdinalIgnoreCase))
+    {
+        return CatalogProblem.Result(context, "review-self-approval-prohibited", "Reviewer cannot be the author (self-approval prohibited)", 400);
+    }
+
+    try
+    {
+        await publicationService.ReviewBlueprintAsync(@namespace, blueprintId, revision, request, cancellationToken);
+        return Results.Ok(new { status = "REVIEW_APPROVED", @namespace, blueprintId, revision, reviewer = request.ReviewerId });
+    }
+    catch (Exception ex)
+    {
+        return CatalogProblem.Result(context, "review-failed", ex.Message, 400);
+    }
+});
+
+library.MapPost("/blueprints/{namespace}/{blueprintId}/{revision}/publish", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string blueprintId,
+    int revision,
+    BlueprintPublishRequest request,
+    IBlueprintPublicationService publicationService,
+    CancellationToken cancellationToken) =>
+{
+    if (request.AuthorId != null && string.Equals(request.ReviewerId.Trim(), request.AuthorId.Trim(), StringComparison.OrdinalIgnoreCase))
+    {
+        return CatalogProblem.Result(context, "publish-self-approval-prohibited", "Reviewer cannot be the author", 400);
+    }
+
+    try
+    {
+        await publicationService.PublishBlueprintAsync(@namespace, blueprintId, revision, request, cancellationToken);
+        return Results.Ok(new { status = "PUBLISHED", @namespace, blueprintId, revision, manifestSha256 = request.ManifestSha256 });
+    }
+    catch (Exception ex)
+    {
+        return CatalogProblem.Result(context, "publish-failed", ex.Message, 400);
+    }
+});
+
+library.MapPost("/blueprints/{namespace}/{blueprintId}/{revision}/check-drift", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string blueprintId,
+    int revision,
+    BlueprintDriftCheckRequest request,
+    IBlueprintPublicationService publicationService,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var isQuarantined = await publicationService.CheckAndQuarantineDriftAsync(@namespace, blueprintId, revision, request, cancellationToken);
+        return Results.Ok(new { isQuarantined, @namespace, blueprintId, revision });
+    }
+    catch (Exception ex)
+    {
+        return CatalogProblem.Result(context, "drift-check-failed", ex.Message, 400);
+    }
+});
+
+library.MapPost("/blueprints/{namespace}/{blueprintId}/rollback", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string blueprintId,
+    BlueprintRollbackRequest request,
+    IBlueprintPublicationService publicationService,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await publicationService.RollbackBlueprintAsync(@namespace, blueprintId, request, cancellationToken);
+        return Results.Ok(new { status = "ROLLED_BACK", @namespace, blueprintId, targetRevision = request.TargetRevision });
+    }
+    catch (Exception ex)
+    {
+        return CatalogProblem.Result(context, "rollback-failed", ex.Message, 400);
+    }
+});
+
+library.MapGet("/blueprints/{namespace}/{blueprintId}/audit", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string blueprintId,
+    int? revision,
+    IBlueprintPublicationService publicationService,
+    CancellationToken cancellationToken) =>
+{
+    var trail = await publicationService.GetAuditTrailAsync(@namespace, blueprintId, revision, cancellationToken);
+    return Results.Ok(trail);
+});
+
 app.Run();
 
 static bool TryParseActivationState(string? value, out FormActivationState? state)

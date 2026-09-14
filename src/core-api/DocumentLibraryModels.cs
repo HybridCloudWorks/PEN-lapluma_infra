@@ -100,3 +100,38 @@ public sealed record InstitutionTenant(
     string DisplayName,
     bool IsActive,
     DateTimeOffset CreatedAt);
+
+public sealed record BlueprintReviewRequest(
+    string ReviewerId,
+    string AuthorId,
+    string? Notes = null);
+
+public sealed record BlueprintPublishRequest(
+    string PublisherId,
+    string ReviewerId,
+    string? AuthorId,
+    string ManifestSha256);
+
+public sealed record BlueprintDriftCheckRequest(
+    string ObservedSourceSha256,
+    string OperatorId,
+    string? Reason = null);
+
+public sealed record BlueprintRollbackRequest(
+    int TargetRevision,
+    string OperatorId,
+    string Reason);
+
+public sealed record BlueprintPublicationAuditEntry(
+    Guid AuditId,
+    string Namespace,
+    string BlueprintId,
+    int Revision,
+    string Action,
+    string? AuthorId,
+    string? ReviewerId,
+    string OperatorId,
+    string? SourceSha256,
+    string? ManifestSha256,
+    string? Reason,
+    DateTimeOffset CreatedAt);

@@ -355,6 +355,101 @@ class TestBlueprintCli(unittest.TestCase):
             self.assertEqual(pkg_data.get("blueprintId"), "i-130")
             self.assertRegex(pkg_data.get("sha256", ""), r"^[a-f0-9]{64}$")
 
+    def test_cli_review_rejects_self_approval(self) -> None:
+        parser = build_parser()
+        sample_path = ROOT / "blueprints/official/uscis/i-130/blueprint.json"
+        args = parser.parse_args([
+            "review", str(sample_path),
+            "--author", "engineer_alice",
+            "--reviewer", "engineer_alice"
+        ])
+        res = args.func(args)
+        self.assertEqual(res, 1, "Self-approval must be rejected")
+
+    def test_cli_review_success(self) -> None:
+        parser = build_parser()
+        sample_path = ROOT / "blueprints/official/uscis/i-130/blueprint.json"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_file = Path(tmp_dir) / "review.json"
+            args = parser.parse_args([
+                "review", str(sample_path),
+                "--author", "engineer_alice",
+                "--reviewer", "staff_bob",
+                "-o", str(out_file)
+            ])
+            res = args.func(args)
+            self.assertEqual(res, 0)
+            data = json.loads(out_file.read_text(encoding="utf-8"))
+            self.assertEqual(data["action"], "REVIEW_APPROVED")
+            self.assertEqual(data["author"], "engineer_alice")
+            self.assertEqual(data["reviewer"], "staff_bob")
+
+    def test_cli_publish_rejects_self_approval(self) -> None:
+        parser = build_parser()
+        sample_path = ROOT / "blueprints/official/uscis/i-130/blueprint.json"
+        args = parser.parse_args([
+            "publish", str(sample_path),
+            "--publisher", "lead_charlie",
+            "--author", "engineer_alice",
+            "--reviewer", "engineer_alice"
+        ])
+        res = args.func(args)
+        self.assertEqual(res, 1, "Self-approved publication must be rejected")
+
+    def test_cli_publish_success(self) -> None:
+        parser = build_parser()
+        sample_path = ROOT / "blueprints/official/uscis/i-130/blueprint.json"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_file = Path(tmp_dir) / "publication.json"
+            args = parser.parse_args([
+                "publish", str(sample_path),
+                "--publisher", "lead_charlie",
+                "--author", "engineer_alice",
+                "--reviewer", "staff_bob",
+                "-o", str(out_file)
+            ])
+            res = args.func(args)
+            self.assertEqual(res, 0)
+            data = json.loads(out_file.read_text(encoding="utf-8"))
+            self.assertEqual(data["publicationState"], "PUBLISHED")
+            self.assertRegex(data["manifestSha256"], r"^[a-f0-9]{64}$")
+            self.assertEqual(data["reviewer"], "staff_bob")
+
+    def test_cli_check_drift_detection(self) -> None:
+        parser = build_parser()
+        sample_path = ROOT / "blueprints/official/uscis/i-130/blueprint.json"
+        # Match
+        args_match = parser.parse_args([
+            "check-drift", str(sample_path),
+            "--observed-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        ])
+        self.assertEqual(args_match.func(args_match), 0)
+
+        # Drift mismatch
+        args_mismatch = parser.parse_args([
+            "check-drift", str(sample_path),
+            "--observed-sha256", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ])
+        self.assertEqual(args_mismatch.func(args_mismatch), 2, "Source drift must return exit code 2 (quarantine)")
+
+    def test_cli_rollback_manifest(self) -> None:
+        parser = build_parser()
+        sample_path = ROOT / "blueprints/official/uscis/i-130/blueprint.json"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_file = Path(tmp_dir) / "rollback.json"
+            args = parser.parse_args([
+                "rollback", str(sample_path),
+                "--target-revision", "1",
+                "--operator", "lead_charlie",
+                "--reason", "Regressed field mapping on r2",
+                "-o", str(out_file)
+            ])
+            res = args.func(args)
+            self.assertEqual(res, 0)
+            data = json.loads(out_file.read_text(encoding="utf-8"))
+            self.assertEqual(data["action"], "ROLLED_BACK")
+            self.assertEqual(data["targetRevision"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
