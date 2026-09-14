@@ -444,6 +444,16 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             return Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.ApprovalInvalidated));
         }
 
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(15);
+        var downloadUrl = new Uri($"https://storage.googleapis.com/lapluma-documents-pilot/packages/pkg-{caseId}.pdf?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Expires=900");
+        var grant = new ScopedDownloadGrant(
+            $"pkg-{caseId}",
+            caseId,
+            downloadUrl,
+            expiresAt,
+            ComputeSha256($"package:pkg-{caseId}"),
+            1048576);
+
         var pkg = new GeneratedPackage(
             $"pkg-{caseId}",
             caseId,
@@ -451,13 +461,115 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             new VerificationReport(true, 12, 0),
             new PreparerAttribution("LaPluma Legal Clinic", "VERIFIED", "ACCREDITED_REPRESENTATIVE"),
             [new PDFOutput($"out-{caseId}-1", "FILLED_FORM", "ACROFORM_FILLED", "I-130", new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero), 12, 1)],
-            new FilingChecklist(53500, "USCIS Phoenix Lockbox", [new SignaturePoint("I-130", "Part 8. Petitioner's Signature")], "8 CFR 204.1(a)(1)"));
+            new FilingChecklist(53500, "USCIS Phoenix Lockbox", [new SignaturePoint("I-130", "Part 8. Petitioner's Signature")], "8 CFR 204.1(a)(1)"),
+            grant,
+            app.ValueSetHash,
+            app.EditionSetHash,
+            $"app-{caseId}");
 
         packages[caseId] = pkg;
         caseStates[caseId] = "GENERATED";
         AppendHistory(caseId, userId, "PACKAGE_GENERATED", "Official package generated");
 
         return Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.Success, pkg));
+    }
+
+    private readonly ConcurrentDictionary<string, WorkflowEventReceipt> processedEvents = new(StringComparer.OrdinalIgnoreCase);
+
+    public Task<PackageDownloadOutcome> GetPackageDownloadAsync(
+        string caseId, string packageId, string userId, CancellationToken cancellationToken)
+    {
+        if (!caseStates.TryGetValue(caseId, out var state))
+        {
+            return Task.FromResult(new PackageDownloadOutcome(PackageDownloadStatus.NotFound));
+        }
+
+        if (approvals.TryGetValue(caseId, out var app) && !app.Valid)
+        {
+            return Task.FromResult(new PackageDownloadOutcome(PackageDownloadStatus.ApprovalInvalidated));
+        }
+
+        if (!packages.TryGetValue(caseId, out var pkg) || !string.Equals(pkg.Id, packageId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(new PackageDownloadOutcome(PackageDownloadStatus.NotFound));
+        }
+
+        if (state != "GENERATED" && state != "APPROVED" && state != "DELIVERED")
+        {
+            return Task.FromResult(new PackageDownloadOutcome(PackageDownloadStatus.NotReady));
+        }
+
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(15);
+        var downloadUrl = new Uri($"https://storage.googleapis.com/lapluma-documents-pilot/packages/{packageId}.pdf?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Expires=900");
+        var grant = new ScopedDownloadGrant(
+            packageId,
+            caseId,
+            downloadUrl,
+            expiresAt,
+            ComputeSha256($"package:{packageId}"),
+            1048576);
+
+        AppendHistory(caseId, userId, "PACKAGE_DOWNLOAD_ISSUED", $"Scoped download grant issued for {packageId}");
+        return Task.FromResult(new PackageDownloadOutcome(PackageDownloadStatus.Success, grant));
+    }
+
+    public Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
+        PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(workflowEvent.EventId) || string.IsNullOrWhiteSpace(workflowEvent.CaseId))
+        {
+            return Task.FromResult(new WorkflowEventOutcome(WorkflowEventProcessingStatus.BadPayload));
+        }
+
+        // 1. Idempotency & Deduplication check
+        if (processedEvents.TryGetValue(workflowEvent.EventId, out var existingReceipt))
+        {
+            return Task.FromResult(new WorkflowEventOutcome(
+                WorkflowEventProcessingStatus.DuplicateIgnored,
+                existingReceipt with { Status = "DUPLICATE_IGNORED" }));
+        }
+
+        if (!caseStates.TryGetValue(workflowEvent.CaseId, out var currentState))
+        {
+            currentState = "COLLECTING";
+            caseStates[workflowEvent.CaseId] = currentState;
+        }
+
+        // 2. State Regression Guard
+        var isAdvancedState = currentState is "APPROVED" or "GENERATED" or "DELIVERED";
+        if (isAdvancedState && workflowEvent.EventType is "DOCUMENT_EXTRACTED" or "QUARANTINE_PROMOTED")
+        {
+            var regressionReceipt = new WorkflowEventReceipt(
+                workflowEvent.EventId,
+                "REGRESSION_PREVENTED",
+                DateTimeOffset.UtcNow,
+                workflowEvent.CorrelationId);
+            processedEvents[workflowEvent.EventId] = regressionReceipt;
+            return Task.FromResult(new WorkflowEventOutcome(
+                WorkflowEventProcessingStatus.RegressionPrevented,
+                regressionReceipt));
+        }
+
+        // 3. Process event
+        if (workflowEvent.EventType == "PACKAGE_COMPILED")
+        {
+            caseStates[workflowEvent.CaseId] = "GENERATED";
+        }
+        else if (workflowEvent.EventType == "QUARANTINE_PROMOTED" && currentState == "COLLECTING")
+        {
+            caseStates[workflowEvent.CaseId] = "VALIDATING";
+        }
+
+        AppendHistory(workflowEvent.CaseId, "system:pubsub", workflowEvent.EventType, $"Workflow event processed: {workflowEvent.EventType}");
+
+        var receipt = new WorkflowEventReceipt(
+            workflowEvent.EventId,
+            "PROCESSED",
+            DateTimeOffset.UtcNow,
+            workflowEvent.CorrelationId);
+        processedEvents[workflowEvent.EventId] = receipt;
+
+        return Task.FromResult(new WorkflowEventOutcome(WorkflowEventProcessingStatus.Processed, receipt));
     }
 
     public void SetCaseState(string caseId, string state)

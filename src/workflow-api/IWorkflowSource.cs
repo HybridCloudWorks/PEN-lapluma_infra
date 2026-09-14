@@ -31,6 +31,12 @@ public sealed record CommitSectionOutcome(CommitSectionStatus Status, SectionCom
 public enum PackageGenerationStatus { Success, NotFound, InvalidState, EditionDrift, HumanConfirmationRequired, ApprovalInvalidated, Conflict }
 public sealed record PackageGenerationOutcome(PackageGenerationStatus Status, GeneratedPackage? Package = null, int UnconfirmedCount = 0);
 
+public enum PackageDownloadStatus { Success, NotFound, ApprovalInvalidated, NotReady }
+public sealed record PackageDownloadOutcome(PackageDownloadStatus Status, ScopedDownloadGrant? Grant = null);
+
+public enum WorkflowEventProcessingStatus { Processed, DuplicateIgnored, RegressionPrevented, Quarantined, BadPayload }
+public sealed record WorkflowEventOutcome(WorkflowEventProcessingStatus Status, WorkflowEventReceipt? Receipt = null);
+
 /// <summary>
 /// The workflow read and write surface behind the HTTP handlers.
 /// </summary>
@@ -69,4 +75,10 @@ public interface IWorkflowSource
 
     Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
         string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken);
+
+    Task<PackageDownloadOutcome> GetPackageDownloadAsync(
+        string caseId, string packageId, string userId, CancellationToken cancellationToken);
+
+    Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
+        PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken);
 }

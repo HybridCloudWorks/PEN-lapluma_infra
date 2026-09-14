@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
@@ -565,13 +566,129 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
             return new PackageGenerationOutcome(PackageGenerationStatus.ApprovalInvalidated);
         }
 
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(15);
+        var downloadUrl = new Uri($"https://storage.googleapis.com/lapluma-documents-pilot/packages/pkg-{caseId}.pdf?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Expires=900");
+        var grant = new ScopedDownloadGrant(
+            $"pkg-{caseId}",
+            caseId,
+            downloadUrl,
+            expiresAt,
+            Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"package:pkg-{caseId}"))),
+            1048576);
+
         var pkg = new GeneratedPackage(
             $"pkg-{caseId}", caseId, DateTimeOffset.UtcNow,
             new VerificationReport(true, 12, 0),
             new PreparerAttribution("LaPluma Legal Clinic", "VERIFIED", "ACCREDITED_REPRESENTATIVE"),
             [new PDFOutput($"out-{caseId}-1", "FILLED_FORM", "ACROFORM_FILLED", "I-130", new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero), 12, 1)],
-            new FilingChecklist(53500, "USCIS Phoenix Lockbox", [new SignaturePoint("I-130", "Part 8. Petitioner's Signature")], "8 CFR 204.1(a)(1)"));
+            new FilingChecklist(53500, "USCIS Phoenix Lockbox", [new SignaturePoint("I-130", "Part 8. Petitioner's Signature")], "8 CFR 204.1(a)(1)"),
+            grant,
+            "val-hash",
+            "edition-hash",
+            $"app-{caseId}");
 
         return new PackageGenerationOutcome(PackageGenerationStatus.Success, pkg);
+    }
+
+    public async Task<PackageDownloadOutcome> GetPackageDownloadAsync(
+        string caseId, string packageId, string userId, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        const string sql = """
+            SELECT c.state,
+                   EXISTS(SELECT 1 FROM workflow.case_approval a WHERE a.case_id = c.id AND a.is_invalidated = FALSE) AS has_valid_approval
+            FROM workflow.case_workspace c
+            WHERE c.id = $1;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new PackageDownloadOutcome(PackageDownloadStatus.NotFound);
+        }
+
+        var state = reader.GetString(0);
+        var hasValidApproval = reader.GetBoolean(1);
+        await reader.CloseAsync();
+
+        if (!hasValidApproval)
+        {
+            return new PackageDownloadOutcome(PackageDownloadStatus.ApprovalInvalidated);
+        }
+
+        if (!string.Equals(state, "GENERATED", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(state, "APPROVED", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(state, "DELIVERED", StringComparison.OrdinalIgnoreCase))
+        {
+            return new PackageDownloadOutcome(PackageDownloadStatus.NotReady);
+        }
+
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(15);
+        var downloadUrl = new Uri($"https://storage.googleapis.com/lapluma-documents-pilot/packages/{packageId}.pdf?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Expires=900");
+        var grant = new ScopedDownloadGrant(
+            packageId,
+            caseId,
+            downloadUrl,
+            expiresAt,
+            Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"package:{packageId}"))),
+            1048576);
+
+        return new PackageDownloadOutcome(PackageDownloadStatus.Success, grant);
+    }
+
+    private readonly ConcurrentDictionary<string, WorkflowEventReceipt> pgProcessedEvents = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
+        PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(workflowEvent.EventId) || string.IsNullOrWhiteSpace(workflowEvent.CaseId))
+        {
+            return new WorkflowEventOutcome(WorkflowEventProcessingStatus.BadPayload);
+        }
+
+        if (pgProcessedEvents.TryGetValue(workflowEvent.EventId, out var existingReceipt))
+        {
+            return new WorkflowEventOutcome(
+                WorkflowEventProcessingStatus.DuplicateIgnored,
+                existingReceipt with { Status = "DUPLICATE_IGNORED" });
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1;";
+        await using var selectCmd = new NpgsqlCommand(selectSql, connection);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, workflowEvent.CaseId);
+        var stateObj = await selectCmd.ExecuteScalarAsync(cancellationToken);
+
+        var currentState = stateObj as string ?? "COLLECTING";
+        var isAdvanced = currentState is "APPROVED" or "GENERATED" or "DELIVERED";
+        if (isAdvanced && workflowEvent.EventType is "DOCUMENT_EXTRACTED" or "QUARANTINE_PROMOTED")
+        {
+            var regReceipt = new WorkflowEventReceipt(
+                workflowEvent.EventId,
+                "REGRESSION_PREVENTED",
+                DateTimeOffset.UtcNow,
+                workflowEvent.CorrelationId);
+            pgProcessedEvents[workflowEvent.EventId] = regReceipt;
+            return new WorkflowEventOutcome(WorkflowEventProcessingStatus.RegressionPrevented, regReceipt);
+        }
+
+        if (workflowEvent.EventType == "PACKAGE_COMPILED")
+        {
+            const string updateSql = "UPDATE workflow.case_workspace SET state = 'GENERATED' WHERE id = $1;";
+            await using var updateCmd = new NpgsqlCommand(updateSql, connection);
+            updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, workflowEvent.CaseId);
+            await updateCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var receipt = new WorkflowEventReceipt(
+            workflowEvent.EventId,
+            "PROCESSED",
+            DateTimeOffset.UtcNow,
+            workflowEvent.CorrelationId);
+        pgProcessedEvents[workflowEvent.EventId] = receipt;
+
+        return new WorkflowEventOutcome(WorkflowEventProcessingStatus.Processed, receipt);
     }
 }
