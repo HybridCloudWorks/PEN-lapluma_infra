@@ -1,5 +1,8 @@
 # LaPluma Azure infrastructure and backend
 
+Planning navigation: [approved GCP target and Document Library](wiki/GCP-Document-Library-Decision.md), [cost model](wiki/GCP-Cost-Model.md), and [three project boards](wiki/GCP-Board-Handoff.md).
+
+
 Backend contracts, Azure infrastructure as code, and backend services for the LaPluma
 `lapluma-app-0.2` supervised pilot.
 

@@ -1,5 +1,8 @@
 # Security and data protection
 
+**Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
+
+
 ## Governing constraints
 
 These constraints are architectural invariants for the `lapluma-app-0.2` supervised pilot. They are

@@ -1,5 +1,8 @@
 # Architecture overview
 
+**Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
+
+
 **Stack:** three isolated Azure Container Apps zones plus serverless orchestration and managed data
 services, deployed in South Central US.
 
