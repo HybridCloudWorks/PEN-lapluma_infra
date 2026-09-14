@@ -1374,6 +1374,44 @@ def validate_design_spec() -> list[str]:
     return failures
 
 
+def validate_canonical_writes() -> Failures:
+    """Verify canonical case writes, section commits, conflicts and approval invalidation (INT-04)."""
+    failures = Failures()
+    script_path = ROOT / "tools" / "verify_canonical_writes.py"
+    failures.require(script_path.is_file(), f"verify_canonical_writes.py missing at {script_path}")
+    if not script_path.is_file():
+        return failures
+
+    try:
+        try:
+            from tools.verify_canonical_writes import (
+                check_schema_invariants,
+                check_workflow_api_invariants,
+                check_workflow_sources,
+                check_tests_coverage,
+            )
+        except ImportError:
+            from verify_canonical_writes import (
+                check_schema_invariants,
+                check_workflow_api_invariants,
+                check_workflow_sources,
+                check_tests_coverage,
+            )
+
+        for err in check_schema_invariants():
+            failures.append(f"Canonical writes schema error: {err}")
+        for err in check_workflow_api_invariants():
+            failures.append(f"Canonical writes API error: {err}")
+        for err in check_workflow_sources():
+            failures.append(f"Canonical writes source error: {err}")
+        for err in check_tests_coverage():
+            failures.append(f"Canonical writes test coverage error: {err}")
+    except Exception as exc:
+        failures.append(f"Failed to execute verify_canonical_writes validation: {exc}")
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1400,6 +1438,7 @@ def main() -> int:
         *validate_database_migrations(),
         *validate_deletion_drill(),
         *validate_design_spec(),
+        *validate_canonical_writes(),
     ]
     if failures:
 

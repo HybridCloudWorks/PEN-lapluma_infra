@@ -118,6 +118,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     };
 
     private readonly ConcurrentDictionary<string, GeneratedPackage> packages = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (string PayloadHash, SectionCommit Result)> committedSections = new(StringComparer.OrdinalIgnoreCase);
 
     public Task<AuthenticatedContext> GetSessionContextAsync(
         string userId, CancellationToken cancellationToken) =>
@@ -381,6 +382,18 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             return Task.FromResult(new CommitSectionOutcome(CommitSectionStatus.NotFound));
         }
 
+        var payloadString = $"{caseId}:{sectionId}:{baseRevision}:{string.Join(";", values.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}"))}";
+        var payloadHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payloadString)));
+
+        if (!string.IsNullOrWhiteSpace(idempotencyKey) && committedSections.TryGetValue(idempotencyKey, out var existingCommit))
+        {
+            if (!string.Equals(existingCommit.PayloadHash, payloadHash, StringComparison.Ordinal))
+            {
+                return Task.FromResult(new CommitSectionOutcome(CommitSectionStatus.Conflict));
+            }
+            return Task.FromResult(new CommitSectionOutcome(CommitSectionStatus.Success, existingCommit.Result));
+        }
+
         var revMap = sectionRevisions.GetOrAdd(caseId, _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
         var currentRev = revMap.GetValueOrDefault(sectionId, 1);
 
@@ -416,9 +429,16 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
         AppendHistory(caseId, userId, "SECTION_COMMITTED", $"Canonical values committed from {sectionId}");
 
         var formSection = new FormSection(sectionId, "Identity and contact information", "I-130", newRev);
+        var result = new SectionCommit(formSection, reopen, invalidate);
+
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            committedSections[idempotencyKey] = (payloadHash, result);
+        }
+
         return Task.FromResult(new CommitSectionOutcome(
             CommitSectionStatus.Success,
-            new SectionCommit(formSection, reopen, invalidate)));
+            result));
     }
 
     public Task<PackageGenerationOutcome> RequestPackageGenerationAsync(

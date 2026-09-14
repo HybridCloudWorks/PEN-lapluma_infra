@@ -15,6 +15,9 @@ namespace LaPluma.WorkflowApi;
 /// </summary>
 public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkflowSource
 {
+    private readonly ConcurrentDictionary<string, (string PayloadHash, SectionCommit Result)> pgCommittedSections = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, int>> pgSectionRevisions = new(StringComparer.OrdinalIgnoreCase);
+
     public Task<AuthenticatedContext> GetSessionContextAsync(
         string userId, CancellationToken cancellationToken)
     {
@@ -482,6 +485,26 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     public async Task<CommitSectionOutcome> CommitSectionAsync(
         string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken)
     {
+        var payloadString = $"{caseId}:{sectionId}:{baseRevision}:{string.Join(";", values.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}"))}";
+        var payloadHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payloadString)));
+
+        if (!string.IsNullOrWhiteSpace(idempotencyKey) && pgCommittedSections.TryGetValue(idempotencyKey, out var existingCommit))
+        {
+            if (!string.Equals(existingCommit.PayloadHash, payloadHash, StringComparison.Ordinal))
+            {
+                return new CommitSectionOutcome(CommitSectionStatus.Conflict);
+            }
+            return new CommitSectionOutcome(CommitSectionStatus.Success, existingCommit.Result);
+        }
+
+        var revMap = pgSectionRevisions.GetOrAdd(caseId, _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+        var currentRev = revMap.GetValueOrDefault(sectionId, 1);
+
+        if (baseRevision != currentRev)
+        {
+            return new CommitSectionOutcome(CommitSectionStatus.VersionConflict);
+        }
+
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
@@ -498,6 +521,33 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         var state = (string)stateObj;
         var reopen = state is "IN_REVIEW" or "CHANGES_REQUESTED" or "READY_FOR_APPROVAL";
         var invalidate = state is "APPROVED" or "GENERATED";
+
+        const string upsertValueSql = """
+            INSERT INTO workflow.case_field_value (
+                case_id, canonical_path, raw_value, confirmed_value, is_human_confirmed,
+                confirmed_by_user_id, confirmed_at, source_kind, updated_at
+            )
+            VALUES ($1, $2, $3, $4, TRUE, $5, CURRENT_TIMESTAMP, 'MANUAL_ENTRY', CURRENT_TIMESTAMP)
+            ON CONFLICT (case_id, canonical_path) DO UPDATE SET
+                raw_value = EXCLUDED.raw_value,
+                confirmed_value = EXCLUDED.confirmed_value,
+                is_human_confirmed = TRUE,
+                confirmed_by_user_id = EXCLUDED.confirmed_by_user_id,
+                confirmed_at = CURRENT_TIMESTAMP,
+                source_kind = 'MANUAL_ENTRY',
+                updated_at = CURRENT_TIMESTAMP;
+            """;
+
+        foreach (var (canonicalPath, val) in values)
+        {
+            await using var valCmd = new NpgsqlCommand(upsertValueSql, connection, tx);
+            valCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+            valCmd.Parameters.AddWithValue(NpgsqlDbType.Text, canonicalPath);
+            valCmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)val ?? DBNull.Value);
+            valCmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)val ?? DBNull.Value);
+            valCmd.Parameters.AddWithValue(NpgsqlDbType.Text, userId);
+            await valCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
 
         if (invalidate)
         {
@@ -519,10 +569,41 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
             await stateCmd.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        await tx.CommitAsync(cancellationToken);
+        var newRev = baseRevision + 1;
+        const string outboxSql = """
+            INSERT INTO workflow.outbox_event (
+                aggregate_type, aggregate_id, event_type, payload, published, created_at
+            )
+            VALUES ('case', $1, 'SECTION_COMMITTED', $2::jsonb, FALSE, CURRENT_TIMESTAMP);
+            """;
+        var outboxPayload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            caseId,
+            sectionId,
+            revision = newRev,
+            reopenedReview = reopen,
+            invalidatedApproval = invalidate,
+            committedBy = userId,
+            fieldCount = values.Count,
+            summary = $"Canonical values committed from {sectionId}"
+        });
+        await using var outboxCmd = new NpgsqlCommand(outboxSql, connection, tx);
+        outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Json, outboxPayload);
+        await outboxCmd.ExecuteNonQueryAsync(cancellationToken);
 
-        var section = new FormSection(sectionId, "Section", "I-130", baseRevision + 1);
-        return new CommitSectionOutcome(CommitSectionStatus.Success, new SectionCommit(section, reopen, invalidate));
+        await tx.CommitAsync(cancellationToken);
+        revMap[sectionId] = newRev;
+
+        var section = new FormSection(sectionId, "Identity and contact information", "I-130", newRev);
+        var result = new SectionCommit(section, reopen, invalidate);
+
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            pgCommittedSections[idempotencyKey] = (payloadHash, result);
+        }
+
+        return new CommitSectionOutcome(CommitSectionStatus.Success, result);
     }
 
     public async Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
