@@ -17,6 +17,7 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
 
 builder.Services.AddCatalogSource(builder.Configuration);
 builder.Services.AddCatalogAuthentication(builder.Configuration);
+builder.Services.AddSingleton<ILibraryAccessService, LibraryAccessService>();
 
 var app = builder.Build();
 
@@ -170,6 +171,80 @@ catalog.MapGet(
             authority, formId, parsedEditionDate, schemaVersion, cancellationToken) is { } schema
         ? Results.Ok(schema)
         : CatalogProblem.Result(context, "catalog-schema-not-found", "Catalog schema not found", 404);
+});
+
+// Document Library surface with strict server-side tenant isolation (INF-18).
+// Client-provided tenant identifiers are never trusted; identity is resolved strictly from claims.
+var library = app.MapGroup("/v1/library").RequireAuthorization(CatalogAuthentication.PolicyName);
+
+library.MapGet("/collections", async Task<IResult> (
+    HttpContext context,
+    ILibraryAccessService libraryService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = TenantResolution.ResolveTenantId(context.User);
+    if (tenantId is null)
+    {
+        return CatalogProblem.Result(context, "tenant-unauthorized", "Caller tenant identity cannot be established", 403);
+    }
+
+    var collections = await libraryService.GetAssignedCollectionsAsync(tenantId, cancellationToken);
+    return Results.Ok(collections);
+});
+
+library.MapGet("/collections/{namespace}/{collectionId}", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string collectionId,
+    int? revision,
+    ILibraryAccessService libraryService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = TenantResolution.ResolveTenantId(context.User);
+    if (tenantId is null)
+    {
+        return CatalogProblem.Result(context, "tenant-unauthorized", "Caller tenant identity cannot be established", 403);
+    }
+
+    var collection = await libraryService.GetCollectionAsync(tenantId, @namespace, collectionId, revision, cancellationToken);
+    return collection is not null
+        ? Results.Ok(collection)
+        : CatalogProblem.Result(context, "library-collection-not-found", "Document collection not found", 404);
+});
+
+library.MapGet("/blueprints", async Task<IResult> (
+    HttpContext context,
+    ILibraryAccessService libraryService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = TenantResolution.ResolveTenantId(context.User);
+    if (tenantId is null)
+    {
+        return CatalogProblem.Result(context, "tenant-unauthorized", "Caller tenant identity cannot be established", 403);
+    }
+
+    var blueprints = await libraryService.ListEffectiveBlueprintsAsync(tenantId, cancellationToken);
+    return Results.Ok(blueprints);
+});
+
+library.MapGet("/blueprints/{namespace}/{blueprintId}", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string blueprintId,
+    int? revision,
+    ILibraryAccessService libraryService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = TenantResolution.ResolveTenantId(context.User);
+    if (tenantId is null)
+    {
+        return CatalogProblem.Result(context, "tenant-unauthorized", "Caller tenant identity cannot be established", 403);
+    }
+
+    var blueprint = await libraryService.GetBlueprintAsync(tenantId, @namespace, blueprintId, revision, cancellationToken);
+    return blueprint is not null
+        ? Results.Ok(blueprint)
+        : CatalogProblem.Result(context, "library-blueprint-not-found", "Document blueprint not found", 404);
 });
 
 app.Run();
