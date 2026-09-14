@@ -1,0 +1,4 @@
+project_id        = "lapluma-pilot-gcp"
+region            = "us-central1"
+environment       = "pilot"
+github_repository = "HybridCloudWorks/PEN-lapluma_infra"
