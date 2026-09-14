@@ -23,6 +23,20 @@ resource "google_storage_bucket" "documents_bucket" {
     enabled = true
   }
 
+  soft_delete_policy {
+    retention_duration_seconds = 604800 # 7 days (ratified soft-delete retention window < 30-day erasure SLA)
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      days_since_noncurrent_time = 7
+      with_state                 = "ARCHIVED"
+    }
+  }
+
   lifecycle_rule {
     action {
       type          = "SetStorageClass"

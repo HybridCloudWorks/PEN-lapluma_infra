@@ -1317,6 +1317,48 @@ def validate_database_migrations() -> Failures:
     return failures
 
 
+def validate_deletion_drill() -> Failures:
+    """Verify data deletion, retention ordering, and platform-managed encryption (INT-09)."""
+    failures = Failures()
+    script_path = ROOT / "tools" / "verify_deletion_drill.py"
+    failures.require(script_path.is_file(), f"verify_deletion_drill.py missing at {script_path}")
+    if not script_path.is_file():
+        return failures
+
+    try:
+        try:
+            from tools.verify_deletion_drill import (
+                check_retention_ordering,
+                check_platform_managed_encryption,
+                check_database_cascade_erasure,
+                check_signed_url_bounded_ttl,
+                check_runbook_modernization,
+            )
+        except ImportError:
+            from verify_deletion_drill import (
+                check_retention_ordering,
+                check_platform_managed_encryption,
+                check_database_cascade_erasure,
+                check_signed_url_bounded_ttl,
+                check_runbook_modernization,
+            )
+
+        for err in check_retention_ordering():
+            failures.append(f"Retention ordering error: {err}")
+        for err in check_platform_managed_encryption():
+            failures.append(f"Platform-managed encryption error: {err}")
+        for err in check_database_cascade_erasure():
+            failures.append(f"Cascade erasure error: {err}")
+        for err in check_signed_url_bounded_ttl():
+            failures.append(f"Signed URL bounded TTL error: {err}")
+        for err in check_runbook_modernization():
+            failures.append(f"Runbook modernization error: {err}")
+    except Exception as exc:
+        failures.append(f"Failed to execute verify_deletion_drill validation: {exc}")
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1341,6 +1383,7 @@ def main() -> int:
         *validate_gcp_environments(),
         *validate_institution_onboarding(),
         *validate_database_migrations(),
+        *validate_deletion_drill(),
     ]
     if failures:
 
