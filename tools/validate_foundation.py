@@ -1033,6 +1033,26 @@ def validate_review_index() -> Failures:
     return failures
 
 
+def validate_blueprints() -> Failures:
+    """Validate all versioned document blueprints against the schema and synthetic fixtures (INF-17)."""
+    failures = Failures()
+    try:
+        from blueprint_cli import BlueprintValidator
+    except ImportError:
+        from tools.blueprint_cli import BlueprintValidator
+
+    validator = BlueprintValidator()
+    blueprints_dir = ROOT / "blueprints"
+    if not blueprints_dir.is_dir():
+        return failures
+
+    for bp_file in sorted(blueprints_dir.glob("**/blueprint.json")):
+        for err in validator.validate_file(bp_file):
+            failures.append(err)
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1051,6 +1071,7 @@ def main() -> int:
         *validate_retention_ordering(),
         *validate_no_sensitive_values(),
         *validate_review_index(),
+        *validate_blueprints(),
     ]
     if failures:
         for failure in failures:

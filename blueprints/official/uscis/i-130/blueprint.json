@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "namespace": "uscis",
+  "blueprintId": "i-130",
+  "revision": 1,
+  "title": "Petition for Alien Relative",
+  "issuer": "U.S. Citizenship and Immigration Services",
+  "officialEditionDate": "2024-04-01",
+  "preparationMode": "FILLABLE_PDF",
+  "artifactType": "OFFICIAL_PDF",
+  "accessScope": "SHARED_OFFICIAL",
+  "source": {
+    "url": "https://www.uscis.gov/sites/default/files/document/forms/i-130.pdf",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lastVerified": "2026-09-13T00:00:00Z"
+  },
+  "fields": [
+    {
+      "canonicalPath": "petitioner.given_name",
+      "type": "string",
+      "label": "Petitioner Given Name",
+      "required": true,
+      "attributedRole": "PETITIONER",
+      "pdfFieldMapping": "form1[0].#subform[0].Pt1Line1a_GivenName[0]"
+    },
+    {
+      "canonicalPath": "petitioner.family_name",
+      "type": "string",
+      "label": "Petitioner Family Name",
+      "required": true,
+      "attributedRole": "PETITIONER",
+      "pdfFieldMapping": "form1[0].#subform[0].Pt1Line1b_FamilyName[0]"
+    },
+    {
+      "canonicalPath": "petitioner.dob",
+      "type": "date",
+      "label": "Petitioner Date of Birth",
+      "required": true,
+      "attributedRole": "PETITIONER"
+    },
+    {
+      "canonicalPath": "petitioner.ssn",
+      "type": "string",
+      "label": "Social Security Number",
+      "required": false,
+      "attributedRole": "PETITIONER"
+    },
+    {
+      "canonicalPath": "beneficiary.given_name",
+      "type": "string",
+      "label": "Beneficiary Given Name",
+      "required": true,
+      "attributedRole": "BENEFICIARY"
+    },
+    {
+      "canonicalPath": "beneficiary.family_name",
+      "type": "string",
+      "label": "Beneficiary Family Name",
+      "required": true,
+      "attributedRole": "BENEFICIARY"
+    },
+    {
+      "canonicalPath": "beneficiary.relationship",
+      "type": "choice",
+      "label": "Relationship to Petitioner",
+      "required": true,
+      "attributedRole": "BENEFICIARY"
+    }
+  ],
+  "validationRules": [
+    {
+      "ruleId": "ssn_format",
+      "type": "regex",
+      "expression": "petitioner.ssn:^\\d{3}-\\d{2}-\\d{4}$",
+      "errorMessage": "SSN must be in format 000-00-0000"
+    },
+    {
+      "ruleId": "dob_range",
+      "type": "range",
+      "expression": "petitioner.dob:1900-01-01:2026-09-14",
+      "errorMessage": "Date of birth must be valid past date"
+    }
+  ],
+  "evidenceRequirements": [
+    {
+      "code": "PROOFOFCITIZENSHIP",
+      "title": "Proof of U.S. Citizenship",
+      "attributedRole": "PETITIONER",
+      "isConditional": false,
+      "acceptedMimeTypes": [
+        "application/pdf",
+        "image/jpeg",
+        "image/png"
+      ]
+    },
+    {
+      "code": "MARRIAGECERTIFICATE",
+      "title": "Marriage Certificate",
+      "attributedRole": "BENEFICIARY",
+      "isConditional": true,
+      "acceptedMimeTypes": [
+        "application/pdf",
+        "image/jpeg",
+        "image/png"
+      ]
+    }
+  ],
+  "syntheticFixtures": [
+    {
+      "fixtureName": "valid_spouse_petition",
+      "expectedValid": true,
+      "inputValues": {
+        "petitioner.given_name": "Maria",
+        "petitioner.family_name": "Santos",
+        "petitioner.dob": "1985-06-15",
+        "petitioner.ssn": "123-45-6789",
+        "beneficiary.given_name": "Carlos",
+        "beneficiary.family_name": "Santos",
+        "beneficiary.relationship": "Spouse"
+      }
+    },
+    {
+      "fixtureName": "invalid_missing_petitioner_name",
+      "expectedValid": false,
+      "inputValues": {
+        "beneficiary.given_name": "Carlos",
+        "beneficiary.family_name": "Santos",
+        "beneficiary.relationship": "Spouse"
+      }
+    },
+    {
+      "fixtureName": "invalid_bad_ssn",
+      "expectedValid": false,
+      "inputValues": {
+        "petitioner.given_name": "Maria",
+        "petitioner.family_name": "Santos",
+        "petitioner.dob": "1985-06-15",
+        "petitioner.ssn": "BAD-SSN",
+        "beneficiary.given_name": "Carlos",
+        "beneficiary.family_name": "Santos",
+        "beneficiary.relationship": "Spouse"
+      }
+    }
+  ]
+}
