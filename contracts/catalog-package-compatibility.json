@@ -1,5 +1,15 @@
 {
+  "$schema": "./schemas/catalog-package-compatibility.schema.json",
   "contractVersion": "lapluma-app-0.2",
+  "legacyCompatibility": {
+    "enabled": true,
+    "aliasPolicy": "PRESERVE_STABLE_IDS",
+    "terminology": {
+      "legacyPackage": "Document Collection",
+      "legacyForm": "Document Blueprint",
+      "legacyCatalog": "Document Library"
+    }
+  },
   "packages": [
     { "packageCode": "FAMILY_I130", "formNumbers": ["I-130", "I-130A"] },
     { "packageCode": "ADJUSTMENT_I485_I864", "formNumbers": ["I-485", "I-864"] },
@@ -8,5 +18,156 @@
     { "packageCode": "TRAVEL_I131", "formNumbers": ["I-131"] },
     { "packageCode": "PASSPORT_DS11", "formNumbers": ["DS-11"] },
     { "packageCode": "FINANCIAL_AID_FAFSA", "formNumbers": ["FAFSA"] }
+  ],
+  "packageMappings": [
+    {
+      "packageCode": "FAMILY_I130",
+      "collectionNamespace": "official",
+      "collectionId": "family-reunification-i130",
+      "pinnedRevision": 1,
+      "displayName": "Family Reunification (Form I-130 / I-130A)",
+      "authority": "USCIS",
+      "formNumbers": ["I-130", "I-130A"],
+      "blueprintMembers": [
+        {
+          "namespace": "uscis",
+          "blueprintId": "i-130",
+          "pinnedRevision": 1,
+          "preparationMode": "FILLABLE_PDF",
+          "displayOrder": 1,
+          "isRequired": true
+        },
+        {
+          "namespace": "uscis",
+          "blueprintId": "i-130a",
+          "pinnedRevision": 1,
+          "preparationMode": "FILLABLE_PDF",
+          "displayOrder": 2,
+          "isRequired": false
+        }
+      ]
+    },
+    {
+      "packageCode": "ADJUSTMENT_I485_I864",
+      "collectionNamespace": "official",
+      "collectionId": "adjustment-of-status-i485",
+      "pinnedRevision": 1,
+      "displayName": "Adjustment of Status (Form I-485 / I-864)",
+      "authority": "USCIS",
+      "formNumbers": ["I-485", "I-864"],
+      "blueprintMembers": [
+        {
+          "namespace": "uscis",
+          "blueprintId": "i-485",
+          "pinnedRevision": 1,
+          "preparationMode": "FILLABLE_PDF",
+          "displayOrder": 1,
+          "isRequired": true
+        },
+        {
+          "namespace": "uscis",
+          "blueprintId": "i-864",
+          "pinnedRevision": 1,
+          "preparationMode": "FILLABLE_PDF",
+          "displayOrder": 2,
+          "isRequired": true
+        }
+      ]
+    },
+    {
+      "packageCode": "NATURALIZATION_N400",
+      "collectionNamespace": "official",
+      "collectionId": "naturalization-n400",
+      "pinnedRevision": 1,
+      "displayName": "Application for Naturalization (Form N-400)",
+      "authority": "USCIS",
+      "formNumbers": ["N-400"],
+      "blueprintMembers": [
+        {
+          "namespace": "uscis",
+          "blueprintId": "n-400",
+          "pinnedRevision": 1,
+          "preparationMode": "FILLABLE_PDF",
+          "displayOrder": 1,
+          "isRequired": true
+        }
+      ]
+    },
+    {
+      "packageCode": "EAD_I765",
+      "collectionNamespace": "official",
+      "collectionId": "employment-authorization-i765",
+      "pinnedRevision": 1,
+      "displayName": "Application for Employment Authorization (Form I-765)",
+      "authority": "USCIS",
+      "formNumbers": ["I-765"],
+      "blueprintMembers": [
+        {
+          "namespace": "uscis",
+          "blueprintId": "i-765",
+          "pinnedRevision": 1,
+          "preparationMode": "FILLABLE_PDF",
+          "displayOrder": 1,
+          "isRequired": true
+        }
+      ]
+    },
+    {
+      "packageCode": "TRAVEL_I131",
+      "collectionNamespace": "official",
+      "collectionId": "travel-documents-i131",
+      "pinnedRevision": 1,
+      "displayName": "Application for Travel Documents (Form I-131)",
+      "authority": "USCIS",
+      "formNumbers": ["I-131"],
+      "blueprintMembers": [
+        {
+          "namespace": "uscis",
+          "blueprintId": "i-131",
+          "pinnedRevision": 1,
+          "preparationMode": "STATIC_ASSISTED",
+          "displayOrder": 1,
+          "isRequired": true
+        }
+      ]
+    },
+    {
+      "packageCode": "PASSPORT_DS11",
+      "collectionNamespace": "official",
+      "collectionId": "us-passport-ds11",
+      "pinnedRevision": 1,
+      "displayName": "Application for a U.S. Passport (Form DS-11)",
+      "authority": "U.S. Department of State",
+      "formNumbers": ["DS-11"],
+      "blueprintMembers": [
+        {
+          "namespace": "dos",
+          "blueprintId": "ds-11",
+          "pinnedRevision": 1,
+          "preparationMode": "FILLABLE_PDF",
+          "displayOrder": 1,
+          "isRequired": true
+        }
+      ]
+    },
+    {
+      "packageCode": "FINANCIAL_AID_FAFSA",
+      "collectionNamespace": "official",
+      "collectionId": "federal-student-aid-fafsa",
+      "pinnedRevision": 1,
+      "displayName": "Free Application for Federal Student Aid (FAFSA)",
+      "authority": "Federal Student Aid",
+      "formNumbers": ["FAFSA"],
+      "blueprintMembers": [
+        {
+          "namespace": "student-aid",
+          "blueprintId": "fafsa",
+          "pinnedRevision": 1,
+          "preparationMode": "EXTERNAL_REFERENCE",
+          "displayOrder": 1,
+          "isRequired": true
+        }
+      ]
+    }
   ]
 }
