@@ -116,8 +116,38 @@ class BlobUriBoundaryTests(unittest.TestCase):
 
     def test_an_uppercase_digest_is_normalised_rather_than_rejected(self) -> None:
         request = ProcessingRequest.from_mapping(request_mapping(sha256="A" * 64))
-
         self.assertEqual(request.sha256, "a" * 64)
+
+    def test_valid_gcs_gs_scheme_uri_is_accepted(self) -> None:
+        request = ProcessingRequest.from_mapping(
+            request_mapping(
+                inputBlobUri="gs://lapluma-quarantine/uploads/doc1.pdf",
+                outputBlobUri="gs://lapluma-staging/processed/doc1.pdf",
+            )
+        )
+        self.assertEqual(request.input_blob_uri, "gs://lapluma-quarantine/uploads/doc1.pdf")
+        self.assertEqual(request.output_blob_uri, "gs://lapluma-staging/processed/doc1.pdf")
+
+    def test_valid_gcs_https_endpoint_is_accepted(self) -> None:
+        request = ProcessingRequest.from_mapping(
+            request_mapping(
+                inputBlobUri="https://storage.googleapis.com/lapluma-quarantine/doc1.pdf",
+                outputBlobUri="https://storage.googleapis.com/lapluma-staging/doc1.pdf",
+            )
+        )
+        self.assertEqual(request.input_blob_uri, "https://storage.googleapis.com/lapluma-quarantine/doc1.pdf")
+
+    def test_gcs_gs_scheme_without_object_fails_closed(self) -> None:
+        with self.assertRaises(ValueError):
+            ProcessingRequest.from_mapping(
+                request_mapping(inputBlobUri="gs://lapluma-quarantine")
+            )
+
+    def test_gcs_gs_scheme_with_query_fails_closed(self) -> None:
+        with self.assertRaises(ValueError):
+            ProcessingRequest.from_mapping(
+                request_mapping(inputBlobUri="gs://lapluma-quarantine/doc.pdf?param=1")
+            )
 
 
 class AnchoredProposalTests(unittest.TestCase):

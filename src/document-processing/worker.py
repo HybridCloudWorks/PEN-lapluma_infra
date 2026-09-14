@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import FrameType
 
 from contracts import CONTRACT_VERSION
+from pdf_mapping_engine import PdfMappingEngine
 
 
 SERVICE_NAME = "document-processing"
@@ -21,6 +22,7 @@ SERVICE_NAME = "document-processing"
 # A request that stalls mid-line would otherwise hold its thread indefinitely, and
 # ThreadingHTTPServer caps nothing.
 REQUEST_TIMEOUT_SECONDS = 5
+MAX_REQUEST_BYTES = 2 * 1024 * 1024  # 2MB limit
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -43,12 +45,70 @@ class HealthHandler(BaseHTTPRequestHandler):
 
         self._respond(200, self._envelope("ready" if self.path == "/ready" else "ok"))
 
+    def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+        if self.path not in {"/process", "/map"}:
+            self._respond(404, self._envelope("not-found"))
+            return
+
+        content_length_header = self.headers.get("Content-Length")
+        if not content_length_header or not content_length_header.isdigit():
+            self._respond(400, self._error_envelope("bad-request", "missing or invalid Content-Length"))
+            return
+
+        content_length = int(content_length_header)
+        if content_length > MAX_REQUEST_BYTES:
+            self._respond(413, self._error_envelope("payload-too-large", "payload exceeds 2MB limit"))
+            return
+
+        try:
+            raw_body = self.rfile.read(content_length)
+            payload = json.loads(raw_body.decode("utf-8"))
+        except Exception:
+            self._respond(400, self._error_envelope("bad-request", "invalid JSON payload"))
+            return
+
+        if not isinstance(payload, dict):
+            self._respond(400, self._error_envelope("bad-request", "request payload must be a JSON object"))
+            return
+
+        blueprint = payload.get("blueprint")
+        inputs = payload.get("inputs")
+        if not isinstance(blueprint, dict) or not isinstance(inputs, dict):
+            self._respond(400, self._error_envelope("bad-request", "request payload must contain 'blueprint' and 'inputs' objects"))
+            return
+
+        engine = PdfMappingEngine()
+        try:
+            result = engine.process(blueprint, inputs)
+        except ValueError as exc:
+            self._respond(422, self._error_envelope("unprocessable-entity", str(exc)))
+            return
+        except Exception:
+            self._respond(500, self._error_envelope("internal-error", "mapping processing failed"))
+            return
+
+        status_code = 200 if result.is_valid else 422
+        response_bytes = json.dumps(result.to_dict(), separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        self._respond(status_code, response_bytes)
+
     @staticmethod
     def _envelope(status: str) -> bytes:
         # One shape for every response, and it never echoes the requested path: what this service
         # emits stays content-free whether the probe succeeded or not.
         return json.dumps(
             {"status": status, "service": SERVICE_NAME, "version": CONTRACT_VERSION},
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    @staticmethod
+    def _error_envelope(status: str, message: str) -> bytes:
+        return json.dumps(
+            {
+                "status": status,
+                "service": SERVICE_NAME,
+                "version": CONTRACT_VERSION,
+                "error": message,
+            },
             separators=(",", ":"),
         ).encode("utf-8")
 
