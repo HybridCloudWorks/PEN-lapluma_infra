@@ -200,6 +200,23 @@ public sealed class PostgresLibraryAccessService(NpgsqlDataSource dataSource) : 
         return result is not null;
     }
 
+    public async Task<DocumentGuidance?> GetDocumentGuidanceAsync(
+        string tenantId,
+        string blueprintNamespace,
+        string blueprintId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        bool canAccess = await CanAccessBlueprintAsync(tenantId, blueprintNamespace, blueprintId, cancellationToken);
+        if (!canAccess)
+        {
+            return null;
+        }
+
+        return GuidanceCatalog.FindGuidance(blueprintNamespace, blueprintId);
+    }
+
     private static async Task<IReadOnlyList<CollectionMember>> LoadCollectionMembersAsync(
         NpgsqlConnection connection,
         string colNamespace,

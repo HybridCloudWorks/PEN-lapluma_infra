@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DocumentGuidanceManifest",
+  "description": "Declarative schema for source-cited, revision-bound official document guidance, fee references, and evidence checklists (INF-09)",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "authority",
+    "lastVerifiedAt",
+    "guidance"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "authority": {
+      "type": "string"
+    },
+    "lastVerifiedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "guidance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "formId",
+          "formNumber",
+          "authority",
+          "officialInstructionsUrl",
+          "feeScheduleCitationUrl",
+          "evidenceChecklist"
+        ],
+        "properties": {
+          "formId": {
+            "type": "string"
+          },
+          "formNumber": {
+            "type": "string"
+          },
+          "authority": {
+            "type": "string"
+          },
+          "officialInstructionsUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "feeScheduleCitationUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "feeUsdCents": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "feeNotes": {
+            "type": "string"
+          },
+          "evidenceChecklist": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "institutionGuidanceNotes": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

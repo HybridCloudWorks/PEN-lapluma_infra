@@ -135,3 +135,18 @@ public sealed record BlueprintPublicationAuditEntry(
     string? ManifestSha256,
     string? Reason,
     DateTimeOffset CreatedAt);
+
+/// <summary>
+/// Source-cited, revision-bound official guidance, evidence requirements, and fee references (INF-09).
+/// </summary>
+public sealed record DocumentGuidance(
+    [property: JsonPropertyName("formId")] string FormId,
+    [property: JsonPropertyName("formNumber")] string FormNumber,
+    [property: JsonPropertyName("authority")] string Authority,
+    [property: JsonPropertyName("officialInstructionsUrl")] Uri OfficialInstructionsUrl,
+    [property: JsonPropertyName("feeScheduleCitationUrl")] Uri FeeScheduleCitationUrl,
+    [property: JsonPropertyName("feeUsdCents")] int? FeeUsdCents,
+    [property: JsonPropertyName("feeNotes")] string? FeeNotes,
+    [property: JsonPropertyName("evidenceChecklist")] IReadOnlyList<string> EvidenceChecklist,
+    [property: JsonPropertyName("institutionGuidanceNotes")] string? InstitutionalGuidanceNotes);
+

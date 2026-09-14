@@ -264,6 +264,25 @@ library.MapGet("/blueprints/{namespace}/{blueprintId}", async Task<IResult> (
         : CatalogProblem.Result(context, "library-blueprint-not-found", "Document blueprint not found", 404);
 });
 
+library.MapGet("/blueprints/{namespace}/{blueprintId}/guidance", async Task<IResult> (
+    HttpContext context,
+    string @namespace,
+    string blueprintId,
+    ILibraryAccessService libraryService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = TenantResolution.ResolveTenantId(context.User);
+    if (tenantId is null)
+    {
+        return CatalogProblem.Result(context, "tenant-unauthorized", "Caller tenant identity cannot be established", 403);
+    }
+
+    var guidance = await libraryService.GetDocumentGuidanceAsync(tenantId, @namespace, blueprintId, cancellationToken);
+    return guidance is not null
+        ? Results.Ok(guidance)
+        : CatalogProblem.Result(context, "library-guidance-not-found", "Document guidance not found", 404);
+});
+
 library.MapPost("/blueprints/{namespace}/{blueprintId}/{revision}/review", async Task<IResult> (
     HttpContext context,
     string @namespace,

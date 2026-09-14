@@ -17,10 +17,12 @@ public sealed class LibraryAccessService : ILibraryAccessService
     private readonly ConcurrentDictionary<(string Namespace, string CollectionId, int Revision), DocumentCollection> _collections = new();
     private readonly ConcurrentDictionary<(string TenantId, string CollectionNamespace, string CollectionId, int CollectionRevision), bool> _collectionAssignments = new();
     private readonly ConcurrentDictionary<(string TenantId, string BlueprintNamespace, string BlueprintId), bool> _blueprintGrants = new();
+    private readonly ConcurrentDictionary<(string Namespace, string BlueprintId), DocumentGuidance> _guidance = new();
 
     public LibraryAccessService()
     {
         SeedDefaults();
+        SeedFromManifests();
     }
 
     public Task<IReadOnlyList<DocumentCollection>> GetAssignedCollectionsAsync(
@@ -180,6 +182,18 @@ public sealed class LibraryAccessService : ILibraryAccessService
             {
                 return bp;
             }
+
+            foreach (var candidate in _blueprints.Values)
+            {
+                if (string.Equals(candidate.Namespace, blueprintNamespace, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(candidate.BlueprintId, blueprintId, StringComparison.OrdinalIgnoreCase) &&
+                    candidate.Revision == revision.Value &&
+                    candidate.PublicationState == PublicationState.Published)
+                {
+                    return candidate;
+                }
+            }
+
             return null;
         }
 
@@ -187,8 +201,8 @@ public sealed class LibraryAccessService : ILibraryAccessService
         DocumentBlueprint? latest = null;
         foreach (var bp in _blueprints.Values)
         {
-            if (bp.Namespace == blueprintNamespace &&
-                bp.BlueprintId == blueprintId &&
+            if (string.Equals(bp.Namespace, blueprintNamespace, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(bp.BlueprintId, blueprintId, StringComparison.OrdinalIgnoreCase) &&
                 bp.PublicationState == PublicationState.Published)
             {
                 if (latest == null || bp.Revision > latest.Revision)
@@ -216,7 +230,7 @@ public sealed class LibraryAccessService : ILibraryAccessService
         }
 
         // 2. Private blueprint owned by this tenant
-        if (string.Equals(blueprintNamespace, tenantId, StringComparison.Ordinal))
+        if (string.Equals(blueprintNamespace, tenantId, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -233,8 +247,8 @@ public sealed class LibraryAccessService : ILibraryAccessService
         {
             foreach (var member in col.Members)
             {
-                if (string.Equals(member.BlueprintNamespace, blueprintNamespace, StringComparison.Ordinal) &&
-                    string.Equals(member.BlueprintId, blueprintId, StringComparison.Ordinal))
+                if (string.Equals(member.BlueprintNamespace, blueprintNamespace, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(member.BlueprintId, blueprintId, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -242,6 +256,31 @@ public sealed class LibraryAccessService : ILibraryAccessService
         }
 
         return false;
+    }
+
+    public async Task<DocumentGuidance?> GetDocumentGuidanceAsync(
+        string tenantId,
+        string blueprintNamespace,
+        string blueprintId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        bool canAccess = await CanAccessBlueprintAsync(tenantId, blueprintNamespace, blueprintId, cancellationToken);
+        if (!canAccess)
+        {
+            return null;
+        }
+
+        var lowerNs = blueprintNamespace.Trim().ToLowerInvariant();
+        var lowerId = blueprintId.Trim().ToLowerInvariant();
+
+        if (_guidance.TryGetValue((lowerNs, lowerId), out var guidance))
+        {
+            return guidance;
+        }
+
+        return GuidanceCatalog.FindGuidance(blueprintNamespace, blueprintId);
     }
 
     public void RegisterTenant(InstitutionTenant tenant) => _tenants[tenant.TenantId] = tenant;
@@ -373,5 +412,189 @@ public sealed class LibraryAccessService : ILibraryAccessService
         AssignCollectionToTenant("tenant_firm_beta", "official", "family_reunification", 1);
         // Only Clinic Alpha gets its private package
         AssignCollectionToTenant("tenant_clinic_alpha", "tenant_clinic_alpha", "clinic_intake_pkg", 1);
+    }
+
+    private void SeedFromManifests()
+    {
+        var root = FindRepoRoot();
+        if (root == null)
+        {
+            return;
+        }
+
+        var manifestPath = Path.Combine(root, "contracts", "uscis-official-manifest.json");
+        if (File.Exists(manifestPath))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+                var emptyDoc = JsonDocument.Parse("{}");
+                var emptyArray = JsonDocument.Parse("[]");
+
+                if (doc.RootElement.TryGetProperty("forms", out var formsElement) && formsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var form in formsElement.EnumerateArray())
+                    {
+                        var formId = form.GetProperty("formId").GetString() ?? "";
+                        var title = form.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? formId : formId;
+                        var issuer = form.TryGetProperty("issuer", out var iProp) ? iProp.GetString() ?? "USCIS" : "USCIS";
+
+                        DateOnly? editionDate = null;
+                        if (form.TryGetProperty("editionDate", out var edProp) && edProp.ValueKind == JsonValueKind.String)
+                        {
+                            var edStr = edProp.GetString();
+                            if (!string.IsNullOrEmpty(edStr))
+                            {
+                                if (DateOnly.TryParseExact(edStr, ["MM/dd/yy", "MM/dd/yyyy", "yyyy-MM-dd"], out var parsedDate))
+                                {
+                                    editionDate = parsedDate;
+                                }
+                                else if (DateTime.TryParse(edStr, out var parsedDt))
+                                {
+                                    editionDate = DateOnly.FromDateTime(parsedDt);
+                                }
+                            }
+                        }
+
+                        var prepCapStr = form.TryGetProperty("preparationCapability", out var pcProp) ? pcProp.GetString() : "FILLABLE_PDF";
+                        var prepMode = prepCapStr switch
+                        {
+                            "STATIC_ASSISTED" => PreparationMode.StaticAssisted,
+                            "EXTERNAL_REFERENCE" => PreparationMode.ExternalReference,
+                            _ => PreparationMode.FillablePdf
+                        };
+
+                        var artifactTypeStr = form.TryGetProperty("artifactType", out var atProp) ? atProp.GetString() : "OFFICIAL_PDF";
+                        var artifactType = artifactTypeStr switch
+                        {
+                            "XFA" => BlueprintArtifactType.Xfa,
+                            "FLAT" => BlueprintArtifactType.Flat,
+                            "EXTERNAL_LINK" => BlueprintArtifactType.ExternalLink,
+                            "AUTHORED_TEMPLATE" => BlueprintArtifactType.AuthoredTemplate,
+                            _ => BlueprintArtifactType.OfficialPdf
+                        };
+
+                        Uri? sourceUri = null;
+                        if (form.TryGetProperty("sourceUrl", out var suProp) && suProp.ValueKind == JsonValueKind.String)
+                        {
+                            var su = suProp.GetString();
+                            if (!string.IsNullOrEmpty(su) && Uri.TryCreate(su, UriKind.Absolute, out var parsedUri))
+                            {
+                                sourceUri = parsedUri;
+                            }
+                        }
+
+                        var bpLowerId = formId.ToLowerInvariant();
+                        if (!_blueprints.ContainsKey(("uscis", bpLowerId, 1)))
+                        {
+                            var bp = new DocumentBlueprint(
+                                Namespace: "uscis",
+                                BlueprintId: bpLowerId,
+                                Revision: 1,
+                                Title: title,
+                                Issuer: issuer,
+                                OfficialEditionDate: editionDate,
+                                PreparationMode: prepMode,
+                                ArtifactType: artifactType,
+                                SourceUrl: sourceUri,
+                                SourceSha256: null,
+                                FieldsSchema: emptyDoc,
+                                ValidationRules: emptyArray,
+                                EvidenceRequirements: emptyArray,
+                                PublicationState: PublicationState.Published,
+                                ReviewedBy: "system@lapluma.internal",
+                                ReviewedAt: DateTimeOffset.UtcNow,
+                                PublishedAt: DateTimeOffset.UtcNow,
+                                IsLatest: true,
+                                CreatedAt: DateTimeOffset.UtcNow);
+
+                            RegisterBlueprint(bp);
+                        }
+                    }
+                }
+
+                if (doc.RootElement.TryGetProperty("preservedNonUscisDefinitions", out var preservedElement) && preservedElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in preservedElement.EnumerateArray())
+                    {
+                        var docId = item.GetProperty("documentId").GetString() ?? "";
+                        var title = item.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? docId : docId;
+                        var issuer = item.TryGetProperty("issuer", out var iProp) ? iProp.GetString() ?? "Official" : "Official";
+                        var ns = item.TryGetProperty("namespace", out var nsProp) ? nsProp.GetString() ?? "official" : "official";
+                        var prepModeStr = item.TryGetProperty("preparationMode", out var pmProp) ? pmProp.GetString() : "STATIC_ASSISTED";
+                        var prepMode = prepModeStr switch
+                        {
+                            "FILLABLE_PDF" => PreparationMode.FillablePdf,
+                            "EXTERNAL_REFERENCE" => PreparationMode.ExternalReference,
+                            _ => PreparationMode.StaticAssisted
+                        };
+
+                        Uri? srcUri = null;
+                        if (item.TryGetProperty("sourceUrl", out var sProp) && sProp.ValueKind == JsonValueKind.String)
+                        {
+                            var s = sProp.GetString();
+                            if (!string.IsNullOrEmpty(s) && Uri.TryCreate(s, UriKind.Absolute, out var pUri))
+                            {
+                                srcUri = pUri;
+                            }
+                        }
+
+                        var lowerId = docId.ToLowerInvariant();
+                        if (!_blueprints.ContainsKey((ns, lowerId, 1)))
+                        {
+                            var bp = new DocumentBlueprint(
+                                Namespace: ns,
+                                BlueprintId: lowerId,
+                                Revision: 1,
+                                Title: title,
+                                Issuer: issuer,
+                                OfficialEditionDate: null,
+                                PreparationMode: prepMode,
+                                ArtifactType: BlueprintArtifactType.AuthoredTemplate,
+                                SourceUrl: srcUri,
+                                SourceSha256: null,
+                                FieldsSchema: emptyDoc,
+                                ValidationRules: emptyArray,
+                                EvidenceRequirements: emptyArray,
+                                PublicationState: PublicationState.Published,
+                                ReviewedBy: "system@lapluma.internal",
+                                ReviewedAt: DateTimeOffset.UtcNow,
+                                PublishedAt: DateTimeOffset.UtcNow,
+                                IsLatest: true,
+                                CreatedAt: DateTimeOffset.UtcNow);
+
+                            RegisterBlueprint(bp);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to seed blueprints from manifest: {ex.Message}");
+            }
+        }
+
+        foreach (var guidance in GuidanceCatalog.GetAllGuidance())
+        {
+            var lowerId = guidance.FormId.Trim().ToLowerInvariant();
+            _guidance[("uscis", lowerId)] = guidance;
+            _guidance[("official", lowerId)] = guidance;
+            _guidance[("clinic-legal-org", lowerId)] = guidance;
+            _guidance[("hope-heritage", lowerId)] = guidance;
+        }
+    }
+
+    private static string? FindRepoRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current != null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "contracts", "uscis-official-manifest.json")))
+            {
+                return current.FullName;
+            }
+            current = current.Parent;
+        }
+        return null;
     }
 }
