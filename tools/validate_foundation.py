@@ -1285,6 +1285,38 @@ def validate_institution_onboarding() -> Failures:
     return failures
 
 
+def validate_database_migrations() -> Failures:
+    """Validate P1 database migration runner, sequence integrity, and checksum tracking."""
+    failures = Failures()
+    require = failures.require
+
+    tool_py = ROOT / "tools" / "migrate_db.py"
+    require(tool_py.is_file(), f"Migration runner tool missing at {tool_py}")
+    if tool_py.is_file():
+        tool_text = tool_py.read_text(encoding="utf-8")
+        require("class MigrationRunner" in tool_text, "Tool missing MigrationRunner class")
+        require("def verify_migrations" in tool_text, "Tool missing verify_migrations method")
+        require("def generate_bundle" in tool_text, "Tool missing generate_bundle method")
+
+    test_py = ROOT / "tools" / "test_migrate_db.py"
+    require(test_py.is_file(), f"Migration runner test missing at {test_py}")
+
+    try:
+        try:
+            from tools.migrate_db import MigrationRunner
+        except ImportError:
+            from migrate_db import MigrationRunner
+
+        runner = MigrationRunner()
+        migration_errors = runner.verify_migrations()
+        for err in migration_errors:
+            failures.append(f"Database migration verification error: {err}")
+    except Exception as exc:
+        failures.append(f"Failed to execute MigrationRunner verification: {exc}")
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1308,6 +1340,7 @@ def main() -> int:
         *validate_identity_and_roles(),
         *validate_gcp_environments(),
         *validate_institution_onboarding(),
+        *validate_database_migrations(),
     ]
     if failures:
 
