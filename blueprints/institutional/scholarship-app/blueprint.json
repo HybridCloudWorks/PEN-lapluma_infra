@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "namespace": "hope-heritage",
+  "blueprintId": "scholarship-app",
+  "revision": 1,
+  "title": "Hope Heritage Foundation Scholarship Application",
+  "issuer": "Hope Heritage Foundation",
+  "officialEditionDate": "2026-01-01",
+  "preparationMode": "STATIC_ASSISTED",
+  "artifactType": "AUTHORED_TEMPLATE",
+  "accessScope": "INSTITUTION_PRIVATE",
+  "source": {
+    "url": "https://hopeheritage.org/apply/form-2026.pdf",
+    "sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+    "lastVerified": "2026-09-13T00:00:00Z"
+  },
+  "sections": [
+    {
+      "sectionId": "sec_applicant_profile",
+      "title": "Applicant Profile & Contact",
+      "isRepeatable": false
+    },
+    {
+      "sectionId": "sec_academic_records",
+      "title": "Academic History & Institutions",
+      "isRepeatable": true,
+      "maxOccurs": 5,
+      "overflowStrategy": "ATTACHMENT_ADDENDUM"
+    },
+    {
+      "sectionId": "sec_financial_need",
+      "title": "Financial Need Assessment",
+      "isRepeatable": false
+    }
+  ],
+  "fields": [
+    {
+      "canonicalPath": "student.full_name",
+      "sectionId": "sec_applicant_profile",
+      "type": "string",
+      "label": "Full Legal Name",
+      "required": true,
+      "attributedRole": "STUDENT"
+    },
+    {
+      "canonicalPath": "student.email",
+      "sectionId": "sec_applicant_profile",
+      "type": "string",
+      "label": "Email Address",
+      "required": true,
+      "attributedRole": "STUDENT"
+    },
+    {
+      "canonicalPath": "academic[].institution_name",
+      "sectionId": "sec_academic_records",
+      "type": "string",
+      "label": "Institution Name",
+      "required": true,
+      "attributedRole": "STUDENT"
+    },
+    {
+      "canonicalPath": "academic[].gpa",
+      "sectionId": "sec_academic_records",
+      "type": "number",
+      "label": "Grade Point Average (GPA)",
+      "required": true,
+      "attributedRole": "STUDENT"
+    },
+    {
+      "canonicalPath": "academic[].graduation_year",
+      "sectionId": "sec_academic_records",
+      "type": "number",
+      "label": "Graduation Year",
+      "required": true,
+      "attributedRole": "STUDENT"
+    },
+    {
+      "canonicalPath": "financial.requests_need_aid",
+      "sectionId": "sec_financial_need",
+      "type": "boolean",
+      "label": "Request Need-Based Assistance",
+      "required": true,
+      "attributedRole": "STUDENT"
+    },
+    {
+      "canonicalPath": "financial.household_income",
+      "sectionId": "sec_financial_need",
+      "type": "number",
+      "label": "Annual Household Income",
+      "required": false,
+      "attributedRole": "STUDENT",
+      "condition": {
+        "field": "financial.requests_need_aid",
+        "operator": "equals",
+        "value": true
+      }
+    }
+  ],
+  "validationRules": [
+    {
+      "ruleId": "gpa_range",
+      "type": "range",
+      "expression": "academic[].gpa:0.0:4.0",
+      "errorMessage": "GPA must be between 0.0 and 4.0"
+    }
+  ],
+  "evidenceRequirements": [
+    {
+      "code": "OFFICIAL_TRANSCRIPT",
+      "title": "Official Academic Transcript",
+      "attributedRole": "STUDENT",
+      "isConditional": false,
+      "acceptedMimeTypes": [
+        "application/pdf"
+      ]
+    },
+    {
+      "code": "PERSONAL_STATEMENT",
+      "title": "Personal Statement Essay",
+      "attributedRole": "STUDENT",
+      "isConditional": false,
+      "acceptedMimeTypes": [
+        "application/pdf"
+      ]
+    },
+    {
+      "code": "INCOME_VERIFICATION",
+      "title": "Household Income Verification Form",
+      "attributedRole": "STUDENT",
+      "isConditional": true,
+      "acceptedMimeTypes": [
+        "application/pdf"
+      ]
+    }
+  ],
+  "syntheticFixtures": [
+    {
+      "fixtureName": "qualifying_scholarship_applicant",
+      "expectedValid": true,
+      "inputValues": {
+        "student.full_name": "Maria Garcia",
+        "student.email": "maria@example.org",
+        "academic[].institution_name": "State University",
+        "academic[].gpa": 3.85,
+        "academic[].graduation_year": 2026,
+        "financial.requests_need_aid": true,
+        "financial.household_income": 45000
+      }
+    }
+  ]
+}
