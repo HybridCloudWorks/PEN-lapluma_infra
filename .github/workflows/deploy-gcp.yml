@@ -1,0 +1,129 @@
+name: Deploy to GCP Cloud Run (P1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target GCP deployment environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - pilot
+        default: dev
+      apply_migrations:
+        description: 'Execute database migrations against Cloud SQL'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  guard:
+    name: Duplicate run guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.guard.outputs.proceed }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Decide whether this run duplicates the pull_request run
+        id: guard
+        uses: ./.github/actions/duplicate-run-guard
+
+  deploy:
+    needs: guard
+    if: needs.guard.outputs.proceed == 'true'
+    name: Deploy to GCP (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
+        with:
+          project_id: lapluma-${{ inputs.environment }}-gcp
+          workload_identity_provider: projects/lapluma-${{ inputs.environment }}-gcp/locations/global/workloadIdentityPools/pool-github-${{ inputs.environment }}/providers/provider-github
+          service_account: lp-deployer-${{ inputs.environment }}@lapluma-${{ inputs.environment }}-gcp.iam.gserviceaccount.com
+
+      - name: Configure Docker authentication for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build and push microservice images
+        env:
+          REGION: us-central1
+          PROJECT_ID: lapluma-${{ inputs.environment }}-gcp
+          ENV: ${{ inputs.environment }}
+          TAG: ${{ github.sha }}
+        run: |
+          REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/lapluma-services-${ENV}"
+          
+          echo "Building Core API image..."
+          docker build --tag "${REPO}/core-api:${TAG}" --tag "${REPO}/core-api:latest" src/core-api
+          docker push "${REPO}/core-api:${TAG}"
+          docker push "${REPO}/core-api:latest"
+          
+          echo "Building Workflow API image..."
+          docker build --tag "${REPO}/workflow-api:${TAG}" --tag "${REPO}/workflow-api:latest" src/workflow-api
+          docker push "${REPO}/workflow-api:${TAG}"
+          docker push "${REPO}/workflow-api:latest"
+          
+          echo "Building Document Processing Worker image..."
+          docker build --tag "${REPO}/processing-worker:${TAG}" --tag "${REPO}/processing-worker:latest" src/document-processing
+          docker push "${REPO}/processing-worker:${TAG}"
+          docker push "${REPO}/processing-worker:latest"
+
+      - name: Deploy Cloud Run services
+        env:
+          REGION: us-central1
+          PROJECT_ID: lapluma-${{ inputs.environment }}-gcp
+          ENV: ${{ inputs.environment }}
+          TAG: ${{ github.sha }}
+        run: |
+          REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/lapluma-services-${ENV}"
+          
+          echo "Deploying Core API to Cloud Run..."
+          gcloud run deploy "lp-core-api-${ENV}" \
+            --image "${REPO}/core-api:${TAG}" \
+            --region "${REGION}" \
+            --quiet
+            
+          echo "Deploying Workflow API to Cloud Run..."
+          gcloud run deploy "lp-wf-api-${ENV}" \
+            --image "${REPO}/workflow-api:${TAG}" \
+            --region "${REGION}" \
+            --quiet
+            
+          echo "Deploying Document Processing Worker to Cloud Run..."
+          gcloud run deploy "lp-proc-worker-${ENV}" \
+            --image "${REPO}/processing-worker:${TAG}" \
+            --region "${REGION}" \
+            --quiet
+
+      - name: Validate database migration bundle
+        if: inputs.apply_migrations == true
+        run: |
+          python tools/migrate_db.py verify
+          python tools/migrate_db.py bundle -o /tmp/all_migrations.sql
+          echo "Migration bundle ready ($(wc -l < /tmp/all_migrations.sql) lines)."

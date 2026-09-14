@@ -17,3 +17,7 @@ output "db_connection_name" {
 output "workload_identity_provider" {
   value = module.iam.workload_identity_provider_name
 }
+
+output "artifact_registry_repository_url" {
+  value = module.compute.artifact_registry_repository_url
+}

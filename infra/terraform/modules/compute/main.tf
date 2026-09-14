@@ -1,3 +1,15 @@
+# Artifact Registry Repository for Service Images
+resource "google_artifact_registry_repository" "services" {
+  repository_id = "lapluma-services-${var.environment}"
+  format        = "DOCKER"
+  location      = var.region
+  description   = "Container image repository for LaPluma Cloud Run microservices (${var.environment})"
+
+  docker_config {
+    immutable_tags = var.environment == "pilot" ? true : false
+  }
+}
+
 # Core API Service
 resource "google_cloud_run_v2_service" "core_api" {
   name     = "lp-core-api-${var.environment}"
