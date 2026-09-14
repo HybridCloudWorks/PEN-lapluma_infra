@@ -19,6 +19,10 @@ public static class CatalogSourceRegistration
 
     public const string FixtureSource = "fixture";
     public const string SqlSource = "sql";
+    public const string PostgresSource = "postgres";
+    public const string PostgreSqlSource = "postgresql";
+    public const string PostgresConnectionStringSetting = "Database:ConnectionString";
+    public const string AltPostgresConnectionStringSetting = "Catalog:PostgresConnectionString";
 
     public static IServiceCollection AddCatalogSource(
         this IServiceCollection services, IConfiguration configuration)
@@ -29,6 +33,23 @@ public static class CatalogSourceRegistration
         {
             services.AddSingleton<CatalogRepository>();
             services.AddSingleton<ICatalogSource>(provider => provider.GetRequiredService<CatalogRepository>());
+            services.AddSingleton<ILibraryAccessService, LibraryAccessService>();
+            return services;
+        }
+
+        if (string.Equals(source, PostgresSource, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(source, PostgreSqlSource, StringComparison.OrdinalIgnoreCase))
+        {
+            var connStr = configuration[PostgresConnectionStringSetting] ?? configuration[AltPostgresConnectionStringSetting];
+            if (string.IsNullOrWhiteSpace(connStr))
+            {
+                throw new InvalidOperationException(
+                    $"{PostgresConnectionStringSetting} is required when the catalog source is '{PostgresSource}'.");
+            }
+            var dataSource = Npgsql.NpgsqlDataSource.Create(connStr);
+            services.AddSingleton(dataSource);
+            services.AddSingleton<ICatalogSource, PostgresCatalogSource>();
+            services.AddSingleton<ILibraryAccessService, PostgresLibraryAccessService>();
             return services;
         }
 
@@ -37,7 +58,7 @@ public static class CatalogSourceRegistration
             // Neither value: refuse to guess. Picking one would mean a typo silently selected a
             // catalog nobody chose.
             throw new InvalidOperationException(
-                $"{SourceSetting} must be '{FixtureSource}' or '{SqlSource}', not '{source}'.");
+                $"{SourceSetting} must be '{FixtureSource}', '{PostgresSource}', or '{SqlSource}', not '{source}'.");
         }
 
         // Built now, not lazily. A factory closure would defer this to the first request, so a
@@ -46,6 +67,7 @@ public static class CatalogSourceRegistration
         // while the host is starting, where it is visible.
         services.AddSingleton(BuildSqlOptions(configuration));
         services.AddSingleton<ICatalogSource, SqlCatalogSource>();
+        services.AddSingleton<ILibraryAccessService, LibraryAccessService>();
         return services;
     }
 

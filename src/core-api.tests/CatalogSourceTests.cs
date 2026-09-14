@@ -51,7 +51,7 @@ public sealed class CatalogSourceTests
     {
         // A typo must not silently select a catalog nobody chose.
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            Build((CatalogSourceRegistration.SourceSetting, "postgres")));
+            Build((CatalogSourceRegistration.SourceSetting, "unrecognised")));
 
         Assert.Contains("must be", exception.Message, StringComparison.Ordinal);
     }
