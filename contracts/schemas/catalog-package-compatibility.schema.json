@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CatalogPackageCompatibility",
+  "description": "Reconciliation contract mapping legacy package identity to versioned Collections and pinned Blueprints (INT-03)",
+  "type": "object",
+  "required": ["contractVersion", "packages", "packageMappings"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "type": "string"
+    },
+    "legacyCompatibility": {
+      "type": "object",
+      "required": ["enabled", "aliasPolicy", "terminology"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "aliasPolicy": { "type": "string" },
+        "terminology": {
+          "type": "object",
+          "required": ["legacyPackage", "legacyForm", "legacyCatalog"],
+          "properties": {
+            "legacyPackage": { "type": "string" },
+            "legacyForm": { "type": "string" },
+            "legacyCatalog": { "type": "string" }
+          }
+        }
+      }
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["packageCode", "formNumbers"],
+        "properties": {
+          "packageCode": { "type": "string" },
+          "formNumbers": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "packageMappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "packageCode",
+          "collectionNamespace",
+          "collectionId",
+          "pinnedRevision",
+          "displayName",
+          "authority",
+          "formNumbers",
+          "blueprintMembers"
+        ],
+        "properties": {
+          "packageCode": { "type": "string" },
+          "collectionNamespace": { "type": "string" },
+          "collectionId": { "type": "string" },
+          "pinnedRevision": { "type": "integer", "minimum": 1 },
+          "displayName": { "type": "string" },
+          "authority": { "type": "string" },
+          "formNumbers": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "blueprintMembers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "namespace",
+                "blueprintId",
+                "pinnedRevision",
+                "preparationMode",
+                "displayOrder",
+                "isRequired"
+              ],
+              "properties": {
+                "namespace": { "type": "string" },
+                "blueprintId": { "type": "string" },
+                "pinnedRevision": { "type": "integer", "minimum": 1 },
+                "preparationMode": {
+                  "type": "string",
+                  "enum": ["FILLABLE_PDF", "STATIC_ASSISTED", "EXTERNAL_REFERENCE"]
+                },
+                "displayOrder": { "type": "integer", "minimum": 1 },
+                "isRequired": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
