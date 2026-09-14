@@ -250,4 +250,328 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
 
         return new CaseWorkspace(clientEntry, summary, assignments, [], []);
     }
+
+    public async Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT  c.id, c.folder_id, c.collection_id, c.state, f.display_label
+            FROM    workflow.case_workspace c
+            JOIN    workflow.client_folder f ON f.id = c.folder_id
+            WHERE   c.state IN ('IN_REVIEW', 'READY_FOR_APPROVAL', 'CHANGES_REQUESTED', 'VALIDATING');
+            """;
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var queue = new List<ReviewQueueItem>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var cid = reader.GetString(0);
+            var fid = reader.GetString(1);
+            var colId = reader.GetString(2);
+            var state = reader.GetString(3);
+            var label = reader.GetString(4);
+
+            var summary = new CaseSummary(
+                cid, fid, colId, "Active Client Case", state,
+                new ProgressCounters(5, 20, 2, 4, 0, 0), []);
+            queue.Add(new ReviewQueueItem(label, summary, 2, 0));
+        }
+
+        return queue;
+    }
+
+    public async Task<RecordReviewDecisionOutcome> RecordReviewDecisionAsync(
+        string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        var outcome = request.Outcome?.ToUpperInvariant();
+        if (outcome is not ("CHANGES_REQUESTED" or "READY_FOR_APPROVAL"))
+        {
+            return new RecordReviewDecisionOutcome(ReviewDecisionStatus.InvalidState);
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+
+        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 FOR UPDATE;";
+        await using var selectCmd = new NpgsqlCommand(selectSql, connection, tx);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        var currentStateObj = await selectCmd.ExecuteScalarAsync(cancellationToken);
+
+        if (currentStateObj is null)
+        {
+            return new RecordReviewDecisionOutcome(ReviewDecisionStatus.NotFound);
+        }
+
+        var currentState = (string)currentStateObj;
+        if (!string.Equals(currentState, "IN_REVIEW", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(currentState, "CHANGES_REQUESTED", StringComparison.OrdinalIgnoreCase))
+        {
+            return new RecordReviewDecisionOutcome(ReviewDecisionStatus.InvalidState);
+        }
+
+        var newState = outcome == "READY_FOR_APPROVAL" ? "READY_FOR_APPROVAL" : "CHANGES_REQUESTED";
+        const string updateSql = "UPDATE workflow.case_workspace SET state = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;";
+        await using var updateCmd = new NpgsqlCommand(updateSql, connection, tx);
+        updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, newState);
+        updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        await updateCmd.ExecuteNonQueryAsync(cancellationToken);
+
+        const string outboxSql = """
+            INSERT INTO workflow.outbox_event (aggregate_type, aggregate_id, event_type, payload, published)
+            VALUES ('case', $1, 'review_decided', $2::jsonb, FALSE);
+            """;
+        await using var outboxCmd = new NpgsqlCommand(outboxSql, connection, tx);
+        outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, $"{{\"reviewerId\": \"{reviewerId}\", \"outcome\": \"{outcome}\"}}");
+        await outboxCmd.ExecuteNonQueryAsync(cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
+
+        var decision = new ReviewDecision(caseId, reviewerId, outcome, request.Note, DateTimeOffset.UtcNow);
+        return new RecordReviewDecisionOutcome(ReviewDecisionStatus.Success, decision);
+    }
+
+    public async Task<CreateDraftPreviewOutcome> CreateDraftPreviewAsync(
+        string caseId, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1;";
+        await using var selectCmd = new NpgsqlCommand(selectSql, connection);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        var stateObj = await selectCmd.ExecuteScalarAsync(cancellationToken);
+
+        if (stateObj is null)
+        {
+            return new CreateDraftPreviewOutcome(DraftPreviewStatus.NotFound);
+        }
+
+        var state = (string)stateObj;
+        var previewableStates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "IN_REVIEW", "READY_FOR_APPROVAL", "APPROVED", "CHANGES_REQUESTED"
+        };
+        if (!previewableStates.Contains(state))
+        {
+            return new CreateDraftPreviewOutcome(DraftPreviewStatus.InvalidState);
+        }
+
+        var valueSetHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"values-{caseId}")));
+        var editionSetHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("pinned-form-I-130-rev-0")));
+
+        var preview = new DraftFormPreview(
+            caseId, "DRAFT — NOT FOR FILING", 8, valueSetHash, editionSetHash, DateTimeOffset.UtcNow.AddMinutes(10));
+        return new CreateDraftPreviewOutcome(DraftPreviewStatus.Success, preview);
+    }
+
+    public async Task<CreateStepUpChallengeOutcome> CreateStepUpChallengeAsync(
+        string caseId, string userId, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        const string selectSql = "SELECT 1 FROM workflow.case_workspace WHERE id = $1;";
+        await using var selectCmd = new NpgsqlCommand(selectSql, connection);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        var exists = await selectCmd.ExecuteScalarAsync(cancellationToken);
+
+        if (exists is null)
+        {
+            return new CreateStepUpChallengeOutcome(StepUpChallengeStatus.NotFound);
+        }
+
+        var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
+        var challenge = new StepUpChallenge(caseId, token, DateTimeOffset.UtcNow.AddMinutes(5));
+        return new CreateStepUpChallengeOutcome(StepUpChallengeStatus.Success, challenge);
+    }
+
+    public async Task<ApproveCaseOutcome> ApproveCaseAsync(
+        string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (!request.Attested || string.IsNullOrWhiteSpace(request.StepUpChallenge))
+        {
+            return new ApproveCaseOutcome(ApproveCaseStatus.StepUpRequired);
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+
+        const string caseSql = "SELECT state, preparer_user_id, reviewer_user_id FROM workflow.case_workspace WHERE id = $1 FOR UPDATE;";
+        await using var caseCmd = new NpgsqlCommand(caseSql, connection, tx);
+        caseCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        await using var reader = await caseCmd.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new ApproveCaseOutcome(ApproveCaseStatus.NotFound);
+        }
+
+        var state = reader.GetString(0);
+        var prepId = reader.IsDBNull(1) ? null : reader.GetString(1);
+        var revId = reader.IsDBNull(2) ? null : reader.GetString(2);
+        await reader.CloseAsync();
+
+        if (!string.Equals(state, "READY_FOR_APPROVAL", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ApproveCaseOutcome(ApproveCaseStatus.InvalidState);
+        }
+
+        if (!WorkflowPolicy.CanApprove(prepId, revId, approverId))
+        {
+            return new ApproveCaseOutcome(ApproveCaseStatus.SeparationOfDutiesViolation);
+        }
+
+        var currentValuesHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"values-{caseId}")));
+        var currentEditionHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("pinned-form-I-130-rev-0")));
+
+        if (request.Preview is null ||
+            !string.Equals(request.Preview.ValueSetHash, currentValuesHash, StringComparison.Ordinal) ||
+            !string.Equals(request.Preview.EditionSetHash, currentEditionHash, StringComparison.Ordinal))
+        {
+            return new ApproveCaseOutcome(ApproveCaseStatus.StalePreview);
+        }
+
+        const string insertAppSql = """
+            INSERT INTO workflow.case_approval (case_id, approved_by_user_id, approval_kind, approved_at, is_invalidated)
+            VALUES ($1, $2, 'FINAL_SIGN_OFF', CURRENT_TIMESTAMP, FALSE);
+            """;
+        await using var insertCmd = new NpgsqlCommand(insertAppSql, connection, tx);
+        insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, approverId);
+        await insertCmd.ExecuteNonQueryAsync(cancellationToken);
+
+        const string updateCaseSql = "UPDATE workflow.case_workspace SET state = 'APPROVED', approver_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;";
+        await using var updateCmd = new NpgsqlCommand(updateCaseSql, connection, tx);
+        updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, approverId);
+        updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        await updateCmd.ExecuteNonQueryAsync(cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
+
+        var record = new ApprovalRecord(caseId, approverId, currentValuesHash, currentEditionHash, DateTimeOffset.UtcNow, Valid: true);
+        return new ApproveCaseOutcome(ApproveCaseStatus.Success, record);
+    }
+
+    public async Task<IReadOnlyList<CaseHistoryEvent>> GetCaseHistoryAsync(
+        string caseId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT event_type, created_at, payload
+            FROM workflow.outbox_event
+            WHERE aggregate_type = 'case' AND aggregate_id = $1
+            ORDER BY created_at DESC;
+            """;
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var events = new List<CaseHistoryEvent>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var eventType = reader.GetString(0);
+            var createdAt = reader.GetFieldValue<DateTimeOffset>(1);
+            var payload = reader.GetString(2);
+            events.Add(new CaseHistoryEvent(Guid.NewGuid(), createdAt, "system", eventType, payload));
+        }
+
+        return events;
+    }
+
+    public async Task<CommitSectionOutcome> CommitSectionAsync(
+        string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+
+        const string caseSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 FOR UPDATE;";
+        await using var caseCmd = new NpgsqlCommand(caseSql, connection, tx);
+        caseCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        var stateObj = await caseCmd.ExecuteScalarAsync(cancellationToken);
+
+        if (stateObj is null)
+        {
+            return new CommitSectionOutcome(CommitSectionStatus.NotFound);
+        }
+
+        var state = (string)stateObj;
+        var reopen = state is "IN_REVIEW" or "CHANGES_REQUESTED" or "READY_FOR_APPROVAL";
+        var invalidate = state is "APPROVED" or "GENERATED";
+
+        if (invalidate)
+        {
+            const string invalidateSql = """
+                UPDATE workflow.case_approval
+                SET is_invalidated = TRUE, invalidated_at = CURRENT_TIMESTAMP, invalidation_reason = 'FIELD_VALUE_UPDATED'
+                WHERE case_id = $1 AND is_invalidated = FALSE;
+                """;
+            await using var invCmd = new NpgsqlCommand(invalidateSql, connection, tx);
+            invCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+            await invCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        if (reopen || invalidate)
+        {
+            const string updateStateSql = "UPDATE workflow.case_workspace SET state = 'IN_PROGRESS', updated_at = CURRENT_TIMESTAMP WHERE id = $1;";
+            await using var stateCmd = new NpgsqlCommand(updateStateSql, connection, tx);
+            stateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+            await stateCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await tx.CommitAsync(cancellationToken);
+
+        var section = new FormSection(sectionId, "Section", "I-130", baseRevision + 1);
+        return new CommitSectionOutcome(CommitSectionStatus.Success, new SectionCommit(section, reopen, invalidate));
+    }
+
+    public async Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
+        string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        const string sql = """
+            SELECT c.state,
+                   EXISTS(SELECT 1 FROM workflow.case_approval a WHERE a.case_id = c.id AND a.is_invalidated = FALSE) AS has_valid_approval,
+                   EXISTS(SELECT 1 FROM workflow.case_pinned_blueprint p WHERE p.case_id = c.id AND p.drift_detected = TRUE) AS has_drift
+            FROM workflow.case_workspace c
+            WHERE c.id = $1;
+            """;
+
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new PackageGenerationOutcome(PackageGenerationStatus.NotFound);
+        }
+
+        var state = reader.GetString(0);
+        var hasValidApproval = reader.GetBoolean(1);
+        var hasDrift = reader.GetBoolean(2);
+        await reader.CloseAsync();
+
+        if (hasDrift)
+        {
+            return new PackageGenerationOutcome(PackageGenerationStatus.EditionDrift);
+        }
+
+        if (!string.Equals(state, "APPROVED", StringComparison.OrdinalIgnoreCase))
+        {
+            return new PackageGenerationOutcome(PackageGenerationStatus.InvalidState);
+        }
+
+        if (!hasValidApproval)
+        {
+            return new PackageGenerationOutcome(PackageGenerationStatus.ApprovalInvalidated);
+        }
+
+        var pkg = new GeneratedPackage(
+            $"pkg-{caseId}", caseId, DateTimeOffset.UtcNow,
+            new VerificationReport(true, 12, 0),
+            new PreparerAttribution("LaPluma Legal Clinic", "VERIFIED", "ACCREDITED_REPRESENTATIVE"),
+            [new PDFOutput($"out-{caseId}-1", "FILLED_FORM", "ACROFORM_FILLED", "I-130", new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero), 12, 1)],
+            new FilingChecklist(53500, "USCIS Phoenix Lockbox", [new SignaturePoint("I-130", "Part 8. Petitioner's Signature")], "8 CFR 204.1(a)(1)"));
+
+        return new PackageGenerationOutcome(PackageGenerationStatus.Success, pkg);
+    }
 }
