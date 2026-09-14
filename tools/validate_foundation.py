@@ -241,6 +241,41 @@ def validate_priority_and_modes() -> Failures:
         == expected_packages,
         "package compatibility fixture drifted",
     )
+    # INT-03: Validate packageMappings aligns with legacy packages and versioned collections/blueprints
+    package_mappings = compatibility.get("packageMappings", [])
+    mapping_by_code = {item.get("packageCode"): item for item in package_mappings}
+    require(
+        set(mapping_by_code.keys()) == set(expected_packages.keys()),
+        f"packageMappings keys do not match expected packages: {set(mapping_by_code.keys())} vs {set(expected_packages.keys())}",
+    )
+    for code, expected_forms in expected_packages.items():
+        mapping = mapping_by_code.get(code, {})
+        require(
+            mapping.get("formNumbers") == expected_forms,
+            f"packageMapping for {code} formNumbers drifted: {mapping.get('formNumbers')} vs {expected_forms}",
+        )
+        require(
+            mapping.get("collectionNamespace") == "official",
+            f"packageMapping for {code} must belong to 'official' collectionNamespace",
+        )
+        require(
+            bool(mapping.get("collectionId")),
+            f"packageMapping for {code} missing collectionId",
+        )
+        require(
+            mapping.get("pinnedRevision") == 1,
+            f"packageMapping for {code} pinnedRevision must be 1",
+        )
+        members = mapping.get("blueprintMembers", [])
+        require(
+            len(members) == len(expected_forms),
+            f"packageMapping for {code} blueprintMembers count ({len(members)}) does not match form count ({len(expected_forms)})",
+        )
+        for member in members:
+            require(
+                member.get("preparationMode") in {"FILLABLE_PDF", "STATIC_ASSISTED", "EXTERNAL_REFERENCE"},
+                f"packageMapping member {member} has invalid preparationMode",
+            )
     for form_id in ("I-130", "I-485", "DS-11", "FAFSA"):
         require(form_id in source, f"core catalog fixture is missing {form_id}")
         require(form_id in function_contract, f"acquisition contract is missing {form_id}")
