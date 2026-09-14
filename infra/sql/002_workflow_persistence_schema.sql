@@ -15,14 +15,17 @@ CREATE SCHEMA IF NOT EXISTS workflow;
 -- -----------------------------------------------------------------------------
 CREATE TABLE workflow.client_folder
 (
-    id           VARCHAR(64)  NOT NULL PRIMARY KEY,
-    tenant_id    VARCHAR(64)  NOT NULL REFERENCES library.institution_tenant (tenant_id),
-    display_label VARCHAR(256) NOT NULL,
-    created_at   TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id              VARCHAR(64)  NOT NULL PRIMARY KEY,
+    tenant_id       VARCHAR(64)  NOT NULL REFERENCES library.institution_tenant (tenant_id),
+    display_label   VARCHAR(256) NOT NULL,
+    idempotency_key VARCHAR(128) NULL UNIQUE,
+    payload_hash    CHAR(64)     NULL,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_folder_tenant ON workflow.client_folder (tenant_id);
+CREATE INDEX idx_folder_idempotency ON workflow.client_folder (idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 -- -----------------------------------------------------------------------------
 -- Folder Persons (Per-Person Trust Boundary - ADR-007)
