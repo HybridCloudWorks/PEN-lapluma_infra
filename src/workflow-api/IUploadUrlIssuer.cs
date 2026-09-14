@@ -5,6 +5,8 @@ public static class UploadConfiguration
 {
     public const string QuarantineBlobEndpointSetting = "Workflow:QuarantineBlobEndpoint";
     public const string ManagedIdentityClientIdSetting = "AZURE_CLIENT_ID";
+    public const string GcsQuarantineBucketSetting = "Workflow:GcsQuarantineBucket";
+    public const string GcsSignerServiceAccountSetting = "Workflow:GcsSignerServiceAccount";
 }
 
 /// <summary>Raised when upload issuing is requested in an environment that has no storage wired.</summary>

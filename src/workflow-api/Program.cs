@@ -14,20 +14,28 @@ builder.Services.AddWorkflowSource(builder.Configuration);
 builder.Services.AddWorkflowAuthentication(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<UploadSessionStore>();
+builder.Services.AddSingleton<IStoredDocumentVerifier, PassThroughStoredDocumentVerifier>();
 
-// Wired when the deployment names a quarantine endpoint; fail-closed otherwise. Built now, not
+// Wired when the deployment names a GCP quarantine bucket or Azure quarantine endpoint; fail-closed otherwise. Built now, not
 // lazily, for the same reason the catalog's SQL options are: a misconfigured endpoint should fail
 // the starting host, not the first upload.
+var gcsQuarantineBucket = builder.Configuration[UploadConfiguration.GcsQuarantineBucketSetting];
 var quarantineEndpoint = builder.Configuration[UploadConfiguration.QuarantineBlobEndpointSetting];
-if (string.IsNullOrWhiteSpace(quarantineEndpoint))
+if (!string.IsNullOrWhiteSpace(gcsQuarantineBucket))
 {
-    builder.Services.AddSingleton<IUploadUrlIssuer, NotConfiguredUploadUrlIssuer>();
+    builder.Services.AddSingleton<IUploadUrlIssuer>(new GoogleCloudStorageUploadUrlIssuer(
+        gcsQuarantineBucket,
+        builder.Configuration[UploadConfiguration.GcsSignerServiceAccountSetting]));
 }
-else
+else if (!string.IsNullOrWhiteSpace(quarantineEndpoint))
 {
     builder.Services.AddSingleton<IUploadUrlIssuer>(new UserDelegationUploadUrlIssuer(
         new Uri(quarantineEndpoint, UriKind.Absolute),
         builder.Configuration[UploadConfiguration.ManagedIdentityClientIdSetting]));
+}
+else
+{
+    builder.Services.AddSingleton<IUploadUrlIssuer, NotConfiguredUploadUrlIssuer>();
 }
 
 var app = builder.Build();
@@ -207,17 +215,51 @@ v1.MapPost("/documents/upload-sessions", async Task<IResult> (
     }
 });
 
-v1.MapPost("/documents/upload-sessions/{sessionId}/complete", (
+v1.MapPost("/documents/upload-sessions/{sessionId}/complete", async (
     HttpContext context,
     string sessionId,
-    UploadSessionStore store) =>
+    UploadSessionStore store,
+    IStoredDocumentVerifier verifier,
+    CancellationToken cancellationToken) =>
 {
     if (RequireIdempotencyKey(context) is { } keyProblem)
     {
         return keyProblem;
     }
 
-    var result = store.Complete(sessionId, IdempotencyKey(context));
+    string? actualSha256 = null;
+    long? actualSizeBytes = null;
+    if (store.TryGetSession(sessionId, out var sessionMeta))
+    {
+        var verification = await verifier.VerifyAsync(
+            sessionMeta.DocumentId,
+            sessionMeta.ExpectedSha256,
+            sessionMeta.DeclaredSizeBytes,
+            cancellationToken);
+
+        if (verification.Outcome == StoredDocumentVerificationOutcome.NotFound)
+        {
+            return WorkflowProblem.Result(
+                context, "upload-blob-missing", "Uploaded blob not found in storage", 422);
+        }
+        if (verification.Outcome == StoredDocumentVerificationOutcome.DigestMismatch)
+        {
+            return WorkflowProblem.Result(
+                context, "upload-digest-mismatch",
+                "Actual content SHA-256 digest does not match declared digest", 422);
+        }
+        if (verification.Outcome == StoredDocumentVerificationOutcome.SizeMismatch)
+        {
+            return WorkflowProblem.Result(
+                context, "upload-size-invalid",
+                "Actual file size does not match declared size or exceeds limits", 422);
+        }
+
+        actualSha256 = verification.ActualSha256 ?? sessionMeta.ExpectedSha256;
+        actualSizeBytes = verification.ActualSizeBytes ?? sessionMeta.DeclaredSizeBytes;
+    }
+
+    var result = store.Complete(sessionId, IdempotencyKey(context), actualSha256, actualSizeBytes);
     return result.Outcome switch
     {
         CompleteUploadOutcome.Completed or CompleteUploadOutcome.Replayed =>
@@ -227,6 +269,12 @@ v1.MapPost("/documents/upload-sessions/{sessionId}/complete", (
         CompleteUploadOutcome.AlreadyConsumed => WorkflowProblem.Result(
             context, "upload-session-consumed",
             "Session already consumed by a different request", 409),
+        CompleteUploadOutcome.DigestMismatch => WorkflowProblem.Result(
+            context, "upload-digest-mismatch",
+            "Actual content SHA-256 digest does not match declared digest", 422),
+        CompleteUploadOutcome.SizeMismatch => WorkflowProblem.Result(
+            context, "upload-size-invalid",
+            "Actual file size does not match declared size or exceeds limits", 422),
         _ => WorkflowProblem.Result(
             context, "upload-session-expired", "Upload session expired", 422),
     };

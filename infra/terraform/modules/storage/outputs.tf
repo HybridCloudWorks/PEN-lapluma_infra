@@ -9,3 +9,7 @@ output "documents_bucket_name" {
 output "scratch_bucket_name" {
   value = google_storage_bucket.scratch_bucket.name
 }
+
+output "quarantine_bucket_name" {
+  value = google_storage_bucket.quarantine_bucket.name
+}

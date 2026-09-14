@@ -12,7 +12,18 @@ public enum CompleteUploadOutcome
     NotFound,
     AlreadyConsumed,
     Expired,
+    DigestMismatch,
+    SizeMismatch,
+    ValidationFailed,
 }
+
+public sealed record SessionMetadata(
+    string SessionId,
+    string DocumentId,
+    string ExpectedSha256,
+    long DeclaredSizeBytes,
+    DateTimeOffset ExpiresAt,
+    string? DeclaredMimeType);
 
 public sealed record CompleteUploadResult(CompleteUploadOutcome Outcome, UploadReceipt? Receipt);
 
@@ -48,7 +59,9 @@ public sealed partial class UploadSessionStore(TimeProvider timeProvider)
         string DocumentId,
         string ExpectedContentSha256,
         DateTimeOffset ExpiresAt,
-        string CreateKey)
+        string CreateKey,
+        long DeclaredSizeBytes = 0,
+        string? DeclaredMimeType = null)
     {
         public string? ConsumedByKey { get; set; }
     }
@@ -62,6 +75,19 @@ public sealed partial class UploadSessionStore(TimeProvider timeProvider)
     public static string HashPayload(CreateUploadSessionRequest request) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
             $"{request.FolderId}\n{request.OriginalName}\n{request.SizeBytes}\n{request.ContentSha256}")));
+
+    public bool TryGetSession(string sessionId, out SessionMetadata sessionMetadata)
+    {
+        if (sessions.TryGetValue(sessionId, out var s))
+        {
+            sessionMetadata = new SessionMetadata(
+                s.SessionId, s.DocumentId, s.ExpectedContentSha256, s.DeclaredSizeBytes, s.ExpiresAt, s.DeclaredMimeType);
+            return true;
+        }
+
+        sessionMetadata = default!;
+        return false;
+    }
 
     public (IdempotencyOutcome Outcome, string SessionId, string DocumentId, DateTimeOffset ExpiresAt)
         Create(string idempotencyKey, CreateUploadSessionRequest request)
@@ -88,7 +114,9 @@ public sealed partial class UploadSessionStore(TimeProvider timeProvider)
                 // Validated against the contract's pattern before the store is called.
                 request.ContentSha256!,
                 timeProvider.GetUtcNow().Add(SessionLifetime),
-                idempotencyKey);
+                idempotencyKey,
+                request.SizeBytes,
+                request.DeclaredMimeType);
 
             // Registered before the id can be observed through createKeys, so a replay that reads
             // the winner's id always finds the session behind it.
@@ -123,7 +151,11 @@ public sealed partial class UploadSessionStore(TimeProvider timeProvider)
         }
     }
 
-    public CompleteUploadResult Complete(string sessionId, string idempotencyKey)
+    public CompleteUploadResult Complete(
+        string sessionId,
+        string idempotencyKey,
+        string? actualSha256 = null,
+        long? actualSizeBytes = null)
     {
         if (!sessions.TryGetValue(sessionId, out var session))
         {
@@ -133,6 +165,16 @@ public sealed partial class UploadSessionStore(TimeProvider timeProvider)
         if (timeProvider.GetUtcNow() > session.ExpiresAt)
         {
             return new(CompleteUploadOutcome.Expired, null);
+        }
+
+        if (actualSha256 is not null && !string.Equals(actualSha256, session.ExpectedContentSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return new(CompleteUploadOutcome.DigestMismatch, null);
+        }
+
+        if (actualSizeBytes is not null && (actualSizeBytes.Value < 1 || actualSizeBytes.Value > MaximumSizeBytes || (session.DeclaredSizeBytes > 0 && actualSizeBytes.Value != session.DeclaredSizeBytes)))
+        {
+            return new(CompleteUploadOutcome.SizeMismatch, null);
         }
 
         lock (session)
