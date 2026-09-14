@@ -17,7 +17,6 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
 
 builder.Services.AddCatalogSource(builder.Configuration);
 builder.Services.AddCatalogAuthentication(builder.Configuration);
-builder.Services.AddSingleton<ILibraryAccessService, LibraryAccessService>();
 
 var app = builder.Build();
 
