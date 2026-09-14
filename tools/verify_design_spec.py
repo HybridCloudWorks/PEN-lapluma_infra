@@ -142,8 +142,45 @@ def verify_operator_surface_inventory() -> list[str]:
     return errors
 
 
+def verify_operator_grayscale_compliance() -> list[str]:
+    """Verify INF-13: Grayscale operator UX applied strictly to established frontends."""
+    errors = []
+
+    # 1. Verify INF-13 is explicitly referenced in spec and architecture overview
+    if os.path.isfile(SPEC_PATH):
+        with open(SPEC_PATH, "r", encoding="utf-8") as f:
+            spec_content = f.read()
+        if "INF-13" not in spec_content:
+            errors.append("shared-design-specification.md missing INF-13 reference")
+        if "Grayscale Operator UX on Established Frontends Only" not in spec_content:
+            errors.append("shared-design-specification.md missing INF-13 established frontends section")
+
+    if os.path.isfile(ARCH_OVERVIEW_PATH):
+        with open(ARCH_OVERVIEW_PATH, "r", encoding="utf-8") as f:
+            arch_content = f.read()
+        if "INF-13" not in arch_content:
+            errors.append("Architecture-Overview.md missing INF-13 reference")
+        if "Established Frontends Only (INF-13)" not in arch_content:
+            errors.append("Architecture-Overview.md missing INF-13 established frontends section")
+
+    # 2. Check that no unapproved web frontend assets exist in infra repo
+    disallowed_exts = {".jsx", ".tsx", ".vue", ".svelte"}
+    for search_dir in ["src", "tools", "infra"]:
+        full_dir = os.path.join(REPO_ROOT, search_dir)
+        if not os.path.isdir(full_dir):
+            continue
+        for root, _, files in os.walk(full_dir):
+            for file in files:
+                _, ext = os.path.splitext(file)
+                if ext.lower() in disallowed_exts:
+                    rel_path = os.path.relpath(os.path.join(root, file), REPO_ROOT)
+                    errors.append(f"Unapproved frontend asset found ({rel_path}). INF-13 forbids creating frontends solely for styling.")
+
+    return errors
+
+
 def main() -> int:
-    print("Verifying Shared Design Specification & Operator Styling (INT-10, INF-12, APP-09)...")
+    print("Verifying Shared Design Specification & Operator Styling (INT-10, INF-12, INF-13, APP-09)...")
     errors = []
 
     spec_errors = verify_shared_design_spec()
@@ -163,6 +200,15 @@ def main() -> int:
         errors.extend(inv_errors)
     else:
         print("  OK: Architecture-Overview.md operator surface inventory and grayscale rules verified.")
+
+    gray_errors = verify_operator_grayscale_compliance()
+    if gray_errors:
+        print(f"FAILED: {len(gray_errors)} issues in operator grayscale compliance (INF-13):")
+        for err in gray_errors:
+            print(f"  - {err}")
+        errors.extend(gray_errors)
+    else:
+        print("  OK: Operator grayscale compliance verified (INF-13 established frontends only).")
 
     if errors:
         print(f"\nVerification FAILED with {len(errors)} error(s).")

@@ -108,16 +108,17 @@ security-feature, and cost validation. Security controls may not be removed to f
    records content-free, verifiable deletion evidence. A receipt is not issued until active copies,
    versions, indexes, links, and any applicable key material have been verified.
 
-## Operator Grayscale Styling & Surface Inventory (INT-10, INF-12)
+## Operator Grayscale Styling & Surface Inventory (INT-10, INF-12, INF-13)
 
-Per **INF-12** and **INT-10**, visual styling across LaPluma follows product and repository ownership boundaries:
+Per **INF-12**, **INF-13**, and **INT-10**, visual styling across LaPluma follows product and repository ownership boundaries:
 - **Infra-Owned Surfaces**: Platform operator, administration, and blueprint publication interfaces use a high-contrast **neutral grayscale** theme.
 - **App-Owned Surfaces**: Applicant and workforce mobile/desktop interfaces in `PEN-lapluma_app` use the **white canvas + pastel** theme.
 
-### Operator Surface Inventory
+### Operator Surface Inventory & Established Frontends Only (INF-13)
 An audit of the infrastructure repository establishes the following inventory:
-1. **Current Operator Tooling**: All current blueprint onboarding, tenant provisioning, migration tracking, and publication operations are managed through CLI tooling (`tools/onboard_institution.py`, `tools/publish_blueprint.py`, `tools/migrate_db.py`) and automated GitHub Actions workflows. **No custom web frontend is currently deployed in `PEN-lapluma_infra`**.
-2. **Future Web / Portal Surfaces**: Any future administrative web portals, audit dashboards, or operator inspection consoles developed within this repository must implement the Grayscale Specification defined in [`docs/design/shared-design-specification.md`](file:///c:/Users/saulp/Workspace/PEN-lapluma_infra/docs/design/shared-design-specification.md):
+1. **Current Operator Tooling**: All current blueprint onboarding, tenant provisioning, migration tracking, and publication operations are managed through CLI tooling (`tools/blueprint_cli.py`, `tools/onboard_institution.py`, `tools/migrate_db.py`) and automated GitHub Actions workflows. **No custom web frontend is currently deployed in `PEN-lapluma_infra`**.
+2. **Established Frontends Only (INF-13)**: The grayscale specification applies strictly to established or separately approved operator interfaces. In accordance with architectural principles avoiding frontend proliferation, no new frontend is created solely for styling or initial customer onboarding. Existing established CLI tooling preserves clean monochromatic and neutral formatting without decorative pastel or unapproved color schemes.
+3. **Future Web / Portal Surfaces**: Any future administrative web portals, audit dashboards, or operator inspection consoles developed within this repository must implement the Grayscale Specification defined in [`docs/design/shared-design-specification.md`](file:///c:/Users/saulp/Workspace/PEN-lapluma_infra/docs/design/shared-design-specification.md):
    - **Backgrounds**: Canvas `#171717`, Flat Cards `#242424`, Controls/Inputs `#333333`, Dividers `#444444`.
    - **Foregrounds**: Primary Text `#F5F5F5`, Secondary Text `#C7C7C7`, Primary Action `#FFFFFF` button with `#171717` dark ink.
    - **Geometry**: 4px base grid rhythm, flat 12px cards (`Radius.card = 12`), 32px controls, 40px navigation pills, and zero drop shadows.
