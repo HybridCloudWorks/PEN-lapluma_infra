@@ -1,2 +1,2 @@
-azure-functions>=2.2.0,<3
+azure-functions>=2.3.0,<3
 azure-functions-durable>=1.7.0,<2
