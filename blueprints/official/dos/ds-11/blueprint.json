@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "namespace": "dos",
+  "blueprintId": "ds-11",
+  "revision": 1,
+  "title": "Application for a U.S. Passport",
+  "issuer": "U.S. Department of State",
+  "officialEditionDate": "2025-01-01",
+  "preparationMode": "FILLABLE_PDF",
+  "artifactType": "OFFICIAL_PDF",
+  "accessScope": "SHARED_OFFICIAL",
+  "source": {
+    "url": "https://eforms.state.gov/Forms/ds11.pdf",
+    "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "lastVerified": "2026-09-13T00:00:00Z"
+  },
+  "sections": [
+    {
+      "sectionId": "sec_applicant_identity",
+      "title": "Applicant Biographical Information",
+      "isRepeatable": false
+    },
+    {
+      "sectionId": "sec_contact_travel",
+      "title": "Contact Details & Travel Plans",
+      "isRepeatable": false
+    }
+  ],
+  "fields": [
+    {
+      "canonicalPath": "applicant.given_name",
+      "sectionId": "sec_applicant_identity",
+      "type": "string",
+      "label": "Given Name",
+      "required": true,
+      "attributedRole": "APPLICANT"
+    },
+    {
+      "canonicalPath": "applicant.family_name",
+      "sectionId": "sec_applicant_identity",
+      "type": "string",
+      "label": "Family Name",
+      "required": true,
+      "attributedRole": "APPLICANT"
+    },
+    {
+      "canonicalPath": "applicant.date_of_birth",
+      "sectionId": "sec_applicant_identity",
+      "type": "date",
+      "label": "Date of Birth",
+      "required": true,
+      "attributedRole": "APPLICANT"
+    },
+    {
+      "canonicalPath": "applicant.ssn",
+      "sectionId": "sec_applicant_identity",
+      "type": "string",
+      "label": "Social Security Number",
+      "required": true,
+      "attributedRole": "APPLICANT"
+    },
+    {
+      "canonicalPath": "travel.has_departure_date",
+      "sectionId": "sec_contact_travel",
+      "type": "boolean",
+      "label": "Has Specific Travel Plans",
+      "required": true,
+      "attributedRole": "APPLICANT"
+    },
+    {
+      "canonicalPath": "travel.departure_date",
+      "sectionId": "sec_contact_travel",
+      "type": "date",
+      "label": "Date of Travel / Departure",
+      "required": false,
+      "attributedRole": "APPLICANT",
+      "condition": {
+        "field": "travel.has_departure_date",
+        "operator": "equals",
+        "value": true
+      }
+    }
+  ],
+  "validationRules": [
+    {
+      "ruleId": "ssn_format",
+      "type": "regex",
+      "expression": "applicant.ssn:^\\d{3}-\\d{2}-\\d{4}$",
+      "errorMessage": "SSN must match standard format 000-00-0000"
+    }
+  ],
+  "evidenceRequirements": [
+    {
+      "code": "PROOF_OF_CITIZENSHIP",
+      "title": "Evidence of U.S. Citizenship (Certified Birth Certificate or Naturalization Certificate)",
+      "attributedRole": "APPLICANT",
+      "isConditional": false,
+      "acceptedMimeTypes": [
+        "application/pdf",
+        "image/jpeg",
+        "image/png"
+      ]
+    },
+    {
+      "code": "PROOF_OF_IDENTITY",
+      "title": "Present Identification (Valid Driver's License or Government ID)",
+      "attributedRole": "APPLICANT",
+      "isConditional": false,
+      "acceptedMimeTypes": [
+        "application/pdf",
+        "image/jpeg",
+        "image/png"
+      ]
+    }
+  ],
+  "syntheticFixtures": [
+    {
+      "fixtureName": "valid_standard_passport",
+      "expectedValid": true,
+      "inputValues": {
+        "applicant.given_name": "John",
+        "applicant.family_name": "Doe",
+        "applicant.date_of_birth": "1990-05-15",
+        "applicant.ssn": "000-00-0000",
+        "travel.has_departure_date": true,
+        "travel.departure_date": "2026-12-01"
+      }
+    }
+  ]
+}
