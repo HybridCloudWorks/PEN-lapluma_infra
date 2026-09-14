@@ -1,0 +1,10 @@
+# Preserve LF line endings on all platforms for contracts, scripts, and code
+* text=auto
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.tf text eol=lf
+*.bicep text eol=lf
+*.cs text eol=lf
+contracts/openapi/workforce-workflow.yaml text eol=lf
