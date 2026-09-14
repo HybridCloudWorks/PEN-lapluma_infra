@@ -13,21 +13,41 @@ public static class WorkflowSourceRegistration
 {
     public const string SourceSetting = "Workflow:Source";
     public const string FixtureSource = "fixture";
+    public const string PostgresSource = "postgres";
+    public const string PostgreSqlSource = "postgresql";
+    public const string PostgresConnectionStringSetting = "Database:ConnectionString";
+    public const string AltPostgresConnectionStringSetting = "Workflow:PostgresConnectionString";
 
     public static IServiceCollection AddWorkflowSource(
         this IServiceCollection services, IConfiguration configuration)
     {
-        var source = configuration[SourceSetting];
-        if (!string.Equals(source, FixtureSource, StringComparison.OrdinalIgnoreCase))
+        var source = configuration[SourceSetting] ?? FixtureSource;
+
+        if (string.Equals(source, FixtureSource, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                $"{SourceSetting} must be '{FixtureSource}' (the only implemented store, TODO 5.8 "
-                + $"tracks the durable one), not '{source ?? "<unset>"}'.");
+            services.AddSingleton<WorkflowFixtureSource>();
+            services.AddSingleton<IWorkflowSource>(provider =>
+                provider.GetRequiredService<WorkflowFixtureSource>());
+            return services;
         }
 
-        services.AddSingleton<WorkflowFixtureSource>();
-        services.AddSingleton<IWorkflowSource>(provider =>
-            provider.GetRequiredService<WorkflowFixtureSource>());
-        return services;
+        if (string.Equals(source, PostgresSource, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(source, PostgreSqlSource, StringComparison.OrdinalIgnoreCase))
+        {
+            var connStr = configuration[PostgresConnectionStringSetting] ?? configuration[AltPostgresConnectionStringSetting];
+            if (string.IsNullOrWhiteSpace(connStr))
+            {
+                throw new InvalidOperationException(
+                    $"{PostgresConnectionStringSetting} is required when workflow source is '{PostgresSource}'.");
+            }
+
+            var dataSource = Npgsql.NpgsqlDataSource.Create(connStr);
+            services.AddSingleton(dataSource);
+            services.AddSingleton<IWorkflowSource, PostgresWorkflowSource>();
+            return services;
+        }
+
+        throw new InvalidOperationException(
+            $"{SourceSetting} must be '{FixtureSource}', '{PostgresSource}', or '{PostgreSqlSource}', not '{source}'.");
     }
 }
