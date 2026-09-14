@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DocumentBlueprint",
+  "description": "Declarative schema for versioned LaPluma Document Blueprints (INF-17)",
+  "type": "object",
+  "required": [
+    "namespace",
+    "blueprintId",
+    "revision",
+    "title",
+    "issuer",
+    "preparationMode",
+    "artifactType",
+    "accessScope",
+    "fields",
+    "evidenceRequirements"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON schema reference URI"
+    },
+    "namespace": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{2,64}$",
+      "description": "Namespace of the blueprint issuer or institution"
+    },
+    "blueprintId": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{2,64}$",
+      "description": "Unique identifier of the blueprint within its namespace"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic immutable revision number"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "officialEditionDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Optional official agency edition date"
+    },
+    "preparationMode": {
+      "type": "string",
+      "enum": ["FILLABLE_PDF", "STATIC_ASSISTED", "EXTERNAL_REFERENCE"]
+    },
+    "artifactType": {
+      "type": "string",
+      "enum": ["OFFICIAL_PDF", "XFA", "FLAT", "EXTERNAL_LINK", "AUTHORED_TEMPLATE"]
+    },
+    "accessScope": {
+      "type": "string",
+      "enum": ["SHARED_OFFICIAL", "INSTITUTION_PRIVATE"]
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "lastVerified": { "type": "string" }
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["canonicalPath", "type", "label"],
+        "properties": {
+          "canonicalPath": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["string", "date", "boolean", "choice", "signature", "number"]
+          },
+          "label": { "type": "string" },
+          "required": { "type": "boolean", "default": false },
+          "attributedRole": { "type": "string" },
+          "pdfFieldMapping": { "type": "string" }
+        }
+      }
+    },
+    "validationRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ruleId", "type", "expression"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "type": { "type": "string", "enum": ["regex", "range", "cross_field", "custom_bounded"] },
+          "expression": { "type": "string" },
+          "errorMessage": { "type": "string" }
+        }
+      }
+    },
+    "evidenceRequirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "title", "attributedRole"],
+        "properties": {
+          "code": { "type": "string" },
+          "title": { "type": "string" },
+          "attributedRole": { "type": "string" },
+          "isConditional": { "type": "boolean", "default": false },
+          "acceptedMimeTypes": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "syntheticFixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fixtureName", "inputValues"],
+        "properties": {
+          "fixtureName": { "type": "string" },
+          "inputValues": { "type": "object" },
+          "expectedValid": { "type": "boolean", "default": true }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "namespace": "clinic",
+  "blueprintId": "intake",
+  "revision": 1,
+  "title": "Community Legal Clinic Client Intake",
+  "issuer": "LaPluma Legal Clinic Partner",
+  "officialEditionDate": "2026-01-01",
+  "preparationMode": "STATIC_ASSISTED",
+  "artifactType": "AUTHORED_TEMPLATE",
+  "accessScope": "INSTITUTION_PRIVATE",
+  "source": {
+    "url": "https://partner.lapluma.io/templates/intake-2026.pdf",
+    "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "lastVerified": "2026-09-13T00:00:00Z"
+  },
+  "fields": [
+    {
+      "canonicalPath": "client.full_name",
+      "type": "string",
+      "label": "Client Full Name",
+      "required": true,
+      "attributedRole": "CLIENT"
+    },
+    {
+      "canonicalPath": "client.household_size",
+      "type": "number",
+      "label": "Household Size",
+      "required": true,
+      "attributedRole": "CLIENT"
+    },
+    {
+      "canonicalPath": "client.annual_income",
+      "type": "number",
+      "label": "Annual Household Income",
+      "required": true,
+      "attributedRole": "CLIENT"
+    },
+    {
+      "canonicalPath": "client.eligible_for_fee_waiver",
+      "type": "boolean",
+      "label": "Fee Waiver Eligibility",
+      "required": true,
+      "attributedRole": "CLIENT"
+    }
+  ],
+  "validationRules": [
+    {
+      "ruleId": "income_positive",
+      "type": "range",
+      "expression": "client.annual_income:0:1000000",
+      "errorMessage": "Income must be positive"
+    }
+  ],
+  "evidenceRequirements": [
+    {
+      "code": "PROOF_OF_INCOME",
+      "title": "Proof of Income (Pay stub or tax return)",
+      "attributedRole": "CLIENT",
+      "isConditional": false,
+      "acceptedMimeTypes": [
+        "application/pdf",
+        "image/png"
+      ]
+    }
+  ],
+  "syntheticFixtures": [
+    {
+      "fixtureName": "qualifying_household",
+      "expectedValid": true,
+      "inputValues": {
+        "client.full_name": "Jane Doe",
+        "client.household_size": 3,
+        "client.annual_income": 32000,
+        "client.eligible_for_fee_waiver": true
+      }
+    },
+    {
+      "fixtureName": "missing_required_income",
+      "expectedValid": false,
+      "inputValues": {
+        "client.full_name": "Jane Doe",
+        "client.household_size": 3
+      }
+    }
+  ]
+}

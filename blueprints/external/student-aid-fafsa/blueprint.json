@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "namespace": "external",
+  "blueprintId": "fafsa",
+  "revision": 1,
+  "title": "Free Application for Federal Student Aid (FAFSA)",
+  "issuer": "Federal Student Aid (US Department of Education)",
+  "officialEditionDate": "2026-01-01",
+  "preparationMode": "EXTERNAL_REFERENCE",
+  "artifactType": "EXTERNAL_LINK",
+  "accessScope": "SHARED_OFFICIAL",
+  "source": {
+    "url": "https://studentaid.gov/h/apply-for-aid/fafsa",
+    "sha256": "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce",
+    "lastVerified": "2026-09-13T00:00:00Z"
+  },
+  "fields": [
+    {
+      "canonicalPath": "student.name",
+      "type": "string",
+      "label": "Student Full Name",
+      "required": true,
+      "attributedRole": "STUDENT"
+    },
+    {
+      "canonicalPath": "student.academic_year",
+      "type": "string",
+      "label": "Academic Year",
+      "required": true,
+      "attributedRole": "STUDENT"
+    }
+  ],
+  "validationRules": [],
+  "evidenceRequirements": [
+    {
+      "code": "FAFSA_CONFIRMATION",
+      "title": "FAFSA Submission Confirmation Page",
+      "attributedRole": "STUDENT",
+      "isConditional": false,
+      "acceptedMimeTypes": [
+        "application/pdf"
+      ]
+    }
+  ],
+  "syntheticFixtures": [
+    {
+      "fixtureName": "valid_student_reference",
+      "expectedValid": true,
+      "inputValues": {
+        "student.name": "Alex Smith",
+        "student.academic_year": "2026-2027"
+      }
+    }
+  ]
+}
