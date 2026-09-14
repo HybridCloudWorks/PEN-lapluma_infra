@@ -6,13 +6,15 @@ info:
     Direct-to-storage document ingestion. The API never carries document bytes: a
     session returns a write-only, single-blob upload URL and the client PUTs the
     bytes to it, then completes the session so the server can verify the digest
-    and hand the object to processing. The upload URL is a user-delegation SAS —
-    shared-key access is disabled on every storage account in this estate — and
-    it expires fifteen minutes after issue. Tenant, folder, and person scope are
-    derived from the authenticated session; missing and unauthorized resources
-    use the same 404 response. Client capture limits are mirrored here so the
-    server rejects what the client would never send: 104857600 bytes, and a
-    SHA-256 digest declared before any byte is accepted.
+    and hand the object to processing. Under ADR-019, the upload URL is a scoped
+    Google Cloud Storage V4 signed URL (or user-delegation SAS) — bypassing API
+    Gateway's 32 MB limit via short-lived, create-only grants to private Cloud
+    Storage buckets over Google's internet endpoint — and it expires fifteen minutes
+    after issue. Tenant, folder, and person scope are derived from the authenticated
+    session; missing and unauthorized resources use the same 404 response. Client
+    capture limits are mirrored here so the server rejects what the client would
+    never send: 104857600 bytes, and a SHA-256 digest declared before any byte is
+    accepted.
 servers: [{url: "https://api.example.invalid/v1"}]
 security: [{tenantSession: []}]
 paths:
