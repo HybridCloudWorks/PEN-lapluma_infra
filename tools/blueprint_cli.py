@@ -682,9 +682,166 @@ def cmd_package(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_review(args: argparse.Namespace) -> int:
+    """Record independent review for a validated blueprint, enforcing no self-approval."""
+    validator = BlueprintValidator(Path(args.schema) if args.schema else None)
+    target = Path(args.target)
+    if target.is_dir():
+        target = target / "blueprint.json"
+
+    failures = validator.validate_file(target)
+    if failures:
+        print(f"ERROR: Cannot review invalid blueprint {target}:", file=sys.stderr)
+        for f in failures:
+            print(f"  - {f}", file=sys.stderr)
+        return 1
+
+    if args.reviewer.strip().lower() == args.author.strip().lower():
+        print(
+            f"ERROR: Independent review invariant violated: reviewer '{args.reviewer}' cannot be the author (self-approval prohibited).",
+            file=sys.stderr,
+        )
+        return 1
+
+    bp_data = json.loads(target.read_text(encoding="utf-8"))
+    review_receipt = {
+        "action": "REVIEW_APPROVED",
+        "namespace": bp_data["namespace"],
+        "blueprintId": bp_data["blueprintId"],
+        "revision": bp_data["revision"],
+        "author": args.author,
+        "reviewer": args.reviewer,
+        "reviewedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "notes": args.notes or "Independent review passed"
+    }
+
+    out_json = json.dumps(review_receipt, indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(out_json, encoding="utf-8")
+        print(f"Review receipt saved to {args.output}")
+    else:
+        print(out_json)
+
+    return 0
+
+
+def cmd_publish(args: argparse.Namespace) -> int:
+    """Publish a validated, independently reviewed blueprint with pinned source and manifest digest."""
+    validator = BlueprintValidator(Path(args.schema) if args.schema else None)
+    target = Path(args.target)
+    if target.is_dir():
+        target = target / "blueprint.json"
+
+    failures = validator.validate_file(target)
+    if failures:
+        print(f"ERROR: Cannot publish invalid blueprint {target}:", file=sys.stderr)
+        for f in failures:
+            print(f"  - {f}", file=sys.stderr)
+        return 1
+
+    if not args.reviewer:
+        print("ERROR: Cannot publish: independent reviewer is required.", file=sys.stderr)
+        return 1
+
+    if args.author and args.reviewer.strip().lower() == args.author.strip().lower():
+        print(
+            f"ERROR: Cannot publish: self-approval invariant violated (reviewer '{args.reviewer}' == author).",
+            file=sys.stderr,
+        )
+        return 1
+
+    bp_data = json.loads(target.read_text(encoding="utf-8"))
+    canonical_bytes = json.dumps(bp_data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    manifest_digest = hashlib.sha256(canonical_bytes).hexdigest()
+
+    publish_bundle = {
+        "manifestVersion": "1.0.0",
+        "publicationState": "PUBLISHED",
+        "publishedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "namespace": bp_data["namespace"],
+        "blueprintId": bp_data["blueprintId"],
+        "revision": bp_data["revision"],
+        "sourceSha256": bp_data.get("source", {}).get("sha256"),
+        "manifestSha256": manifest_digest,
+        "author": args.author,
+        "reviewer": args.reviewer,
+        "publisher": args.publisher,
+        "blueprint": bp_data
+    }
+
+    out_json = json.dumps(publish_bundle, indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(out_json, encoding="utf-8")
+        print(f"Publication bundle saved to {args.output} (manifest digest: {manifest_digest})")
+    else:
+        print(out_json)
+
+    return 0
+
+
+def cmd_check_drift(args: argparse.Namespace) -> int:
+    """Check whether official source document has drifted from pinned checksum."""
+    target = Path(args.target)
+    if target.is_dir():
+        target = target / "blueprint.json"
+
+    if not target.is_file():
+        print(f"ERROR: Blueprint not found: {target}", file=sys.stderr)
+        return 1
+
+    bp_data = json.loads(target.read_text(encoding="utf-8"))
+    pinned_sha = bp_data.get("source", {}).get("sha256", "").lower()
+
+    observed_sha = args.observed_sha256.strip().lower()
+
+    if pinned_sha and pinned_sha != observed_sha:
+        print(
+            f"SOURCE_DRIFT_DETECTED: Pinned SHA256 '{pinned_sha}' != Observed SHA256 '{observed_sha}'. "
+            f"Blueprint {bp_data.get('namespace')}/{bp_data.get('blueprintId')}@r{bp_data.get('revision')} "
+            "must be QUARANTINED pending review.",
+            file=sys.stderr,
+        )
+        return 2
+
+    print(f"SOURCE_VERIFIED: Checksum matches pinned edition ({pinned_sha}).")
+    return 0
+
+
+def cmd_rollback(args: argparse.Namespace) -> int:
+    """Roll back latest blueprint pointer to a specified revision while preserving historical case pins."""
+    target = Path(args.target)
+    if target.is_dir():
+        target = target / "blueprint.json"
+
+    if not target.is_file():
+        print(f"ERROR: Blueprint not found: {target}", file=sys.stderr)
+        return 1
+
+    bp_data = json.loads(target.read_text(encoding="utf-8"))
+    rollback_manifest = {
+        "action": "ROLLED_BACK",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "namespace": bp_data["namespace"],
+        "blueprintId": bp_data["blueprintId"],
+        "targetRevision": args.target_revision,
+        "operator": args.operator,
+        "reason": args.reason,
+        "note": "Rollback updates latest pointer for new cases; historical case pins remain immutable."
+    }
+
+    out_json = json.dumps(rollback_manifest, indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(out_json, encoding="utf-8")
+        print(f"Rollback manifest saved to {args.output}")
+    else:
+        print(out_json)
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="LaPluma Document Blueprint Onboarding and Validation CLI (INF-17)",
+        description="LaPluma Document Blueprint Onboarding, Validation and Publication CLI (INF-17, INF-04)",
         prog="blueprint_cli.py"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -718,6 +875,41 @@ def build_parser() -> argparse.ArgumentParser:
     p_pkg.add_argument("--schema", help="Path to custom JSON schema file")
     p_pkg.add_argument("-o", "--output", help="Output package file path (defaults to stdout)")
     p_pkg.set_defaults(func=cmd_package)
+
+    # review
+    p_rev = subparsers.add_parser("review", help="Record independent review for a blueprint (INF-04)")
+    p_rev.add_argument("target", help="Path to blueprint.json or directory containing it")
+    p_rev.add_argument("--author", required=True, help="Author identifier")
+    p_rev.add_argument("--reviewer", required=True, help="Independent reviewer identifier")
+    p_rev.add_argument("--notes", help="Review notes or approval reference")
+    p_rev.add_argument("--schema", help="Path to custom JSON schema file")
+    p_rev.add_argument("-o", "--output", help="Output review receipt path")
+    p_rev.set_defaults(func=cmd_review)
+
+    # publish
+    p_pub = subparsers.add_parser("publish", help="Publish blueprint with review invariants and pinned digests (INF-04)")
+    p_pub.add_argument("target", help="Path to blueprint.json or directory containing it")
+    p_pub.add_argument("--publisher", required=True, help="Publisher identifier")
+    p_pub.add_argument("--reviewer", required=True, help="Independent reviewer identifier")
+    p_pub.add_argument("--author", help="Author identifier (checked against reviewer)")
+    p_pub.add_argument("--schema", help="Path to custom JSON schema file")
+    p_pub.add_argument("-o", "--output", help="Output publication package path")
+    p_pub.set_defaults(func=cmd_publish)
+
+    # check-drift
+    p_drift = subparsers.add_parser("check-drift", help="Verify official source checksum against pinned edition (INF-04)")
+    p_drift.add_argument("target", help="Path to blueprint.json")
+    p_drift.add_argument("--observed-sha256", required=True, help="Observed SHA256 of source file")
+    p_drift.set_defaults(func=cmd_check_drift)
+
+    # rollback
+    p_rb = subparsers.add_parser("rollback", help="Roll back blueprint pointer for new cases (INF-04)")
+    p_rb.add_argument("target", help="Path to blueprint.json")
+    p_rb.add_argument("--target-revision", type=int, required=True, help="Target revision number to restore as latest")
+    p_rb.add_argument("--operator", required=True, help="Operator identifier")
+    p_rb.add_argument("--reason", required=True, help="Reason for rollback")
+    p_rb.add_argument("-o", "--output", help="Output rollback manifest path")
+    p_rb.set_defaults(func=cmd_rollback)
 
     return parser
 

@@ -34,6 +34,7 @@ public static class CatalogSourceRegistration
             services.AddSingleton<CatalogRepository>();
             services.AddSingleton<ICatalogSource>(provider => provider.GetRequiredService<CatalogRepository>());
             services.AddSingleton<ILibraryAccessService, LibraryAccessService>();
+            services.AddSingleton<IBlueprintPublicationService, InMemoryBlueprintPublicationService>();
             return services;
         }
 
@@ -50,6 +51,7 @@ public static class CatalogSourceRegistration
             services.AddSingleton(dataSource);
             services.AddSingleton<ICatalogSource, PostgresCatalogSource>();
             services.AddSingleton<ILibraryAccessService, PostgresLibraryAccessService>();
+            services.AddSingleton<IBlueprintPublicationService, PostgresBlueprintPublicationService>();
             return services;
         }
 
@@ -68,6 +70,7 @@ public static class CatalogSourceRegistration
         services.AddSingleton(BuildSqlOptions(configuration));
         services.AddSingleton<ICatalogSource, SqlCatalogSource>();
         services.AddSingleton<ILibraryAccessService, LibraryAccessService>();
+        services.AddSingleton<IBlueprintPublicationService, InMemoryBlueprintPublicationService>();
         return services;
     }
 
