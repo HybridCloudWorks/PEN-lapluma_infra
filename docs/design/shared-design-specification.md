@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0  
 **Status:** Approved Architecture Contract  
-**Linked Tickets:** INT-10, INF-12, APP-09  
+**Linked Tickets:** INT-10, INF-12, INF-13, APP-09  
 **Related Reference:** `DESIGN.md` (Mercury Style Reference with Explicit User Palette Overrides)
 
 ---
@@ -30,12 +30,15 @@ Theme application follows product and repository ownership boundaries:
 
 | Surface Type | Repository | Primary Theme | Palette Tokens | Delivery Interfaces |
 |---|---|---|---|---|
-| **Operator / Admin Infrastructure** | `PEN-lapluma_infra` | **Neutral Grayscale** | `#171717`, `#242424`, `#333333`, `#F5F5F5`, `#C7C7C7`, `#FFFFFF` controls | CLI (`onboard_institution.py`, `publish_blueprint.py`), GitHub Actions CI, future web portals |
+| **Operator / Admin Infrastructure** | `PEN-lapluma_infra` | **Neutral Grayscale** | `#171717`, `#242424`, `#333333`, `#F5F5F5`, `#C7C7C7`, `#FFFFFF` controls | CLI (`blueprint_cli.py`, `onboard_institution.py`), GitHub Actions CI, future web portals |
 | **Applicant Mobile Experience** | `PEN-lapluma_app` | **Pastel + White Canvas** | White `#FFFFFF`, Pastels (`#FCE4E4`, `#FFF4CC`, `#E3F3E8`, `#E3EEFC`), Dark Ink `#202124` | iOS / iPhone native screens (Client setup, Guided Finish, Relay) |
 | **Workforce & Reviewer Surfaces** | `PEN-lapluma_app` | **Pastel + White Canvas** | White `#FFFFFF`, Pastels, Dark Ink `#202124` | iPadOS / macOS workforce app (Preparer, Reviewer, Approver, Tenant Admin) |
 
 > [!NOTE]
 > Tenant administration within `PEN-lapluma_app` (managing clinic staff or workspace assignments) is an **app-owned** workforce surface and uses the pastel theme. Only cross-tenant platform operator tooling in `PEN-lapluma_infra` uses grayscale.
+
+### Grayscale Operator UX on Established Frontends Only (INF-13)
+Under **INF-13**, the grayscale specification applies strictly to established or separately approved operator interfaces. In accordance with platform governance to prevent unneeded maintenance overhead and frontend proliferation, no new web frontend or portal service is created solely for styling or customer onboarding. Established CLI tooling (`blueprint_cli.py`, `onboard_institution.py`, etc.) and CI automation enforce monochromatic neutrality without decorative pastel or unapproved color schemes.
 
 ---
 
