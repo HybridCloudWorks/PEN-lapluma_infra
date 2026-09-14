@@ -1196,6 +1196,67 @@ def validate_identity_and_roles() -> Failures:
     return failures
 
 
+def validate_gcp_environments() -> Failures:
+    """Validate INT-07 isolated GCP dev, staging, and pilot environments and policies."""
+    failures = Failures()
+    require = failures.require
+
+    matrix_md = ROOT / "docs" / "planning" / "gcp-environment-matrix.md"
+    require(matrix_md.is_file(), f"GCP environment matrix doc missing at {matrix_md}")
+    if matrix_md.is_file():
+        matrix_text = matrix_md.read_text(encoding="utf-8")
+        require("lapluma-dev-gcp" in matrix_text, "Matrix doc missing lapluma-dev-gcp project")
+        require("lapluma-staging-gcp" in matrix_text, "Matrix doc missing lapluma-staging-gcp project")
+        require("lapluma-pilot-gcp" in matrix_text, "Matrix doc missing lapluma-pilot-gcp project")
+        require("$100.00 / month" in matrix_text, "Matrix doc missing $100/mo pilot budget cap")
+        require("Synthetic Only" in matrix_text, "Matrix doc missing synthetic data boundary")
+        require("Dual-custody human sign-off required" in matrix_text, "Matrix doc missing dual-custody gate")
+
+    envs_dir = ROOT / "infra" / "terraform" / "environments"
+    require(envs_dir.is_dir(), f"Terraform environments directory missing at {envs_dir}")
+
+    for env_name in ("dev", "staging", "pilot"):
+        env_path = envs_dir / env_name
+        require(env_path.is_dir(), f"Terraform environment missing: {env_name}")
+        if not env_path.is_dir():
+            continue
+
+        main_tf = env_path / "main.tf"
+        variables_tf = env_path / "variables.tf"
+        outputs_tf = env_path / "outputs.tf"
+        tfvars_example = env_path / "terraform.tfvars.example"
+
+        for f in (main_tf, variables_tf, outputs_tf, tfvars_example):
+            require(f.is_file(), f"Environment {env_name} missing file: {f.name}")
+
+        if main_tf.is_file():
+            main_text = main_tf.read_text(encoding="utf-8")
+            for mod in ("iam", "network", "storage", "database", "messaging", "compute", "gateway"):
+                require(
+                    f'module "{mod}"' in main_text,
+                    f"Environment {env_name} main.tf missing module invocation: {mod}",
+                )
+            require(
+                'db_tier                = "db-g1-small"' in main_text or 'db_tier = "db-g1-small"' in main_text,
+                f"Environment {env_name} must use db-g1-small database tier",
+            )
+
+        if tfvars_example.is_file():
+            example_text = tfvars_example.read_text(encoding="utf-8")
+            require(
+                f'project_id        = "lapluma-{env_name}-gcp"' in example_text
+                or f'project_id = "lapluma-{env_name}-gcp"' in example_text,
+                f"Environment {env_name} tfvars.example has incorrect project_id",
+            )
+            require(
+                f'environment       = "{env_name}"' in example_text
+                or f'environment = "{env_name}"' in example_text,
+                f"Environment {env_name} tfvars.example has incorrect environment",
+            )
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1217,6 +1278,7 @@ def main() -> int:
         *validate_blueprints(),
         *validate_uscis_manifest(),
         *validate_identity_and_roles(),
+        *validate_gcp_environments(),
     ]
     if failures:
 
