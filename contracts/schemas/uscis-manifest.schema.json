@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "USCISFormManifest",
+  "description": "Declarative schema for the reconciled official USCIS form catalog manifest and non-USCIS preservation (INF-01)",
+  "type": "object",
+  "required": [
+    "manifestVersion",
+    "lastVerifiedAt",
+    "authority",
+    "sourceSnapshotUrl",
+    "reconciliationStatus",
+    "summary",
+    "forms",
+    "preservedNonUscisDefinitions"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON schema reference URI"
+    },
+    "manifestVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "lastVerifiedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authority": {
+      "type": "string",
+      "const": "USCIS"
+    },
+    "sourceSnapshotUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "reconciliationStatus": {
+      "type": "string",
+      "enum": ["COMPLETE", "IN_PROGRESS"]
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "totalOfficialForms",
+        "bySeries",
+        "byPreparationCapability",
+        "byParentEpic"
+      ],
+      "properties": {
+        "totalOfficialForms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bySeries": {
+          "type": "object",
+          "required": ["I", "N", "G", "OTHER"],
+          "properties": {
+            "I": { "type": "integer", "minimum": 0 },
+            "N": { "type": "integer", "minimum": 0 },
+            "G": { "type": "integer", "minimum": 0 },
+            "OTHER": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "byPreparationCapability": {
+          "type": "object",
+          "required": ["FILLABLE_PDF", "STATIC_ASSISTED", "EXTERNAL_REFERENCE"],
+          "properties": {
+            "FILLABLE_PDF": { "type": "integer", "minimum": 0 },
+            "STATIC_ASSISTED": { "type": "integer", "minimum": 0 },
+            "EXTERNAL_REFERENCE": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "byParentEpic": {
+          "type": "object",
+          "required": ["INF-06", "INF-07", "INF-08"],
+          "properties": {
+            "INF-06": { "type": "integer", "minimum": 0 },
+            "INF-07": { "type": "integer", "minimum": 0 },
+            "INF-08": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "forms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "formId",
+          "formNumber",
+          "title",
+          "series",
+          "issuer",
+          "sourceUrl",
+          "editionDate",
+          "preparationCapability",
+          "artifactType",
+          "capabilityRationale",
+          "parentEpic",
+          "status",
+          "requiresOfficialSourceAllowlist",
+          "requiresTwoPersonActivation"
+        ],
+        "properties": {
+          "formId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9]+([\\-/][A-Za-z0-9]+)*$"
+          },
+          "formNumber": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "series": {
+            "type": "string",
+            "enum": ["I", "N", "G", "OTHER"]
+          },
+          "issuer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "pdfUrl": {
+            "type": ["string", "null"]
+          },
+          "instructionsUrl": {
+            "type": ["string", "null"]
+          },
+          "editionDate": {
+            "type": "string"
+          },
+          "preparationCapability": {
+            "type": "string",
+            "enum": ["FILLABLE_PDF", "STATIC_ASSISTED", "EXTERNAL_REFERENCE"]
+          },
+          "artifactType": {
+            "type": "string",
+            "enum": ["OFFICIAL_PDF", "XFA", "FLAT", "EXTERNAL_LINK"]
+          },
+          "capabilityRationale": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parentEpic": {
+            "type": "string",
+            "enum": ["INF-06", "INF-07", "INF-08"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["RECONCILED", "IN_PROGRESS", "PUBLISHED"]
+          },
+          "requiresOfficialSourceAllowlist": {
+            "type": "boolean"
+          },
+          "requiresTwoPersonActivation": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "preservedNonUscisDefinitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "documentId",
+          "title",
+          "issuer",
+          "namespace",
+          "preparationMode",
+          "sourceUrl"
+        ],
+        "properties": {
+          "documentId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "preparationMode": {
+            "type": "string",
+            "enum": ["FILLABLE_PDF", "STATIC_ASSISTED", "EXTERNAL_REFERENCE"]
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

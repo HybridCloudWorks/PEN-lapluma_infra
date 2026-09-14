@@ -1053,6 +1053,43 @@ def validate_blueprints() -> Failures:
     return failures
 
 
+def validate_uscis_manifest() -> list[str]:
+    failures: list[str] = []
+    try:
+        from uscis_manifest_validator import (
+            DEFAULT_MANIFEST_PATH,
+            DEFAULT_SCHEMA_PATH,
+            load_json,
+            validate_manifest_integrity,
+            validate_schema,
+        )
+    except ImportError:
+        from tools.uscis_manifest_validator import (
+            DEFAULT_MANIFEST_PATH,
+            DEFAULT_SCHEMA_PATH,
+            load_json,
+            validate_manifest_integrity,
+            validate_schema,
+        )
+
+    if not DEFAULT_MANIFEST_PATH.is_file():
+        return [f"USCIS manifest missing at {DEFAULT_MANIFEST_PATH}"]
+    if not DEFAULT_SCHEMA_PATH.is_file():
+        return [f"USCIS manifest schema missing at {DEFAULT_SCHEMA_PATH}"]
+
+    try:
+        manifest = load_json(DEFAULT_MANIFEST_PATH)
+        schema = load_json(DEFAULT_SCHEMA_PATH)
+        errors = validate_schema(manifest, schema)
+        if errors:
+            failures.extend(errors)
+        validate_manifest_integrity(manifest)
+    except Exception as exc:
+        failures.append(f"USCIS manifest validation exception: {exc}")
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1072,8 +1109,10 @@ def main() -> int:
         *validate_no_sensitive_values(),
         *validate_review_index(),
         *validate_blueprints(),
+        *validate_uscis_manifest(),
     ]
     if failures:
+
         for failure in failures:
             print(f"ERROR: {failure}", file=sys.stderr)
         return 1
