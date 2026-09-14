@@ -177,6 +177,141 @@ class TestBlueprintCli(unittest.TestCase):
         failures = self.validator.validate_data(bad_data)
         self.assertTrue(any("expectation mismatch" in f for f in failures))
 
+    def test_rejection_of_executable_code_in_blueprint(self) -> None:
+        """Verify that script injection or eval patterns in any field are strictly rejected."""
+        malicious_patterns = [
+            "<script>alert('xss')</script>",
+            "javascript:void(0)",
+            "eval('dangerous()')",
+            "exec('something')",
+            "__proto__.polluted = true",
+        ]
+        for pattern in malicious_patterns:
+            bad_data = copy.deepcopy(self.sample_blueprint)
+            bad_data["title"] = f"Form Title {pattern}"
+            failures = self.validator.validate_data(bad_data)
+            self.assertTrue(
+                any("Executable code or injection pattern rejected" in f for f in failures),
+                f"Expected injection failure for pattern {pattern!r}, got: {failures}",
+            )
+
+    def test_rejection_of_unsafe_source_urls(self) -> None:
+        """Verify that HTTP, loopback, private IP, and cloud metadata source URLs are rejected."""
+        unsafe_urls = [
+            "http://example.com/test.pdf",
+            "https://localhost/test.pdf",
+            "https://127.0.0.1/test.pdf",
+            "https://169.254.169.254/latest/meta-data",
+            "https://metadata.google.internal/computeMetadata/v1",
+            "https://10.0.0.1/internal.pdf",
+        ]
+        for url in unsafe_urls:
+            bad_data = copy.deepcopy(self.sample_blueprint)
+            bad_data["source"]["url"] = url
+            failures = self.validator.validate_data(bad_data)
+            self.assertTrue(
+                any("source.url" in f for f in failures),
+                f"Expected source URL failure for {url!r}, got: {failures}",
+            )
+
+    def test_rejection_of_arbitrary_expressions_in_validation_rules(self) -> None:
+        """Verify that unapproved or arbitrary expression grammars are rejected."""
+        bad_data = copy.deepcopy(self.sample_blueprint)
+        bad_data["validationRules"].append({
+            "ruleId": "arbitrary_eval_rule",
+            "type": "regex",
+            "expression": "person.age.is_even()",  # missing required 'path:pattern' format
+            "errorMessage": "Arbitrary function call"
+        })
+        failures = self.validator.validate_data(bad_data)
+        self.assertTrue(
+            any("regex expression must be 'canonicalPath:pattern'" in f for f in failures)
+        )
+
+    def test_rejection_of_reserved_official_namespace_by_institution_private(self) -> None:
+        """Verify that institution private blueprints cannot overwrite or claim official agency namespaces."""
+        bad_data = copy.deepcopy(self.sample_blueprint)
+        bad_data["namespace"] = "uscis"
+        bad_data["accessScope"] = "INSTITUTION_PRIVATE"
+        failures = self.validator.validate_data(bad_data)
+        self.assertTrue(
+            any("cannot redefine reserved official agency namespace" in f for f in failures)
+        )
+
+    def test_declarative_sections_and_conditional_required(self) -> None:
+        """Verify sections, overflow strategies, and conditional_required rules."""
+        bp = copy.deepcopy(self.sample_blueprint)
+        bp["sections"] = [
+            {
+                "sectionId": "sec_main",
+                "title": "Main Section",
+                "overflowStrategy": "ATTACHMENT_ADDENDUM"
+            },
+            {
+                "sectionId": "sec_spouse",
+                "title": "Spouse Section",
+                "condition": {
+                    "field": "person.is_married",
+                    "operator": "equals",
+                    "value": True
+                }
+            }
+        ]
+        bp["fields"].append({
+            "canonicalPath": "person.is_married",
+            "sectionId": "sec_main",
+            "type": "boolean",
+            "label": "Is Married",
+            "required": True,
+            "attributedRole": "APPLICANT"
+        })
+        bp["fields"].append({
+            "canonicalPath": "spouse.name",
+            "sectionId": "sec_spouse",
+            "type": "string",
+            "label": "Spouse Name",
+            "required": False,
+            "attributedRole": "APPLICANT"
+        })
+        bp["validationRules"].append({
+            "ruleId": "spouse_name_when_married",
+            "type": "conditional_required",
+            "expression": "when:person.is_married==True:then_required:spouse.name",
+            "errorMessage": "Spouse name is required when married"
+        })
+        bp["syntheticFixtures"] = [
+            {
+                "fixtureName": "married_with_spouse_name",
+                "expectedValid": True,
+                "inputValues": {
+                    "person.first_name": "Alice",
+                    "person.age": 30,
+                    "person.is_married": True,
+                    "spouse.name": "Bob"
+                }
+            },
+            {
+                "fixtureName": "married_missing_spouse_name",
+                "expectedValid": False,
+                "inputValues": {
+                    "person.first_name": "Alice",
+                    "person.age": 30,
+                    "person.is_married": True
+                }
+            },
+            {
+                "fixtureName": "unmarried_valid",
+                "expectedValid": True,
+                "inputValues": {
+                    "person.first_name": "Alice",
+                    "person.age": 30,
+                    "person.is_married": False
+                }
+            }
+        ]
+        failures = self.validator.validate_data(bp)
+        self.assertEqual(failures, [])
+
     def test_cli_init_command(self) -> None:
         parser = build_parser()
         with tempfile.TemporaryDirectory() as tmp_dir:

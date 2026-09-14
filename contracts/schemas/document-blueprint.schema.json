@@ -70,6 +70,36 @@
         "lastVerified": { "type": "string" }
       }
     },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sectionId", "title"],
+        "properties": {
+          "sectionId": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{2,64}$"
+          },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "isRepeatable": { "type": "boolean", "default": false },
+          "maxOccurs": { "type": "integer", "minimum": 1, "default": 1 },
+          "overflowStrategy": {
+            "type": "string",
+            "enum": ["ATTACHMENT_ADDENDUM", "TRUNCATE_ERROR", "SPLIT_PAGES"]
+          },
+          "condition": {
+            "type": "object",
+            "required": ["field", "operator"],
+            "properties": {
+              "field": { "type": "string" },
+              "operator": { "type": "string", "enum": ["equals", "not_equals", "is_set", "is_not_set", "in"] },
+              "value": {}
+            }
+          }
+        }
+      }
+    },
     "fields": {
       "type": "array",
       "items": {
@@ -78,16 +108,35 @@
         "properties": {
           "canonicalPath": {
             "type": "string",
-            "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+            "pattern": "^[a-z0-9_]+(\\[\\])?(\\.[a-z0-9_]+(\\[\\])?)*$"
           },
+          "sectionId": { "type": "string" },
           "type": {
             "type": "string",
             "enum": ["string", "date", "boolean", "choice", "signature", "number"]
           },
           "label": { "type": "string" },
           "required": { "type": "boolean", "default": false },
+          "maxLength": { "type": "integer", "minimum": 1 },
+          "characterSet": {
+            "type": "string",
+            "enum": ["ASCII", "UNICODE_STANDARD", "NUMERIC", "ALPHA_NUMERIC"]
+          },
+          "choices": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
           "attributedRole": { "type": "string" },
-          "pdfFieldMapping": { "type": "string" }
+          "pdfFieldMapping": { "type": "string" },
+          "condition": {
+            "type": "object",
+            "required": ["field", "operator"],
+            "properties": {
+              "field": { "type": "string" },
+              "operator": { "type": "string", "enum": ["equals", "not_equals", "is_set", "is_not_set", "in"] },
+              "value": {}
+            }
+          }
         }
       }
     },
@@ -98,7 +147,7 @@
         "required": ["ruleId", "type", "expression"],
         "properties": {
           "ruleId": { "type": "string" },
-          "type": { "type": "string", "enum": ["regex", "range", "cross_field", "custom_bounded"] },
+          "type": { "type": "string", "enum": ["regex", "range", "cross_field", "custom_bounded", "conditional_required"] },
           "expression": { "type": "string" },
           "errorMessage": { "type": "string" }
         }
