@@ -276,14 +276,19 @@ class AcroFormGenerationIntegrationTests(unittest.TestCase):
 
     def test_payload_too_large_fails_closed(self) -> None:
         """Payloads exceeding MAX_REQUEST_BYTES (2MB) fail closed with HTTP 413."""
-        huge_payload = "A" * (MAX_REQUEST_BYTES + 1024)
-        headers = {"Content-Length": str(len(huge_payload))}
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_address[1], timeout=5)
+        conn.putrequest("POST", "/process")
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("Content-Length", str(MAX_REQUEST_BYTES + 1024))
+        conn.endheaders()
+        response = conn.getresponse()
 
-        status, body = self._post("/process", huge_payload, headers=headers)
-
-        self.assertEqual(status, 413)
+        self.assertEqual(response.status, 413)
+        body = json.loads(response.read().decode("utf-8"))
         self.assertEqual(body["status"], "payload-too-large")
         self.assertEqual(body["service"], "document-processing")
+        conn.close()
 
     def test_missing_content_length_fails_closed(self) -> None:
         """Requests without Content-Length fail closed with HTTP 400."""
