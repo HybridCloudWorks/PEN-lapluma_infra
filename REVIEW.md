@@ -1,5 +1,8 @@
 # Review — human-resolvable blockers
 
+**Approved direction (2026-09-13):** The owner selected [lean GCP with platform encryption, PostgreSQL and Pub/Sub](wiki/GCP-Document-Library-Decision.md). Conflicting Azure provider/SKU, HSM/CMEK, dual-database and private-transfer proposals below are superseded as target decisions. Historical Azure identity/access values must not be invented or requested as prerequisites for GCP planning. Actual GCP project/billing access, production identity/domain values and applicable human policy approvals still require their owners before deployment. This publication does not grant those credentials or authorize live PII processing.
+
+
 Items on this page cannot be resolved by an engineer without external input: a decision, an
 approval, a credential, or an access grant. Anything an engineer can solve independently belongs in
 `TODO.md`.

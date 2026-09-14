@@ -1,5 +1,8 @@
 # Architecture decision records
 
+**Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
+
+
 Foundational decisions, each recorded with what was rejected and why. Several of these decisions
 were previously documented only as conclusions — the templates said what was built, and nothing said
 what was considered and set aside. A future engineer reading only the conclusion cannot tell whether

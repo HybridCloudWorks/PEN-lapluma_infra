@@ -1,0 +1,1619 @@
+{
+  "infra": {
+    "id": "PVT_kwDOEqWhdM4Bi5Ny",
+    "title": "LaPluma GCP Platform & Document Library",
+    "readme": "# LaPluma GCP Platform & Document Library\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Approved scope and priority\nArchitecture and Blueprint/Collection foundations are both P0. Establish contracts together, then implement the shared first vertical slice. Styling is required P1 work; optional operator frontend implementation remains P2. Full USCIS coverage remains required and uses the reusable library foundation.\n\nThis board records planned implementation, not a deployed system. The source still targets Azure until linked implementation PRs replace it. This user-approved rebaseline supersedes Azure/HSM/CMEK/dual-database/Premium Service Bus/private-network-only-transfer assumptions in prior cards. Update repository ADRs, TODO/REVIEW and ARCH-HANDOFF.md during implementation and retain historical decisions.\n\nStatus: preserve existing workflow state. New cards start Todo. Done requires linked PRs and acceptance evidence. Do not claim fixture tests prove live cloud behavior.\n\n## Delivery order\n1. INF-15 and INF-01: architecture and verified source inventory.\n2. INT-01/02/14 and INF-02/16/17/18: contracts, identity, deployment and library foundations.\n3. INF-04/05/10, INT-03/07/13 and APP-01/04: publication, durable services and onboarding.\n4. End-to-end processing, institution UI, full USCIS expansion, design, isolation/rollback proof and cost measurement.\n\n## Evidence limits\nUSCIS all-forms retrieval returned 403 on 2026-09-08; INF-01 must capture and reconcile a verified complete manifest. No unverified form total is claimed. DESIGN-REF contains the source specification summary and the user's grayscale/pastel overrides. No new admin frontend is needed for CLI/CI onboarding.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)",
+    "shortDescription": "Lean GCP | PostgreSQL + platform encryption | Document Blueprints and customer Collections | Architecture and library foundations P0",
+    "url": "https://github.com/orgs/HybridCloudWorks/projects/2",
+    "items": {
+      "totalCount": 19,
+      "pageInfo": {
+        "hasNextPage": false
+      },
+      "nodes": [
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EF8w",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpI",
+            "title": "[P0] INF-01 \u2014 Reconcile every USCIS form into the Document Library",
+            "body": "## Outcome\nCreate the verified, versioned manifest for every USCIS all-forms entry and supplement, capturing issuer, official title, source URL, verification time, revision and preparation capability. USCIS is the first major library expansion, not the platform schema. Preserve existing non-USCIS definitions.\n\n## Acceptance criteria\nSource snapshot and manifest reconcile with zero unexplained omissions or duplicates; every row has a capability disposition and per-form work item before its family epic closes. The source returned 403 on 2026-09-08; the total remains unverified until an accessible official snapshot is captured.\n\n## Delivery\n- Priority: P0\n- Dependencies: None\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/functions/acquisition_contract.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/functions/acquisition_contract.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EF9I",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpM",
+            "title": "[P0] INF-02 \u2014 Define PostgreSQL Blueprint and Collection data contracts",
+            "body": "## Outcome\nModel versioned Document Blueprints, Collections and institution assignments in PostgreSQL. Use relational keys, foreign keys and transactions for identity, ownership, grants, cases and approvals; JSONB for variable field definitions and bounded declarative rules. Blueprint identity includes issuer/owner namespace and immutable revision; an official edition date is optional metadata, not a universal identity requirement.\n\n## Acceptance criteria\nMigrations preserve existing form/package identifiers; schemas distinguish platform-shared and tenant-private resources. No Cosmos/Firestore projection dependency remains. Contract tests cover revisions, ordering, source provenance and unsupported capabilities.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-15; INT-01\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [contracts/catalog.openapi.json](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/contracts/catalog.openapi.json)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EF9o",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpQ",
+            "title": "[P1] INF-03 \u2014 Acquire official artifacts through the GCP publication pipeline",
+            "body": "## Outcome\nReplace Azure acquisition bindings with Cloud Scheduler-triggered Cloud Run jobs and Pub/Sub events. Implement constrained official-source fetching, redirects/type/size validation, hashes, source provenance, retries and isolated Cloud Storage staging. Acquisition creates candidates and never publishes an edition.\n\n## Acceptance criteria\n403/429/timeouts remain visible failures; replay is idempotent; hostile content is quarantined; acquisition identity cannot access case data; allowed egress and source provenance are verified.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-01; INF-02; INF-16\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/functions/function_app.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/functions/function_app.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EF-E",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpY",
+            "title": "[P0] INF-04 \u2014 Publish immutable Blueprint revisions with independent review",
+            "body": "## Outcome\nImplement draft, validation, independent review and publication for Blueprints and Collections. Publications pin source hashes, mappings and revisions. Add withdrawal, edition drift, affected-case quarantine and rollback; published revisions are immutable. LaPluma staff perform publication initially.\n\n## Acceptance criteria\nUnvalidated drafts and self-approved publications are rejected. Rollback changes eligible revisions for new work without rewriting pinned cases. Source drift blocks affected generation until reviewed; audit records retain author, reviewer and manifest/artifact hashes.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-02; INF-17; INT-14\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/functions/acquisition_contract.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/functions/acquisition_contract.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EF-o",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpc",
+            "title": "[P0] INF-05 \u2014 Implement declarative Blueprint validation and PDF mapping",
+            "body": "## Outcome\nExtend existing field schemas into data-only Blueprints with namespaced canonical paths, conditional/repeated sections, mappings, evidence requirements and preparation capability. First release supports original fillable PDFs, static documents with assisted preparation, and external reference workflows. Institution customization cannot alter official content or platform authorization.\n\n## Acceptance criteria\nA supported Blueprint is added without new service or application code. Schema/rule validation rejects executable code, arbitrary expressions and unsafe source references. Synthetic golden-output tests cover official fidelity, Unicode, repeat/overflow behavior and reference-only handling.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-02; INF-17\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/document-processing/worker.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/document-processing/worker.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EF_g",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpk",
+            "title": "[P1] INF-06 \u2014 Complete I-series form and supplement coverage",
+            "body": "## Outcome\nCreate one child implementation task per I-series entry and supplement from INF-01, with named engineering owner, edition, schema, artifact, capability, dependencies and fixture. Include existing I-130/I-130A, I-485/I-864 and I-765 package contracts in regression coverage. Deliver these I-series entries through the shared Blueprint onboarding/publication process; do not create a service per form. Shared official sources remain unmodified.\n\n## Acceptance criteria\nAll I-series manifest rows reconcile to tested automatic fill, tested assisted preparation, or explicit reference-only disposition; no untracked form or implied automatic support.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-01; INF-04; INF-05\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/functions/acquisition_contract.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/functions/acquisition_contract.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGAA",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpo",
+            "title": "[P1] INF-07 \u2014 Complete N-series form and supplement coverage",
+            "body": "## Outcome\nCreate per-form child tasks for all N-series entries and supplements in the verified manifest; cover citizenship/naturalization forms and role-restricted portions using official instructions. Deliver these N-series entries through the shared Blueprint onboarding/publication process; do not create a service per form. Shared official sources remain unmodified.\n\n## Acceptance criteria\nEvery N-series row has an owner, pinned edition and capability evidence; existing N-400 package remains compatible; specialist-only fields cannot be presented as ordinary applicant attestations.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-01; INF-04; INF-05\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/functions/acquisition_contract.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/functions/acquisition_contract.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGAY",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRps",
+            "title": "[P1] INF-08 \u2014 Complete G-series, other series and external-form coverage",
+            "body": "## Outcome\nCreate per-form child tasks for every remaining catalog entry, including G-series and any other prefixes discovered by INF-01. Include fee/reference documents, restricted workflows, online-only entries and supplements without inventing fillable PDFs. Deliver these G-series and every remaining series entries through the shared Blueprint onboarding/publication process; do not create a service per form. Shared official sources remain unmodified.\n\n## Acceptance criteria\nUnion of INF-06/07/08 equals the entire official manifest; zero unmatched entries; each reference/external entry exposes a verified official destination and clear capability reason.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-01; INF-04; INF-05\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/functions/acquisition_contract.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/functions/acquisition_contract.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGA0",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRpw",
+            "title": "[P1] INF-09 \u2014 Version official and institutional document guidance",
+            "body": "## Outcome\nStore source-cited, revision-bound instructions, evidence requirements and fee references. Keep issuer requirements separate from institution guidance. Fees are optional where irrelevant; unknown values are not guessed. Institution notes and cover documents cannot override official requirements.\n\n## Acceptance criteria\nGuidance has an issuer/owner, source, revision and review date; drift flags stale content. Customer instructions cannot weaken requirements or authorize case access. Immigration-specific notices remain attached to relevant workflows instead of being copied indiscriminately into other sectors.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-02; INF-03\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/core-api/CatalogModels.cs](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/core-api/CatalogModels.cs)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGBU",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRp4",
+            "title": "[P0] INF-10 \u2014 Implement durable PostgreSQL catalog and workflow persistence",
+            "body": "## Outcome\nReplace Microsoft.Data.SqlClient/T-SQL and fixture-only workflow storage with PostgreSQL persistence for catalog, tenants, cases, canonical values, upload sessions, idempotency, outbox and approvals. Use transactions, relational constraints and tenant/person-scoped row security with non-bypass runtime roles. Keep reads in PostgreSQL with measured indexes/materialized views only if needed.\n\n## Acceptance criteria\nReal PostgreSQL tests prove restart/replica durability, referential integrity, concurrent writes, idempotency and tenant/person isolation. Production startup rejects fixtures; all Cosmos configuration and projection dependencies are removed from the selected deployment.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-02; INT-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/workflow-api/WorkflowSourceRegistration.cs](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/workflow-api/WorkflowSourceRegistration.cs)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGBw",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRp8",
+            "title": "[P1] INF-11 \u2014 Connect GCP document processing and approved output services",
+            "body": "## Outcome\nWire Cloud Run processing and batch jobs to private Cloud Storage objects, Pub/Sub and Document AI. Keep hostile parsing isolated from the database and authoritative stores. Core services accept anchored proposals, preserve human confirmation, and generate edition-pinned official outputs only after approval.\n\n## Acceptance criteria\nSynthetic upload-to-reviewed-export journey runs through real services. Duplicate events have one durable effect; bad documents fail safely. Sealed-document policy, approval invalidation, output hashes and official PDF fidelity remain enforced.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-05; INF-10; INT-05; INT-06\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/document-processing/worker.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/document-processing/worker.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGCM",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRqA",
+            "title": "[P1] INF-12 \u2014 Specify grayscale styling for any GCP operator surfaces",
+            "body": "## Outcome\nInventory infra-owned operator surfaces; none is established in the reviewed source tree. Preserve the DESIGN.md-derived grayscale specification for any such surface. The first Blueprint onboarding and publication interface is CLI/CI, so no new administration frontend is required.\n\n## Acceptance criteria\nInventory explicitly names any in-scope surface or confirms none. Shared specification retains 4px spacing, flat 12px cards, pill controls, readable type and gray/black/white tokens with labeled states.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-10\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [wiki/Architecture-Overview.md](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/wiki/Architecture-Overview.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGCk",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRqE",
+            "title": "[P2] INF-13 \u2014 Apply grayscale operator UX only to established frontends",
+            "body": "## Outcome\nApply the grayscale specification to established or separately approved infra frontends for edition review, acquisition, publication and audit. Do not create a new frontend solely for styling or initial customer onboarding.\n\n## Acceptance criteria\nAny in-scope routes have keyboard/focus and contrast evidence, screenshots, and complete loading/error/forbidden states. If no frontend exists, close with inventory evidence; CLI/CI onboarding remains supported.\n\n## Delivery\n- Priority: P2\n- Dependencies: INF-12; INF-04\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [wiki/Architecture-Overview.md](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/wiki/Architecture-Overview.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P2",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6EGDM",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLFRqI",
+            "title": "[P1] INF-14 \u2014 Gate library coverage and operational readiness",
+            "body": "## Outcome\nValidate complete USCIS manifest reconciliation separately from Blueprint preparation capability. Gate publication on per-revision validation, source freshness and consumer compatibility. Add Pub/Sub dead-letter, acquisition, processing and storage lifecycle recovery evidence.\n\n## Acceptance criteria\nEvery official manifest row has a tested capability disposition. Per-form child work and source coverage are complete before claiming full support. Checks distinguish static/fixture evidence from live GCP evidence; library and existing app contracts remain compatible.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-06; INF-07; INF-08; INF-09; INT-11\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [tools/validate_foundation.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/tools/validate_foundation.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6xC-k",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLHIAs",
+            "title": "[P0] INF-15 \u2014 Adopt lean GCP architecture and replace superseded Azure decisions",
+            "body": "## Outcome\nRecord the approved baseline: Cloud Run APIs/workers and Jobs, Cloud SQL PostgreSQL as the only database, JSONB definitions, private Cloud Storage objects, Pub/Sub, API Gateway, Scheduler, Artifact Registry, platform encryption and TLS. Preserve separate processing/service identities. Retire Azure/HSM/CMEK/Cosmos/premium-broker assumptions from current ADRs, checklists and planned CI rather than deleting historical decisions.\n\n## Acceptance criteria\nA reviewed service/data/control map and ADR explicitly distinguish platform-shared document metadata from tenant-private Blueprints and case PII. Old decisions are marked superseded; no infrastructure is provisioned by documentation work. Architecture and library foundations are both P0.\n\n## Delivery\n- Priority: P0\n- Dependencies: None\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [wiki/Architecture-Overview.md](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/wiki/Architecture-Overview.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6xC-w",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLHIAw",
+            "title": "[P0] INF-16 \u2014 Build Terraform and federated delivery foundation for GCP",
+            "body": "## Outcome\nPrepare modular Terraform for the selected GCP services, isolated environments, least-privilege service accounts, GitHub workload identity federation, private SQL, processing egress restrictions, scoped Cloud Storage access and logging. Use no service-account key files, dedicated HSM, Cosmos/Firestore or dedicated message broker. Use private Google service access where needed without granting processors database routes.\n\n## Acceptance criteria\nTerraform fmt/check/validate and policy checks pass; secrets and fixture deployment defaults are rejected. Plan/apply is approval-gated to known projects/billing. GCP service binding, region, quotas and network controls are evidenced before real data is enabled.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-15\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [infra/main.bicep](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/infra/main.bicep)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6xC_A",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLHIA0",
+            "title": "[P0] INF-17 \u2014 Create reusable Document Blueprint onboarding template and CLI",
+            "body": "## Outcome\nCreate a declarative schema, example directory, CLI and CI validation workflow for LaPluma operators. Template includes issuer/owner and namespace, rights/source provenance, immutable source hash/revision, artifact type, fields/mappings, evidence, bounded rules, capability, access scope, localization and synthetic fixtures. Support fillable PDF, static assisted document and external reference in v1; other renderers require explicit capability work.\n\n## Acceptance criteria\nOne USCIS example and two labeled synthetic institution examples pass the same validation interface. Missing ownership/provenance, unsafe rules and unsupported automatic-fill declarations fail with useful errors. No executable extension or new admin frontend is required.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [contracts/catalog.openapi.json](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/contracts/catalog.openapi.json)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6xC_I",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLHIA4",
+            "title": "[P0] INF-18 \u2014 Implement customer Collections and library access controls",
+            "body": "## Outcome\nPersist ordered, revision-pinned Blueprint references, institution guidance/branding and customer assignments in PostgreSQL. Resolve effective access server-side from tenant membership and assignments; never accept client tenant selection as authorization. Shared Blueprints are immutable; private variants have explicit ownership and revision lineage.\n\n## Acceptance criteria\nA shared Blueprint is reused by two customers; a private Blueprint is inaccessible to the other through direct IDs, listing/counts, cache, search, artifacts and export. Official requirements cannot be overridden. Library operators have no implicit case access; adding a supported Collection requires no code deployment.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-02; INT-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/core-api/CatalogModels.cs](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/core-api/CatalogModels.cs)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nyzg6xC_c",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NyzgLHIBA",
+            "title": "[P1] INF-19 \u2014 Measure per-institution usage and validate pilot/growth costs",
+            "body": "## Outcome\nRecord usage by environment, institution and operation without PII: API calls, compute time, OCR/structured extraction pages, model tokens, stored bytes and transfers. Produce pilot/growth estimates including dev/staging, backup/log retention and document processing; add alerts and scale/concurrency ceilings. Allocate shared overhead separately from marginal usage.\n\n## Acceptance criteria\nA versioned cost model exposes unit rates, assumptions, exclusions and rate-check date. Reconcile sample usage to provider billing labels/export, and label cost per case as an allocation rather than exact per-case billing. Budget alerts are not hard spending caps; no promise of a fixed bill is made.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-16; INF-10\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [wiki/Configuration-Contract.md](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/wiki/Configuration-Contract.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)\n## Attached planning cost model\n\n# LaPluma lean GCP cost model \u2014 planning estimate\n\nPrepared 2026-09-13. USD/month. Public usage rates were checked against the linked Google pricing pages. Infrastructure amounts below are engineering budget allowances, not SKU-by-SKU quotes, billing observations or deployment validation. No trial credits, commitments or negotiated discounts are assumed.\n\n## Selected scope and assumptions\n\n- Cloud Run, Cloud SQL PostgreSQL only, private Cloud Storage objects, Pub/Sub, API Gateway and Scheduler. Platform-managed encryption plus TLS: no dedicated HSM or customer-managed key service in the baseline.\n- Planning region us-central1; regional feature/processor availability and customer residency requirements must be validated before deployment.\n- Pilot: 40 new cases/month, 50 pages/case, 100,000 production API calls/month, 100 GB retained object content, about 5 GB new logs/month. Database planning anchor: 2 vCPU/8 GiB, single-zone supervised pilot with backups; no HA claim.\n- Growth: 1,000 new cases/month, 50 pages/case, 2 million production API calls/month, 1 TB retained object content, about 20 GB new logs/month. Database planning anchor: regional HA; sizing must be confirmed by measured queries and connection limits.\n- Retained object quantities include a planning allowance for versions/output; they are assumptions, not derived retention-law requirements. Final lifecycle and audit retention stay governed by the approved policies.\n- Separate synthetic dev and staging projects. Dev is scheduled/ephemeral (roughly 220 active database hours/month); staging uses reduced capacity, approximately 440 hours in pilot and full-month availability at growth. Storage, backups and logs continue billing when compute stops.\n- Processing mix: 80% of pages use basic OCR, 20% use custom extraction. Each page uses one of these paths; do not automatically add OCR again to custom extraction. No separate model hosting, training or add-on processor charges are included.\n- Text-model example only: 100,000 input plus 20,000 output/reasoning tokens per case, priced using published Gemini 2.5 Flash standard text rates. This does not select or validate that model for production. Voice, images and model escalation require a separate allowance.\n- Add 10% synthetic non-production processing/token volume to production usage. Retrying/reprocessing is not included in the base; a sensitivity is shown below.\n\n## Infrastructure allowances per month\n\n| Component | Pilot | Growth |\n|---|---:|---:|\n| Cloud Run APIs, processing and jobs | $20\u2013$50 | $50\u2013$150 |\n| PostgreSQL, storage and backups (single-zone pilot; HA growth) | $100\u2013$130 | $220\u2013$350 |\n| Private object storage and versions | $5\u2013$20 | $25\u2013$60 |\n| Networking, transfer and service access | $15\u2013$50 | $40\u2013$120 |\n| Logging, monitoring and secrets | $15\u2013$50 | $50\u2013$140 |\n| Registry, Pub/Sub and Scheduler | $5\u2013$15 | $15\u2013$30 |\n| Infrastructure sizing allowance | $15\u2013$35 | $0\u2013$50 |\n| **Production infrastructure subtotal** | **$175\u2013350** | **$400\u2013900** |\n| Separate synthetic dev infrastructure | $40\u2013100 | $40\u2013100 |\n| Separate staging infrastructure | $75\u2013175 | $125\u2013250 |\n| **All-environment infrastructure** | **$290\u2013625** | **$565\u20131,250** |\n\nThe PostgreSQL allowance is anchored by current published Cloud SQL CPU/memory pricing; it is not a complete configured instance quote. Cloud Run cost depends on billed execution time, minimum instances and concurrency. [Cloud SQL pricing](https://cloud.google.com/sql/pricing?hl=en), [Cloud Run pricing](https://cloud.google.com/run/pricing).\n\n## Metered document and text-model usage\n\nPublished unit-rate inputs: basic OCR $1.50/1,000 pages and custom extraction $30/1,000 pages. The estimate conservatively does not apply OCR free allowances. [Document AI pricing](https://cloud.google.com/products/document-ai/pricing).\n\nGemini 2.5 Flash standard text rates used for the illustration: $0.30/million input tokens and $2.50/million output tokens, including reasoning. [Google model pricing](https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing).\n\n`pages = cases \u00d7 50`\n\n`processing = pages \u00d7 (0.80 \u00d7 1.50/1000 + 0.20 \u00d7 30/1000)`\n\n`text_model = cases \u00d7 (100000 \u00d7 0.30/1000000 + 20000 \u00d7 2.50/1000000)`\n\n| Usage | Pilot | Growth |\n|---|---:|---:|\n| Production pages | 2000 | 50000 |\n| Production document processing | $14.40 | $360.00 |\n| Production text-model illustration | $3.20 | $80.00 |\n| 10% non-prod processing/model allowance | $1.76 | $44.00 |\n| **Illustrative total including dev/staging and stated usage** | **$309\u2013645/month** | **$1,049\u20131,734/month** |\n\nTotals before rounding are $309.36\u2013$644.36 and $1,049\u2013$1,734. API Gateway includes the first 2 million calls per billing account each month; the next tier is $3/million. Do not multiply the allowance across projects. At growth, an extra 10% test call volume would add roughly $0.60/month if no other account activity consumed the allowance; this fits within infrastructure sizing allowances. Network transfer is additional and budgeted separately. [API Gateway pricing](https://cloud.google.com/api-gateway/pricing).\n\n## Sensitivities and exclusions\n\n- If all 50,000 growth pages require custom extraction, production extraction alone is $1,500/month instead of $360. At pilot it is $60 instead of $14.40. Document mix is a larger variable than the number of catalog entries.\n- A 20% repeat-processing/model workload adds approximately $3.87/month at pilot and $96.80/month at growth, on top of the stated production-plus-test usage. It does not include additional runtime and transfer.\n- Fully always-on dev/staging or a high-availability pilot database raises the low-end allowances; do not promise these figures for that topology.\n- Excludes engineering, customer onboarding labor, human document review, commercial support, taxes, email/SMS, voice, premium model escalation, model hosting/training, special institution contracts and any new industry-specific controls.\n- No savings claim depends on unverified free-tier eligibility. Platform encryption removes key-management pool costs, not retention/deletion or access-control obligations.\n\n## Institution and case allocation\n\nRecord opaque institution ID, environment, operation, Blueprint revision, input/output tokens, processor pages, runtime and stored/transferred bytes in content-free usage events. Keep customer text, document values and secrets out of telemetry.\n\n`institution allocation = directly attributed usage + agreed share of environment overhead`\n\n`allocated cost per case = institution allocation / completed billable cases`\n\nFor budgeting with the assumed new-case counts, the all-environment totals imply about $7.73\u2013$16.11 per pilot case and $1.05\u2013$1.73 per growth case. These are allocated planning figures, not marginal provider charges or customer prices. When no cases finish, show absolute overhead rather than dividing by zero. Account for onboarding labor separately before setting customer prices.\n\nINF-19 must reconcile actual usage and billing after deployment, validate every selected SKU and retention assumption, and set alerts plus service-level scaling/concurrency controls. Budget alerts are not hard spending caps.\n"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "fields": {
+      "nodes": [
+        {},
+        {},
+        {
+          "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvmO0",
+          "name": "Status",
+          "options": [
+            {
+              "id": "f75ad846",
+              "name": "Todo"
+            },
+            {
+              "id": "47fc9ee4",
+              "name": "In Progress"
+            },
+            {
+              "id": "98236657",
+              "name": "Done"
+            }
+          ]
+        },
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {
+          "id": "PVTSSF_lADOEqWhdM4Bi5NyzhhvnAU",
+          "name": "Priority",
+          "options": [
+            {
+              "id": "54ec8983",
+              "name": "P0"
+            },
+            {
+              "id": "9a57a656",
+              "name": "P1"
+            },
+            {
+              "id": "dcea010c",
+              "name": "P2"
+            }
+          ]
+        }
+      ]
+    },
+    "views": {
+      "nodes": [
+        {
+          "id": "PVTV_lADOEqWhdM4Bi5NyzgLl4t8",
+          "name": "Work board",
+          "layout": "BOARD_LAYOUT"
+        }
+      ]
+    },
+    "repositories": {
+      "nodes": [
+        {
+          "nameWithOwner": "HybridCloudWorks/PEN-lapluma_infra"
+        }
+      ]
+    }
+  },
+  "app": {
+    "id": "PVT_kwDOEqWhdM4Bi5Nz",
+    "title": "LaPluma App \u2014 Full Forms & Pastel UX",
+    "readme": "# LaPluma App \u2014 Full Forms & Pastel UX\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Approved scope and priority\nArchitecture and Blueprint/Collection foundations are both P0. Establish contracts together, then implement the shared first vertical slice. Styling is required P1 work; optional operator frontend implementation remains P2. Full USCIS coverage remains required and uses the reusable library foundation.\n\nThis board records planned implementation, not a deployed system. The source still targets Azure until linked implementation PRs replace it. This user-approved rebaseline supersedes Azure/HSM/CMEK/dual-database/Premium Service Bus/private-network-only-transfer assumptions in prior cards. Update repository ADRs, TODO/REVIEW and ARCH-HANDOFF.md during implementation and retain historical decisions.\n\nStatus: preserve existing workflow state. New cards start Todo. Done requires linked PRs and acceptance evidence. Do not claim fixture tests prove live cloud behavior.\n\n## Delivery order\n1. INF-15 and INF-01: architecture and verified source inventory.\n2. INT-01/02/14 and INF-02/16/17/18: contracts, identity, deployment and library foundations.\n3. INF-04/05/10, INT-03/07/13 and APP-01/04: publication, durable services and onboarding.\n4. End-to-end processing, institution UI, full USCIS expansion, design, isolation/rollback proof and cost measurement.\n\n## Evidence limits\nUSCIS all-forms retrieval returned 403 on 2026-09-08; INF-01 must capture and reconcile a verified complete manifest. No unverified form total is claimed. DESIGN-REF contains the source specification summary and the user's grayscale/pastel overrides. No new admin frontend is needed for CLI/CI onboarding.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)",
+    "shortDescription": "Lean GCP | PostgreSQL + platform encryption | Document Blueprints and customer Collections | Architecture and library foundations P0",
+    "url": "https://github.com/orgs/HybridCloudWorks/projects/3",
+    "items": {
+      "totalCount": 14,
+      "pageInfo": {
+        "hasNextPage": false
+      },
+      "nodes": [
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGDo",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqM",
+            "title": "[P0] APP-01 \u2014 Consume versioned Document Library and Collection interfaces",
+            "body": "## Outcome\nExtend shared Swift models/API client for Blueprint revisions, Collections, tenant entitlements, provenance and preparation capabilities. Add versioned library interfaces alongside the existing catalog; retain stable legacy package IDs during transition.\n\n## Acceptance criteria\nOld catalog fixtures still decode; new revision/capability and unknown-state tests fail safely. Only server-authorized Collections are shown; catalog presence does not imply automatic preparation.\n\n## Delivery\n- Priority: P0\n- Dependencies: INT-14; INF-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureDomain/FormCatalog.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureDomain/FormCatalog.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGEM",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqQ",
+            "title": "[P1] APP-02 \u2014 Provide searchable USCIS coverage within the Document Library",
+            "body": "## Outcome\nMake every verified USCIS entry discoverable by number, title, category and supplement within the shared library experience. Preserve non-USCIS content and deterministic tenant-authorized results. Search never uses applicant facts to recommend a benefit.\n\n## Acceptance criteria\nPagination/search/filter coverage reconciles with the manifest; capability labels are clear; empty/loading/offline/error states work at full catalog size; private institution documents cannot leak through counts or search.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-01; INF-01; INF-18\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/ios/ApertureApp/Features](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/ios/ApertureApp/Features)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGEg",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqU",
+            "title": "[P1] APP-03 \u2014 Show Blueprint provenance, capability and issuer guidance",
+            "body": "## Outcome\nDisplay issuer/owner, source, revision, supported preparation mode, instructions, and optional fee reference. Separate official requirements from customer-authored guidance. External workflows clearly identify their destination and available actions.\n\n## Acceptance criteria\nStatic/reference-only documents never imply auto-fill or submission. Source freshness and unsupported states are visible; institution guidance cannot be confused with official content.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-01; INF-09\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureDomain/FormCatalog.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureDomain/FormCatalog.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGE8",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqY",
+            "title": "[P0] APP-04 \u2014 Select customer Collections with pinned Blueprint revisions",
+            "body": "## Outcome\nReplace fixed pilot selection with server-assigned Document Collections composed of immutable Blueprint revisions. Preserve stable internal package IDs and migrate existing saved cases compatibly. Customer-facing terminology is Document Library, Document Blueprints and Document Collections.\n\n## Acceptance criteria\nA newly published supported Collection appears without application code changes. Selection respects tenant authorization and capabilities; existing cases retain original revisions and data; unsupported choices have an explicit explanation.\n\n## Delivery\n- Priority: P0\n- Dependencies: APP-01; INF-18; INT-03\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [contracts/catalog-package-compatibility.json](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/contracts/catalog-package-compatibility.json)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGFk",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqc",
+            "title": "[P1] APP-05 \u2014 Render Blueprint-driven entry and institution guidance",
+            "body": "## Outcome\nRender declarative fields, repeated/conditional sections and evidence requests using the shared Blueprint schema. Bind approved canonical values to all consuming document fields, keeping institution namespaces separate where semantics differ. Localize guidance without changing official source content.\n\n## Acceptance criteria\nSynthetic non-immigration Blueprints render without new screens. Tests cover repeated sections, hidden requirements, unknown capabilities and provenance. Configuration cannot add executable behavior, overwrite human confirmations or weaken authorization.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-04; INF-05; INT-04\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureDomain/FieldValue.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureDomain/FieldValue.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGGE",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqg",
+            "title": "[P1] APP-06 \u2014 Preserve pinned revisions and reconcile offline case changes",
+            "body": "## Outcome\nStore Blueprint and Collection revision pins with offline drafts. Surface withdrawal/drift and explicit migration review without silently upgrading cases. Reconcile ETags and locally edited data using comparison; preserve pending work across reconnect/relaunch.\n\n## Acceptance criteria\nEdition drift blocks stale generation/export; conflicts retain both versions. Customer switching partitions local data; catalog changes do not mutate existing work. Accepted material edits invalidate approval and require renewed review.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-05; INF-04; INT-04\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureDomain/FormEditionDrift.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureDomain/FormEditionDrift.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGGY",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqk",
+            "title": "[P1] APP-07 \u2014 Connect scoped GCP uploads and evidence processing",
+            "body": "## Outcome\nReplace Azure-specific grants with provider-neutral transfer sessions using short-lived create-only, one-object Cloud Storage grants. Keep the current 100 MB file boundary; bytes bypass API Gateway. Preserve queued/offline captures, metadata stripping, checksum confirmation and sealed-document safeguards.\n\n## Acceptance criteria\nLarge uploads, expiry/reissue, retries and relaunch succeed without gateway byte transfer. No local removal occurs before server integrity confirmation. Tenant switching and revoked sessions prevent promotion; grants are not described as instantly revocable.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-05; INF-11\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureAPI/PendingCaptureQueue.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureAPI/PendingCaptureQueue.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGG8",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRqo",
+            "title": "[P1] APP-08 \u2014 Connect reviewed document output and scoped GCP downloads",
+            "body": "## Outcome\nConnect review, step-up approval, watermarked preview and human-initiated output to authoritative service state. Approved results pin canonical values, evidence, Blueprints and Collection revisions. Download grants are short-lived and one-object scoped.\n\n## Acceptance criteria\nChanged values/revisions invalidate approval. Repeated generation has one effect; expired grants recover visibly. Unsupported documents explain assisted/reference handling; official output fidelity is retained.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-06; INF-11\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureDomain/PackageOutput.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureDomain/PackageOutput.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGHk",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRq0",
+            "title": "[P1] APP-09 \u2014 Translate DESIGN.md into native pastel design tokens",
+            "body": "## Outcome\nPreserve DESIGN.md shape/spacing/type principles while applying user-requested white and pastel red/yellow/green/blue. Proposed surfaces: white #FFFFFF, red #FCE4E4, yellow #FFF4CC, green #E3F3E8, blue #E3EEFC; dark ink #202124. Derive accessible action/foreground variants instead of white text on pastels.\n\n## Acceptance criteria\nSemantic tokens cover all five requested shades; 4px rhythm, 12px cards, 32/40px pills, flat separation and 16px-equivalent scalable body type are documented. Use available/native or licensed fallback fonts; test light/dark and Increased Contrast; color is never the sole cue.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-10\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureUI/DesignTokens.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureUI/DesignTokens.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGHw",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRq4",
+            "title": "[P1] APP-10 \u2014 Apply pastel visual system across applicant screens",
+            "body": "## Outcome\nMigrate onboarding, home, catalog, case setup, capture, interview, missing items, review and export to APP-09. Adapt spacing for dense forms and native navigation; do not force a marketing hero onto task screens.\n\n## Acceptance criteria\nScreen inventory maps every route to updated components and screenshots; red/yellow/green/blue/white appear consistently; primary actions remain reachable with Dynamic Type and smaller devices.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-09; APP-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/ios/ApertureApp/Features](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/ios/ApertureApp/Features)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGIU",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRq8",
+            "title": "[P1] APP-11 \u2014 Apply pastel system to iPad and macOS workforce surfaces",
+            "body": "## Outcome\nStyle app-owned preparer/reviewer/approver/admin surfaces using the app palette and shared components. Theme ownership follows repository/product ownership; being an admin screen alone does not make it infra-owned. Initial institution onboarding is LaPluma-managed CLI/CI; do not add customer publishing controls or a new admin application.\n\n## Acceptance criteria\nRole-specific screens preserve capabilities, keyboard/focus behavior and information density; no role switch grants authorization; corresponding native previews/screenshots are reviewed.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-09; INT-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/LaPlumaWorkforce/LaPlumaWorkforceApp.swift](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/LaPlumaWorkforce/LaPlumaWorkforceApp.swift)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGI4",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRrE",
+            "title": "[P1] APP-12 \u2014 Verify accessibility, localization and interaction feedback",
+            "body": "## Outcome\nUpdate English/Spanish strings and tests for expanded catalog, state labels and redesign. Exercise VoiceOver, Dynamic Type, Reduce Motion and Increased Contrast; audit actual buttons and error recovery. Include Document Library, Document Blueprint and Document Collection terminology and institution-specific guidance in localization/accessibility review.\n\n## Acceptance criteria\nAutomated and manual results cover text/nontext contrast, labeled states, focus, large controls and all primary actions; no dead buttons or color-only meaning; official form titles remain identifiable.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-10; APP-11; APP-03\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/packages/ApertureKit/Sources/ApertureUI/Resources](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/packages/ApertureKit/Sources/ApertureUI/Resources)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6EGJY",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLFRrQ",
+            "title": "[P1] APP-13 \u2014 Release app with full-catalog compatibility evidence",
+            "body": "## Outcome\nUpdate the mobile implementation ledger, ARCH-HANDOFF.md and release validation for compatible library/Collection revisions, GCP service contracts, data migrations and explicit capability limitations.\n\n## Acceptance criteria\nSwift package tests, simulator builds and applicable UI journeys pass; per-form capability coverage matches infra manifest; evidence identifies simulator, fixture and staging results separately.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-06; APP-07; APP-08; APP-12; APP-14; INF-14; INT-11\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [MOBILE_IMPLEMENTATION_LEDGER.md](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/MOBILE_IMPLEMENTATION_LEDGER.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5Nzzg6xC_s",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5NzzgLHIBE",
+            "title": "[P1] APP-14 \u2014 Deliver institution-aware Document Library and Collections",
+            "body": "## Outcome\nShow only assigned Collections, with institution names, explanatory content and restrained branding within the pastel design system. Show Blueprint issuer, revision and preparation capability. Initial onboarding remains LaPluma-managed; do not add customer publication/self-service controls.\n\n## Acceptance criteria\nTwo synthetic institution accounts see the correct Collections and private documents. Context switching clears scoped caches and UI state; search counts do not leak content. Newly published supported Blueprints render through APP-05 without app changes; official forms remain visually unmodified.\n\n## Delivery\n- Priority: P1\n- Dependencies: APP-04; APP-05; INF-18; APP-09\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [apps/ios/ApertureApp/Features](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/apps/ios/ApertureApp/Features)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "fields": {
+      "nodes": [
+        {},
+        {},
+        {
+          "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvmPs",
+          "name": "Status",
+          "options": [
+            {
+              "id": "f75ad846",
+              "name": "Todo"
+            },
+            {
+              "id": "47fc9ee4",
+              "name": "In Progress"
+            },
+            {
+              "id": "98236657",
+              "name": "Done"
+            }
+          ]
+        },
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {
+          "id": "PVTSSF_lADOEqWhdM4Bi5NzzhhvnCI",
+          "name": "Priority",
+          "options": [
+            {
+              "id": "dc2df468",
+              "name": "P0"
+            },
+            {
+              "id": "571f9822",
+              "name": "P1"
+            },
+            {
+              "id": "a6dbac8a",
+              "name": "P2"
+            }
+          ]
+        }
+      ]
+    },
+    "views": {
+      "nodes": [
+        {
+          "id": "PVTV_lADOEqWhdM4Bi5NzzgLl4uA",
+          "name": "Work board",
+          "layout": "BOARD_LAYOUT"
+        }
+      ]
+    },
+    "repositories": {
+      "nodes": [
+        {
+          "nameWithOwner": "HybridCloudWorks/PEN-lapluma_app"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "id": "PVT_kwDOEqWhdM4Bi5N0",
+    "title": "LaPluma \u2014 App + Infra Integration",
+    "readme": "# LaPluma \u2014 App + Infra Integration\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Approved scope and priority\nArchitecture and Blueprint/Collection foundations are both P0. Establish contracts together, then implement the shared first vertical slice. Styling is required P1 work; optional operator frontend implementation remains P2. Full USCIS coverage remains required and uses the reusable library foundation.\n\nThis board records planned implementation, not a deployed system. The source still targets Azure until linked implementation PRs replace it. This user-approved rebaseline supersedes Azure/HSM/CMEK/dual-database/Premium Service Bus/private-network-only-transfer assumptions in prior cards. Update repository ADRs, TODO/REVIEW and ARCH-HANDOFF.md during implementation and retain historical decisions.\n\nStatus: preserve existing workflow state. New cards start Todo. Done requires linked PRs and acceptance evidence. Do not claim fixture tests prove live cloud behavior.\n\n## Delivery order\n1. INF-15 and INF-01: architecture and verified source inventory.\n2. INT-01/02/14 and INF-02/16/17/18: contracts, identity, deployment and library foundations.\n3. INF-04/05/10, INT-03/07/13 and APP-01/04: publication, durable services and onboarding.\n4. End-to-end processing, institution UI, full USCIS expansion, design, isolation/rollback proof and cost measurement.\n\n## Evidence limits\nUSCIS all-forms retrieval returned 403 on 2026-09-08; INF-01 must capture and reconcile a verified complete manifest. No unverified form total is claimed. DESIGN-REF contains the source specification summary and the user's grayscale/pastel overrides. No new admin frontend is needed for CLI/CI onboarding.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)",
+    "shortDescription": "Lean GCP | PostgreSQL + platform encryption | Document Blueprints and customer Collections | Architecture and library foundations P0",
+    "url": "https://github.com/orgs/HybridCloudWorks/projects/4",
+    "items": {
+      "totalCount": 16,
+      "pageInfo": {
+        "hasNextPage": false
+      },
+      "nodes": [
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGJs",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRrU",
+            "title": "[P0] INT-01 \u2014 Own shared GCP and Document Library contract compatibility",
+            "body": "## Outcome\nAssign one authoritative source per workflow, transfer, catalog and library contract, retaining intentional mirrors and hash checks. Add OpenAPI 3.1 library/Collection interfaces alongside existing APIs; preserve legacy package IDs. Review GCP deployment extensions separately from client-facing contracts.\n\n## Acceptance criteria\nProducer/Swift consumer checks reject unversioned breaking changes. Existing clients and package handshakes remain compatible. ARCH-HANDOFF.md records cloud/identity/data impacts; Azure-specific wire assumptions are replaced deliberately.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-15\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [contracts/openapi/workforce-workflow.yaml](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/contracts/openapi/workforce-workflow.yaml)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGKM",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRrY",
+            "title": "[P0] INT-02 \u2014 Map application identity and authorization to GCP",
+            "body": "## Outcome\nRetain the configured application OIDC issuer/audience and native session contract during the infrastructure conversion. Use Google service accounts and GitHub workload identity federation for workload/deployment identity. Translate tenant/person/case and separation-of-duty controls to PostgreSQL and service authorization.\n\n## Acceptance criteria\nGateway and backend reject invalid/expired audiences and tokens; direct backend invocation is IAM-restricted. Cross-tenant/person and role tests pass with real PostgreSQL. Library operator privileges never imply case access; new customer federation is not required for the first release.\n\n## Delivery\n- Priority: P0\n- Dependencies: INT-01\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/workflow-api/WorkflowAuthentication.cs](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/workflow-api/WorkflowAuthentication.cs)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGKs",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRrc",
+            "title": "[P0] INT-03 \u2014 Map legacy package identity to versioned Collections",
+            "body": "## Outcome\nReconcile current acquisition priorities, existing package definitions and the USCIS manifest into versioned Blueprints and Collections. Keep existing public identifiers as compatibility aliases; customer-facing names use the new terminology.\n\n## Acceptance criteria\nBoth repositories adopt the same mapping and compatible revision contract. Existing saved cases preserve their data and editions; adding a supported Collection does not require hardcoded app changes.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-01; INT-14\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [contracts/catalog-package-compatibility.json](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/contracts/catalog-package-compatibility.json)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGLk",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRrg",
+            "title": "[P1] INT-04 \u2014 Implement canonical case writes, conflicts and approval invalidation",
+            "body": "## Outcome\nConnect Blueprint-driven section commits to PostgreSQL canonical values/provenance, ETags and idempotency. Maintain tenant/person constraints and a transactional outbox. Propagate edits across valid bindings and invalidate review/approval when values, evidence or pinned document revisions materially change.\n\n## Acceptance criteria\nConcurrent edits preserve confirmed values; replay creates one effect; edits update all bindings; server and UI agree on readiness and invalidation.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-10; INT-01; INT-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/workflow-api/IWorkflowSource.cs](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/workflow-api/IWorkflowSource.cs)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGME",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRrk",
+            "title": "[P1] INT-05 \u2014 Complete scoped Cloud Storage upload-to-extraction transfer",
+            "body": "## Outcome\nKeep metadata/session APIs behind Google API Gateway. Use signed, short-lived create-only one-object grants to transfer up to 100 MB directly to non-public Cloud Storage objects. Bind session ownership, size and expected checksum; completion verifies stored bytes before Pub/Sub processing. Revocation denies completion/promotion and future grants; an already issued grant can persist until expiry.\n\n## Acceptance criteria\n100 MB success and oversized rejection, cross-tenant access, expiry/reissue, checksum mismatch, interrupted upload, duplicate completion and malware scenarios pass with synthetic files. Tokens never enter logs; no data is routed through the 32 MB gateway path.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-10; INT-02; INF-16\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [contracts/openapi/documents-upload.yaml](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/contracts/openapi/documents-upload.yaml)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGMQ",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRro",
+            "title": "[P1] INT-06 \u2014 Complete Blueprint review-to-approved-output round trip",
+            "body": "## Outcome\nBind app review/step-up to immutable values, evidence and Blueprint/Collection revision hashes. Produce short-lived watermarked previews and official-PDF outputs through Cloud Run jobs; authorize downloads through scoped Cloud Storage grants.\n\n## Acceptance criteria\nSynthetic applicant/preparer/reviewer/approver journey passes. Unauthorized or invalidated approval blocks output; changed editions require explicit review. Retry cannot duplicate outputs; document expiry and withdrawal preserve audit history.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-04; INT-05; INF-05\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [src/document-processing/worker.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/src/document-processing/worker.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGM8",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRr4",
+            "title": "[P0] INT-07 \u2014 Prepare isolated GCP dev, staging and pilot environments",
+            "body": "## Outcome\nReplace AZD/Bicep deployment targeting with Terraform and federated CI for API Gateway, Cloud Run, Cloud SQL PostgreSQL, private objects, Pub/Sub, Scheduler, Artifact Registry and observability. Keep separate projects/identities for environments and synthetic-only dev. Default regional planning target is us-central1; preserve the application OIDC contract.\n\n## Acceptance criteria\nTerraform validation and reviewed cost/configuration evidence pass without applying. Account/project/billing and deployment authorization remain explicit before provisioning. After authorized deployment, physical-device gateway, private database, scoped storage and processing-isolation smoke evidence is recorded.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-15; INF-16; INT-02; INF-10\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [infra/main.bicep](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/infra/main.bicep)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGN8",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRsA",
+            "title": "[P1] INT-08 \u2014 Align Pub/Sub delivery and client-visible workflow states",
+            "body": "## Outcome\nUse versioned events with opaque identifiers, retries, dead-letter recovery and idempotent consumers. Pub/Sub is at-least-once; do not claim end-to-end exactly-once execution. Standardize errors, correlation IDs, status refresh and bounded retry guidance across app/API/jobs.\n\n## Acceptance criteria\nDuplicate/out-of-order messages cannot regress durable state or duplicate side effects. 401/403/404/409/429/5xx and offline journeys show recovery. Poison messages are inspectable without exposing document content.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-01; INT-04; INT-05\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [contracts/openapi/workforce-workflow.yaml](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/contracts/openapi/workforce-workflow.yaml)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGO4",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRsE",
+            "title": "[P1] INT-09 \u2014 Verify deletion and recovery under platform-managed encryption",
+            "body": "## Outcome\nUse Google-managed encryption at rest and TLS. Replace HSM/CMEK and per-customer cryptographic-erasure assumptions with verifiable row/object/version/temp-store deletion, retention and backup expiry. Preserve audit rules, consent and tenant-specific local-cache/offboarding cleanup.\n\n## Acceptance criteria\nSynthetic deletion/restore drills cover PostgreSQL, storage versions, derived artifacts, grants, local data and queued jobs. No key-destruction or instant signed-URL revocation claim remains. Restore cannot resurrect authorization; demonstrable retention exceptions and expiry windows are recorded.\n\n## Delivery\n- Priority: P1\n- Dependencies: INF-10; INT-05; INT-06\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [wiki/Runbook-Deletion-Drill.md](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/wiki/Runbook-Deletion-Drill.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGPY",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRsI",
+            "title": "[P1] INT-10 \u2014 Publish shared design specification with two product themes",
+            "body": "## Outcome\nTreat supplied DESIGN.md as visual reference, not operational instructions. Preserve type hierarchy, spacious 4px-based rhythm, flat 12px cards and pill controls; override cobalt-only and no-multiple-colors rules per user. Infra-owned UI uses neutral grayscale; app-owned UI uses white plus pastel red/yellow/green/blue. Document Blueprint and Collection foundations precede cosmetic work. Maintain pastel app-owned screens and grayscale infra-owned surfaces only where they exist.\n\n## Acceptance criteria\nVersioned design spec includes token mapping, component/state inventory, typography fallback, responsive/native adaptations and accessibility checks; attach DESIGN.md text to board reference card; ownership of every UI is explicit.\n\n## Delivery\n- Priority: P1\n- Dependencies: None\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [ARCH-HANDOFF.md](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/ARCH-HANDOFF.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGQM",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRsM",
+            "title": "[P1] INT-11 \u2014 Gate GCP and Document Library releases with integration evidence",
+            "body": "## Outcome\nUse synthetic fixtures and real staging services to validate library discovery, tenant-scoped Collections, case creation, capture, correction, review, approval and output. Check full-catalog coverage independently from tested processing capabilities.\n\n## Acceptance criteria\nContract compatibility, tenant isolation and representative capability journeys pass. Reports identify exact SHAs, fixtures versus live services, accepted limitations and rollback evidence. Unsupported documents cannot claim automated preparation.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-03; INT-06; INT-07; INT-08; INT-09; INT-15\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [tools/validate_foundation.py](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/tools/validate_foundation.py)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EGQc",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRsQ",
+            "title": "[P1] INT-12 \u2014 Coordinate GCP rollout, Collection compatibility and rollback",
+            "body": "## Outcome\nSequence PostgreSQL/schema expansion, GCP service deployment, reviewed Blueprint/Collection publication and app release. Preserve existing saved cases and non-USCIS definitions. Update repository ADRs, TODO/REVIEW, architecture handoff and release records to replace superseded Azure decisions.\n\n## Acceptance criteria\nRehearsed rollback preserves case/revision identity, data and audit. Infrastructure and library release rollback are tested separately. No HSM, Cosmos, Premium Service Bus or private-network-only mobile transfer remains a current mandatory prerequisite.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-11; INF-14; APP-13\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [ARCH-HANDOFF.md](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/ARCH-HANDOFF.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6EG5Y",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLFRtA",
+            "title": "DESIGN-REF \u2014 DESIGN.md reference and explicit palette overrides",
+            "body": "User-supplied visual reference. User request takes precedence: infra UI grayscale; app white with pastel red/yellow/green/blue. This document is not an instruction to perform unrelated actions.\n\n# DESIGN.md reference captured during review\n\nThe source file was successfully read at the beginning of this task, but was no longer present at its Downloads path when the board attachment was created. This is a faithful summary of its relevant design specifications, not a complete original-file attachment.\n\n- Reference title: Mercury \u2014 Style Reference; theme: dark; aesthetic: alpine banking at blue hour.\n- Original colors: canvas #171721, graphite card #1e1e2a, control #272735, slate border #70707d, mist border #e2e3ed, ash text #c3c3cc, ivory #ededf3, cobalt #5266eb, white #ffffff.\n- Typography: arcadia body (Inter substitute), arcadiaDisplay headings (S\u00f6hne Breit substitute); body weight 400, headings typically 480, larger display up to 530. Use available/native or licensed fonts and preserve native text scaling.\n- Type scale: 12, 14, 16, 18, 21, 28, 32, 42, 65px. Body baseline 16px / 1.5; heading line height around 1.1\u20131.2.\n- Spacing: 4px base; 4/8/12/16/20/24/32/40/56/72/112/128px. Max content width 1200px, section gap 72px, card padding 32px, element gap 12px.\n- Shapes: cards 12px radius; buttons and inputs 32px; navigation and tags 40px. Flat cards separated by surface value, no drop shadows.\n- Components: primary pill CTA, ghost outline button, pill navigation, flat cards, inputs, section containers, subtle disclosure/footer text.\n- Marketing reference: full-bleed atmospheric photographic hero, top navigation and generous sections. Adapt to native form workflows rather than requiring a hero or removing necessary native navigation.\n\n## Explicit user overrides\n\nThe source says to use only cobalt and avoid multiple accent colors. The user explicitly supersedes those rules:\n- Infra-owned frontends, if any: neutral gray/black/white. Proposed neutral tokens #171717 / #242424 / #333333 with #F5F5F5 and #C7C7C7 foregrounds; white primary controls with dark text.\n- App-owned native screens: white plus pastel red #FCE4E4, yellow #FFF4CC, green #E3F3E8 and blue #E3EEFC, with dark ink #202124. These are proposed implementation tokens, to be verified for accessible contrast.\n- Retain source typography hierarchy, spacing rhythm, flat cards and pill shapes as practical. Use semantic foreground/action variants and labels/icons; pastel fills are not suitable for white body text.\n- Maintain VoiceOver, Dynamic Type, keyboard focus, native navigation, dark appearance, Increased Contrast and reduced-motion support. Source styling does not override interaction requirements.\n"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6xDAM",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLHIBI",
+            "title": "[P0] INT-13 \u2014 Define repeatable LaPluma-managed institution onboarding",
+            "body": "## Outcome\nSpecify an operator CLI/CI runbook: create/verify institution scope, confirm document ownership/source, author or reuse Blueprints, compose a Collection, validate fixtures, obtain independent publication review, assign customer access and run a preview. Record accountable operator/reviewer and evidence for each run.\n\n## Acceptance criteria\nA second operator repeats onboarding from the template without customer-specific code. Shared and private definitions remain separate; failures leave drafts unassigned. Customer self-service and a new administration frontend are explicitly out of the first release.\n\n## Delivery\n- Priority: P0\n- Dependencies: INF-17; INF-18; INT-14\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [ARCH-HANDOFF.md](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/ARCH-HANDOFF.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6xDAU",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLHIBM",
+            "title": "[P0] INT-14 \u2014 Specify library APIs, revision compatibility and publication contract",
+            "body": "## Outcome\nDefine additive versioned library/Blueprint/Collection read interfaces and operator publication/assignment interfaces. Cases pin Blueprint and Collection revisions; existing catalog/package APIs and IDs remain compatible. Resolve institution scope from authenticated claims and server assignments; results are deterministic within authorized scope and never case-based benefit recommendations.\n\n## Acceptance criteria\nOpenAPI producer/Swift-consumer fixtures cover shared/private access, pagination, revisions, capabilities and legacy aliases. Publication states and independent review are explicit. Blueprint/Collection schemas support revisions without edition dates; unsupported rules fail closed; authorization and official requirements are not configurable overrides.\n\n## Delivery\n- Priority: P0\n- Dependencies: INT-01; INF-02\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_infra\n- Existing starting point (may contain superseded Azure code to replace): [contracts/openapi/workforce-workflow.yaml](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/contracts/openapi/workforce-workflow.yaml)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P0",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "PVTI_lADOEqWhdM4Bi5N0zg6xDAg",
+          "content": {
+            "__typename": "DraftIssue",
+            "id": "DI_lADOEqWhdM4Bi5N0zgLHIBQ",
+            "title": "[P1] INT-15 \u2014 Prove two-institution reuse, isolation and publication rollback",
+            "body": "## Outcome\nRun one existing USCIS workflow plus two clearly synthetic institution examples through the same operator onboarding, publication and client preparation path. Reuse one Blueprint across customers and include a tenant-private Blueprint. Exercise draft rejection, independent review, withdrawal, drift, pinned cases and rollback.\n\n## Acceptance criteria\nNew supported definitions require no app/service deployment. Cross-tenant tests cover search/counts/cache/download/export. Institution branding does not change official artifacts. Rollback preserves existing case pins and audit; report static, fixture and real GCP evidence separately.\n\n## Delivery\n- Priority: P1\n- Dependencies: INT-13; INF-04; INF-05; APP-14; INT-07\n- Implementation repository: https://github.com/HybridCloudWorks/PEN-lapluma_app\n- Existing starting point (may contain superseded Azure code to replace): [ARCH-HANDOFF.md](https://github.com/HybridCloudWorks/PEN-lapluma_app/blob/main/ARCH-HANDOFF.md)\n- Assign an accountable engineer at intake; no individual assignment is assumed.\n- Complete with implementation PRs, architecture/planning record updates and acceptance evidence. This rebaseline does not itself implement or deploy the described services.\n\n## Approved target baseline\nGCP: Cloud Run services/Jobs, Cloud SQL PostgreSQL only (relational integrity plus JSONB definitions), private Cloud Storage objects, usage-based Pub/Sub, API Gateway, Cloud Scheduler and Terraform with federated CI. Google-managed encryption at rest plus TLS; no dedicated HSM, CMEK requirement, Cosmos/Firestore, or premium message broker. Preserve tenant/person isolation, hostile-document processing restrictions and human approval.\n\n100 MB document bytes bypass API Gateway using short-lived, narrowly scoped storage grants over Google's internet endpoint. Objects remain non-public; this explicitly replaces private-network-only mobile transfer. Grants are not instantly revocable.\n\nDocument Library contains immutable Document Blueprints, composed into customer-assigned Document Collections. Initial onboarding is LaPluma-managed CLI/CI. No executable document extensions or customer self-service publishing. Official documents/requirements stay unchanged; instance-specific guidance and branding remain separate. Existing package IDs and API clients remain compatible during transition.\n\n## Related boards\n- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2)\n- [LaPluma App \u2014 Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3)\n- [LaPluma \u2014 App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4)"
+          },
+          "fieldValues": {
+            "nodes": [
+              {},
+              {
+                "name": "Todo",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+                  "name": "Status"
+                }
+              },
+              {
+                "name": "P1",
+                "field": {
+                  "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+                  "name": "Priority"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "fields": {
+      "nodes": [
+        {},
+        {},
+        {
+          "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvmQk",
+          "name": "Status",
+          "options": [
+            {
+              "id": "f75ad846",
+              "name": "Todo"
+            },
+            {
+              "id": "47fc9ee4",
+              "name": "In Progress"
+            },
+            {
+              "id": "98236657",
+              "name": "Done"
+            }
+          ]
+        },
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {
+          "id": "PVTSSF_lADOEqWhdM4Bi5N0zhhvnCM",
+          "name": "Priority",
+          "options": [
+            {
+              "id": "f5304afc",
+              "name": "P0"
+            },
+            {
+              "id": "e2936110",
+              "name": "P1"
+            },
+            {
+              "id": "4fd9334b",
+              "name": "P2"
+            }
+          ]
+        }
+      ]
+    },
+    "views": {
+      "nodes": [
+        {
+          "id": "PVTV_lADOEqWhdM4Bi5N0zgLl4uI",
+          "name": "Work board",
+          "layout": "BOARD_LAYOUT"
+        }
+      ]
+    },
+    "repositories": {
+      "nodes": [
+        {
+          "nameWithOwner": "HybridCloudWorks/PEN-lapluma_infra"
+        },
+        {
+          "nameWithOwner": "HybridCloudWorks/PEN-lapluma_app"
+        }
+      ]
+    }
+  }
+}
