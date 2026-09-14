@@ -104,6 +104,27 @@ paths:
               schema: {$ref: '#/components/schemas/DocumentBlueprint'}
         '404': {$ref: '#/components/responses/NotFound'}
 
+  /library/blueprints/{namespace}/{blueprintId}/guidance:
+    get:
+      operationId: getBlueprintGuidance
+      summary: Get source-cited official document guidance and fee references
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema: {type: string}
+        - name: blueprintId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Resolved document guidance
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DocumentGuidance'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
   /library/package-mappings:
     get:
       operationId: listPackageMappings
@@ -414,3 +435,25 @@ components:
         targetRevision: {type: integer, minimum: 1}
         operatorId: {type: string}
         reason: {type: string}
+
+    DocumentGuidance:
+      type: object
+      required:
+        - formId
+        - formNumber
+        - authority
+        - officialInstructionsUrl
+        - feeScheduleCitationUrl
+        - evidenceChecklist
+      properties:
+        formId: {type: string}
+        formNumber: {type: string}
+        authority: {type: string}
+        officialInstructionsUrl: {type: string, format: uri}
+        feeScheduleCitationUrl: {type: string, format: uri}
+        feeUsdCents: {type: integer, nullable: true}
+        feeNotes: {type: string, nullable: true}
+        evidenceChecklist:
+          type: array
+          items: {type: string}
+        institutionGuidanceNotes: {type: string, nullable: true}

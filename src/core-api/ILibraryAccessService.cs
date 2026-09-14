@@ -62,4 +62,14 @@ public interface ILibraryAccessService
         string blueprintNamespace,
         string blueprintId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets source-cited document guidance and fee references for the specified blueprint (INF-09).
+    /// </summary>
+    Task<DocumentGuidance?> GetDocumentGuidanceAsync(
+        string tenantId,
+        string blueprintNamespace,
+        string blueprintId,
+        CancellationToken cancellationToken = default);
 }
+

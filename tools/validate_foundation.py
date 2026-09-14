@@ -1149,6 +1149,29 @@ def validate_uscis_manifest() -> list[str]:
     return failures
 
 
+def validate_catalog_coverage_and_guidance() -> list[str]:
+    failures: list[str] = []
+    try:
+        try:
+            from tools.verify_catalog_coverage import (
+                verify_manifest_coverage,
+                verify_official_guidance,
+                verify_openapi_and_core_wiring,
+            )
+        except ImportError:
+            from verify_catalog_coverage import (
+                verify_manifest_coverage,
+                verify_official_guidance,
+                verify_openapi_and_core_wiring,
+            )
+        verify_manifest_coverage(failures)
+        verify_official_guidance(failures)
+        verify_openapi_and_core_wiring(failures)
+    except Exception as exc:
+        failures.append(f"Catalog coverage and guidance verification error: {exc}")
+    return failures
+
+
 def validate_identity_and_roles() -> Failures:
     """Validate INT-02 identity, authorization, and separation-of-duty invariants."""
     failures = Failures()
@@ -1432,6 +1455,7 @@ def main() -> int:
         *validate_review_index(),
         *validate_blueprints(),
         *validate_uscis_manifest(),
+        *validate_catalog_coverage_and_guidance(),
         *validate_identity_and_roles(),
         *validate_gcp_environments(),
         *validate_institution_onboarding(),

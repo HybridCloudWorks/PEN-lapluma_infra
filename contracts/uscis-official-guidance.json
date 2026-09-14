@@ -1,0 +1,1806 @@
+{
+  "$schema": "./schemas/document-guidance.schema.json",
+  "schemaVersion": "1.0.0",
+  "authority": "USCIS",
+  "lastVerifiedAt": "2026-09-14T00:00:00Z",
+  "guidance": [
+    {
+      "formId": "I-102",
+      "formNumber": "I-102",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-102instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-129",
+      "formNumber": "I-129",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-129instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-129CW",
+      "formNumber": "I-129CW",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-129cwinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-129CWR",
+      "formNumber": "I-129CWR",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-129cwrinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-129F",
+      "formNumber": "I-129F",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-129finstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-129H1B",
+      "formNumber": "H-1B Registration",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/guides/H-1B-Electronic-Registration-Guide.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-129H2A",
+      "formNumber": "H-2A Supplement",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-129instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-129S",
+      "formNumber": "I-129S",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-129sinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-130",
+      "formNumber": "I-130",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-130instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": 67500,
+      "feeNotes": "Official statutory fee of $675.00",
+      "evidenceChecklist": [
+        "Proof of petitioner's U.S. citizenship or lawful permanent resident status (e.g., birth certificate, passport, naturalization certificate, or green card)",
+        "Civil marriage certificate or legal proof of familial relationship",
+        "Proof of legal termination of any prior marriages for both parties",
+        "Two identical passport-style photographs of both petitioner and beneficiary"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-130A",
+      "formNumber": "I-130A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-130instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Employment history for the beneficiary for the previous five years",
+        "Residential address history for the beneficiary for the previous five years"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-131",
+      "formNumber": "I-131",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-131instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-131A",
+      "formNumber": "I-131A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-131ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-131F",
+      "formNumber": "I-131F",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-131finstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-134",
+      "formNumber": "I-134",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-134instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-134A",
+      "formNumber": "I-134A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-134ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-140",
+      "formNumber": "I-140",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-140instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-191",
+      "formNumber": "I-191",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-191instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-192",
+      "formNumber": "I-192",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-192instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-193",
+      "formNumber": "I-193",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-193instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-212",
+      "formNumber": "I-212",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-212instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-290B",
+      "formNumber": "I-290B",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-290binstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-360",
+      "formNumber": "I-360",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-360instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-361",
+      "formNumber": "I-361",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-361instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-363",
+      "formNumber": "I-363",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-363instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-407",
+      "formNumber": "I-407",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-407instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-485",
+      "formNumber": "I-485",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-485instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": 144000,
+      "feeNotes": "Official statutory fee of $1,440.00",
+      "evidenceChecklist": [
+        "Two identical passport-style photographs",
+        "Copy of government-issued identity document with photograph",
+        "Copy of birth certificate with English translation if applicable",
+        "Inspection, admission, or parole documentation (e.g., Form I-94 or entry stamp)"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-485A",
+      "formNumber": "Supplement A to Form I-485",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-485supainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-485J",
+      "formNumber": "Supplement J to Form I-485",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-485supjinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-508",
+      "formNumber": "I-508",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-508instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-526",
+      "formNumber": "I-526",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-526instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-526E",
+      "formNumber": "I-526E",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-526einstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-539",
+      "formNumber": "I-539",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-539instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-539A",
+      "formNumber": "I-539A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-539instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-566",
+      "formNumber": "I-566",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-566instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-589",
+      "formNumber": "I-589",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-589instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-600",
+      "formNumber": "I-600",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-600instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-600A",
+      "formNumber": "I-600A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-600ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-600A-S1",
+      "formNumber": "Supplement 1 to Form I-600A/I-600",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-600ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-600A-S2",
+      "formNumber": "Supplement 2 to Form I-600A/I-600",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-600ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-600A-S3",
+      "formNumber": "Supplement 3 to Form I-600A/I-600",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-600ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-601",
+      "formNumber": "I-601",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-601instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-601A",
+      "formNumber": "I-601A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-601ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-602",
+      "formNumber": "I-602",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-602instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-612",
+      "formNumber": "I-612",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-612instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-687",
+      "formNumber": "I-687",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-687instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-690",
+      "formNumber": "I-690",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-690instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-693",
+      "formNumber": "I-693",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-693instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-694",
+      "formNumber": "I-694",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-694instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-698",
+      "formNumber": "I-698",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-698instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-730",
+      "formNumber": "I-730",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-730instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-751",
+      "formNumber": "I-751",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-751instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-765",
+      "formNumber": "I-765",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-765instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Copy of Form I-94, passport, or previous employment authorization card",
+        "Two identical 2x2 inch passport-style color photographs",
+        "Evidence of eligibility under qualifying classification category"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-765V",
+      "formNumber": "I-765V",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-765vinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-765WS",
+      "formNumber": "Form I-765 Worksheet",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-765instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-800",
+      "formNumber": "I-800",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-800instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-800A",
+      "formNumber": "I-800A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-800ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-800A-S1",
+      "formNumber": "Supplement 1 to Form I-800A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-800ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-800A-S2",
+      "formNumber": "Supplement 2 to Form I-800A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-800ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-800A-S3",
+      "formNumber": "Supplement 3 to Form I-800A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-800ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-817",
+      "formNumber": "I-817",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-817instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-821",
+      "formNumber": "I-821",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-821instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-821D",
+      "formNumber": "I-821D",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-821dinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-824",
+      "formNumber": "I-824",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-824instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-829",
+      "formNumber": "I-829",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-829instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-854",
+      "formNumber": "I-854",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-854instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-864",
+      "formNumber": "I-864",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-864instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Federal income tax return transcripts for the most recent tax year",
+        "Form W-2 or 1099 wage statements",
+        "Proof of sponsor's U.S. citizenship or lawful permanent resident status",
+        "Evidence of current employment or self-employment"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-864A",
+      "formNumber": "I-864A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-864ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-864EZ",
+      "formNumber": "I-864EZ",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-864ezinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-864W",
+      "formNumber": "I-864W",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-864winstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-865",
+      "formNumber": "I-865",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-865instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-9",
+      "formNumber": "I-9",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-9instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-90",
+      "formNumber": "I-90",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-90instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": 45500,
+      "feeNotes": "Official statutory fee of $455.00",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-905",
+      "formNumber": "I-905",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-905instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-907",
+      "formNumber": "I-907",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-907instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-910",
+      "formNumber": "I-910",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-910instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-912",
+      "formNumber": "I-912",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-912instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-914",
+      "formNumber": "I-914",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-914instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-914-SA",
+      "formNumber": "Supplement A to Form I-914",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-914instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-914-SB",
+      "formNumber": "Supplement B to Form I-914",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-914instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-918",
+      "formNumber": "I-918",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-918instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-918-SA",
+      "formNumber": "Supplement A to Form I-918",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-918instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-918-SB",
+      "formNumber": "Supplement B to Form I-918",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-918instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-924A",
+      "formNumber": "I-924A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-924ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-929",
+      "formNumber": "I-929",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-929instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-941",
+      "formNumber": "I-941",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-941instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-942",
+      "formNumber": "I-942",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-942instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-956",
+      "formNumber": "I-956",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-956instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-956F",
+      "formNumber": "I-956F",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-956finstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-956G",
+      "formNumber": "I-956G",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-956ginstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-956H",
+      "formNumber": "I-956H",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-956hinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "I-956K",
+      "formNumber": "I-956K",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/i-956kinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Government-issued photo identification",
+        "Proof of lawful immigration status or inspection document (Form I-94)",
+        "Petition-specific eligibility and supporting relational/financial documentation"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-300",
+      "formNumber": "N-300",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-300instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-336",
+      "formNumber": "N-336",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-336instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-400",
+      "formNumber": "N-400",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-400instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Copy of Permanent Resident Card (Form I-551, front and back)",
+        "Marriage certificate and proof of spouse's U.S. citizenship (if applying based on marriage)",
+        "Tax transcripts proving continuous residence and physical presence",
+        "Certified court dispositions for any arrests or legal citations"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-426",
+      "formNumber": "N-426",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-426instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-470",
+      "formNumber": "N-470",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-470instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-565",
+      "formNumber": "N-565",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-565instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-600",
+      "formNumber": "N-600",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-600instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-600K",
+      "formNumber": "N-600K",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-600kinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-644",
+      "formNumber": "N-644",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-644instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "N-648",
+      "formNumber": "N-648",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/n-648instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Permanent Resident Card (Green Card) copy",
+        "Continuous residence and physical presence supporting documents",
+        "Civil and identity records relevant to naturalization claim"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1041",
+      "formNumber": "G-1041",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-1041instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1041A",
+      "formNumber": "G-1041A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-1041ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1055",
+      "formNumber": "G-1055",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/g-1055",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1145",
+      "formNumber": "G-1145",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/g-1145",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1256",
+      "formNumber": "G-1256",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-1256instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1450",
+      "formNumber": "G-1450",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/g-1450",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1530",
+      "formNumber": "G-1530",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/g-1530",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-1566",
+      "formNumber": "G-1566",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-1566instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-28",
+      "formNumber": "G-28",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-28instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-28I",
+      "formNumber": "G-28I",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-28iinstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-325A",
+      "formNumber": "G-325A",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-325ainstr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-639",
+      "formNumber": "G-639",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-639instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-845",
+      "formNumber": "G-845",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-845instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "G-884",
+      "formNumber": "G-884",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/g-884instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Identity verification and representation authorization credentials",
+        "Relevant case or application receipt notice numbers"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "AR-11",
+      "formNumber": "AR-11",
+      "authority": "USCIS",
+      "officialInstructionsUrl": "https://www.uscis.gov/sites/default/files/document/forms/ar-11instr.pdf",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Official government identification document",
+        "Form-specific supporting evidence cited in published instructions"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "EOIR-29",
+      "formNumber": "EOIR-29",
+      "authority": "USCIS/EOIR",
+      "officialInstructionsUrl": "https://www.justice.gov/eoir/file/form-eoir-29-instructions/dl",
+      "feeScheduleCitationUrl": "https://www.uscis.gov/g-1055",
+      "feeUsdCents": null,
+      "feeNotes": "Fee varies by filing channel, applicant category, or fee reduction status; consult official Form G-1055 fee schedule.",
+      "evidenceChecklist": [
+        "Official government identification document",
+        "Form-specific supporting evidence cited in published instructions"
+      ],
+      "institutionGuidanceNotes": "Ensure edition date matches official USCIS edition requirements before filing."
+    },
+    {
+      "formId": "DS-11",
+      "formNumber": "DS-11",
+      "authority": "U.S. Department of State",
+      "officialInstructionsUrl": "https://eforms.state.gov/Forms/ds11.pdf",
+      "feeScheduleCitationUrl": "https://eforms.state.gov/Forms/ds11.pdf",
+      "feeUsdCents": null,
+      "feeNotes": "Agency or institutional fee schedule applies; see official source.",
+      "evidenceChecklist": [
+        "Government-issued identity documentation",
+        "Supporting institutional or program qualification evidence"
+      ],
+      "institutionGuidanceNotes": "Institutional non-USCIS workflow."
+    },
+    {
+      "formId": "FAFSA",
+      "formNumber": "FAFSA",
+      "authority": "Federal Student Aid",
+      "officialInstructionsUrl": "https://studentaid.gov/h/apply-for-aid/fafsa",
+      "feeScheduleCitationUrl": "https://studentaid.gov/h/apply-for-aid/fafsa",
+      "feeUsdCents": null,
+      "feeNotes": "Agency or institutional fee schedule applies; see official source.",
+      "evidenceChecklist": [
+        "Government-issued identity documentation",
+        "Supporting institutional or program qualification evidence"
+      ],
+      "institutionGuidanceNotes": "Institutional non-USCIS workflow."
+    },
+    {
+      "formId": "CLINIC-INTAKE",
+      "formNumber": "CLINIC-INTAKE",
+      "authority": "Community Legal Clinic",
+      "officialInstructionsUrl": "https://clinic-legal.org/intake-form",
+      "feeScheduleCitationUrl": "https://clinic-legal.org/intake-form",
+      "feeUsdCents": null,
+      "feeNotes": "Agency or institutional fee schedule applies; see official source.",
+      "evidenceChecklist": [
+        "Government-issued identity documentation",
+        "Supporting institutional or program qualification evidence"
+      ],
+      "institutionGuidanceNotes": "Institutional non-USCIS workflow."
+    },
+    {
+      "formId": "SCHOLARSHIP-APP",
+      "formNumber": "SCHOLARSHIP-APP",
+      "authority": "Hope Heritage Foundation",
+      "officialInstructionsUrl": "https://hopeheritage.org/apply",
+      "feeScheduleCitationUrl": "https://hopeheritage.org/apply",
+      "feeUsdCents": null,
+      "feeNotes": "Agency or institutional fee schedule applies; see official source.",
+      "evidenceChecklist": [
+        "Government-issued identity documentation",
+        "Supporting institutional or program qualification evidence"
+      ],
+      "institutionGuidanceNotes": "Institutional non-USCIS workflow."
+    }
+  ]
+}
