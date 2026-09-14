@@ -1,132 +1,114 @@
 # Runbook — deletion drill
 
-> Draft. Never executed. Its pass criteria are the ratified retention numbers on the
+> Operational Runbook for GCP Data Deletion and Retention Verification under ADR-019.
+> Its pass criteria are the ratified retention numbers on the
 > [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) page. See
 > [Operational Runbooks](Operational-Runbooks).
 
 ## Why this is a drill
 
-The pilot issues a deletion receipt. A receipt is a claim, and this drill is the only thing that
-makes it a true one. The failure being guarded against is not a refusal to delete — it is deletion
-that reaches eight stores out of ten and reports success, because nothing checked the other two.
+The pilot issues a deletion receipt upon participant or institution request. A receipt is a legal and regulatory claim, and this drill is the operational verification that proves the claim is accurate. The failure being guarded against is not a refusal to delete — it is deletion that reaches five stores out of six and reports success, because nobody verified the remaining storage tiers.
 
-Run in `staging`, against a synthetic participant created for the drill and used for nothing else.
+Run in `staging`, against a synthetic participant and case created specifically for the drill and used for nothing else.
 
 ## The two stores everyone forgets
 
 Stated first, because a checklist read top to bottom loses attention exactly where these sit:
 
-1. **Blob versions and soft-deleted blobs.** Deleting a blob with versioning enabled creates a
-   version. The current blob is gone and the content is not. A deletion sweep that deletes blobs and
-   not their versions passes every naive check and is wrong.
-2. **Delivery links.** A short-lived revocable link issued before erasure is a live path to content
-   that erasure believes it removed. `TODO.md` 5.7 covers the links; this drill covers whether
-   erasure revokes them.
+1. **Cloud Storage (GCS) object versions and soft-deleted objects.** Deleting a GCS object with versioning enabled creates a noncurrent version. Furthermore, GCP Cloud Storage buckets enforce soft delete (7-day retention window: 604,800 seconds). Noncurrent object versions are purged via bucket lifecycle rules at 7 days (`days_since_noncurrent_time = 7`). Both the soft-delete retention window (7 days) and version purge window (7 days) are strictly shorter than the ratified 30-day account erasure SLA. A deletion sweep that removes current objects without accounting for versions or soft-delete retention fails audit verification.
+2. **Scoped Signed URLs and Download Grants.** Short-lived V4 signed URLs (15-minute TTL) issued before erasure remain cryptographically valid at the storage edge until expiration. Because Google Cloud Storage does not support instantaneous single-URL revocation without rotating root service account keys, the architecture strictly limits grant TTL to 15 minutes and revokes the associated database authorization record in PostgreSQL immediately. No claim of instantaneous signed-URL destruction is permitted.
 
 ## Scope
 
-Erasure must reach every one of these, and the drill fails if any single row is unverified:
+Erasure must reach every one of these tiers, and the drill fails if any single tier is unverified:
 
-| Store | Verification |
-|-------|--------------|
-| Azure SQL | No row keyed to the participant in any table |
-| Cosmos projections | No document; and a rebuild from post-erasure SQL still produces none |
-| Blob content | No current blob **and no version** in `quarantine`, `documents`, or `packages` |
-| Soft-deleted blobs | Nothing recoverable via undelete |
-| Audit container | Records **remain**, content-free and pseudonymized |
-| Temporary stores | Nothing in Functions working storage or the deployment container |
-| Delivery links | Every issued link revoked and refused |
-| Service Bus | No in-flight or dead-lettered message referencing the participant |
-| Log Analytics | Content-free by design; verify no identifier leaked into telemetry |
-| Backups | Content expires within the 12-month backup window |
+| Store | Technology | Verification |
+|-------|------------|--------------|
+| Authoritative Cases & Sections | Cloud SQL PostgreSQL (`workflow` schema) | No row keyed to participant/case in `case_workspace`, `case_section_value`, `case_evidence_link`, `case_approval`, `outbox_event` |
+| Working & Output Objects | Cloud Storage (`lp-documents-{env}`) | No live object matching case ID or participant ID |
+| Noncurrent Versions & Soft-Delete | Cloud Storage (`lp-documents-{env}`) | Noncurrent versions purged by 7-day lifecycle; soft-delete window expires within 7 days |
+| Upload Quarantine & Staging | Cloud Storage (`lp-quarantine-{env}`) | No pending or completed upload session objects surviving past 24-hour auto-expire lifecycle |
+| Ephemeral Processing Scratch | Cloud Storage (`lp-scratch-{env}`) & Cloud Run `/tmp` | 1-day auto-delete lifecycle on scratch bucket; Cloud Run worker instances process in memory or purge `/tmp` on exit |
+| Event Streams & Dead-Letters | Google Cloud Pub/Sub (`lp-workflow-events-dlq`) | No unacknowledged dead-letter messages referencing the participant |
+| Pseudonymized Audit Trail | Cloud SQL PostgreSQL (`workflow.case_history`) | Records **remain**, content-free and pseudonymized; zero plaintext PII (no names, unhashed emails, or SSNs) |
+| Local Client Data | Mobile / Desktop App (`ApertureApp`) | `deleteAllLocalData()` wipes `PendingCaptureQueue`, `ExportScratch`, user defaults, and in-memory caches |
+| Database Backups & PITR | Cloud SQL Automated Backups | Point-in-time recovery logs and automated backups expire within the 30-day backup retention window |
 
-The audit row is the only one that inverts. Audit records survive erasure by design — they are the
-evidence that erasure happened — which is why the contract requires them to be content-free and
-pseudonymized. A drill that finds the audit container empty after erasure has found a failure, not a
-success.
+The audit row is the only one that inverts. Audit records survive erasure by design — they are the evidence that erasure happened — which is why the schema requires them to be content-free and pseudonymized. A drill that finds the audit container empty after erasure has found a failure, not a success.
 
 ## Steps
 
 ### 1. Seed
 
-Create a synthetic participant and drive it through the full flow: a case, at least one upload
-reaching each of the three working containers, an extraction, a projection, a delivery link, and at
-least one dead-lettered message deliberately produced. Record every identifier created.
+Create a synthetic participant and drive it through the full workflow:
+- A case in `workflow.case_workspace` with canonical section values in `workflow.case_section_value`.
+- At least one uploaded evidence document in `lp-quarantine` promoted to `lp-documents`.
+- A watermarked draft preview in `lp-scratch`.
+- A completed review decision and step-up approval in `workflow.case_approval`.
+- A generated AcroForm package in `lp-documents` and an issued signed download grant.
+- At least one dead-lettered Pub/Sub message deliberately generated in `lp-workflow-events-dlq`.
 
-The dead-lettered message is deliberate. Dead-letter queues are the classic surviving copy — a
-message that failed processing sits in a queue that nothing sweeps, holding a reference nobody
-remembers.
+Record every generated identifier (`case_id`, `person_id`, `document_id`, `package_id`, `message_id`).
 
 ### 2. Record the pre-state
 
-For each row in the scope table, record what exists. A drill that only checks the post-state cannot
-distinguish "erasure removed it" from "it was never written", and the second is the more common
-reason a check passes.
+For each row in the scope table, record what exists. A drill that only checks the post-state cannot distinguish "erasure removed it" from "it was never written", and the second is the more common reason a naive check passes.
 
-### 3. Erase
+### 3. Execute Erasure
 
-Invoke the erasure path, not a hand-written script. The thing under test is the implementation
-(`TODO.md` 5.6), and a drill that bypasses it tests nothing that will run in production.
-
-Record the wall-clock time from invocation to completion, and compare it to the ratified 30-day SLA
-for active data, which the mechanism must be capable of meeting under real volume, not only for a
-single synthetic case.
+Invoke the authoritative erasure path:
+1. Trigger client data erasure via `AppSession.deleteAllLocalData()`.
+2. Invoke backend participant erasure via the administrative endpoint or migration procedure.
+3. Record the wall-clock time from invocation to completion, and compare it to the ratified 30-day SLA for active data.
 
 ### 4. Verify
 
-Work the scope table top to bottom. Two checks deserve their own commands:
+Work the scope table systematically using native GCP tools:
 
 ```bash
-# Versions and soft-deleted blobs are separate from current blobs. Both must be gone.
-az storage blob list \
-  --account-name <storage-account> --container-name documents \
-  --include vd --auth-mode login \
-  --query "[?contains(name, '<case-id>')]"
-```
+# 1. Cloud Storage: verify current objects, noncurrent versions, and soft-deleted items
+gcloud storage objects list \
+  --bucket="lp-documents-${ENVIRONMENT}-${PROJECT_ID}" \
+  --filter="name:${CASE_ID}" \
+  --raw \
+  --include-deleted
 
-```bash
-# Dead-letter queues survive ordinary sweeps. Check them explicitly.
-az servicebus queue show \
-  -g <resource-group> --namespace-name <namespace> -n <queue> \
-  --query "countDetails.deadLetterMessageCount"
-```
+# 2. Cloud SQL PostgreSQL: verify cascading deletion across workflow tables
+psql "host=${DB_HOST} dbname=lapluma user=lapluma_app_workflow sslmode=verify-full" -c \
+  "SELECT 'case_workspace', count(*) FROM workflow.case_workspace WHERE case_id = '${CASE_ID}'
+   UNION ALL
+   SELECT 'case_section_value', count(*) FROM workflow.case_section_value WHERE case_id = '${CASE_ID}'
+   UNION ALL
+   SELECT 'case_evidence_link', count(*) FROM workflow.case_evidence_link WHERE case_id = '${CASE_ID}'
+   UNION ALL
+   SELECT 'case_approval', count(*) FROM workflow.case_approval WHERE case_id = '${CASE_ID}';"
 
-Then the strongest check available, and the one that justifies ADR 0003: drop the
-`case-projections` container and rebuild it from post-erasure SQL. The rebuilt projection must
-contain nothing about the participant. This proves erasure at the authoritative source rather than
-at the projection, and no amount of projection-level deletion can fake it.
+# 3. Pub/Sub: inspect dead-letter queue for surviving messages
+gcloud pubsub subscriptions pull \
+  "lp-workflow-events-dlq-sub" \
+  --project="${PROJECT_ID}" \
+  --auto-ack=false \
+  --limit=10 \
+  --format="json"
+
+# 4. Audit Trail: verify pseudonymized history survives without PII
+psql "host=${DB_HOST} dbname=lapluma user=lapluma_app_workflow sslmode=verify-full" -c \
+  "SELECT event_type, pseudonymized_subject, created_at \
+   FROM workflow.case_history \
+   WHERE case_id = '${CASE_ID}';"
+```
 
 ### 5. Verify the receipt
 
-The deletion receipt must state what was actually done. Compare its wording against the verified
-results — including the audit records that deliberately survive. A receipt claiming complete removal
-while pseudonymized audit metadata is retained for seven years is inaccurate, and the participant
-notice has to say the same thing the receipt says.
+The deletion receipt must accurately reflect what was executed:
+- Confirm that the receipt details the removal of case files, section values, and generated forms.
+- Confirm the receipt explicitly discloses that pseudonymized audit events are retained for compliance.
+- Confirm the participant notice aligns with the receipt.
 
-### 6. Backups
+### 6. Backups and Recovery Guard
 
-The longest tail and the easiest to defer. Confirm that backups containing the participant's content
-expire within the 12-month backup window, and that no restore path can reintroduce erased content
-afterwards.
-
-This is where a backup product that only expires whole vaults on a long schedule makes the erasure
-SLA unmeetable regardless of how good the rest of the implementation is. If that is what the drill
-finds, it is a finding about the backup product and belongs in `REVIEW.md`, not in `TODO.md`.
-
-## Record
-
-Per drill: date, environment, operator role, the pre-state and post-state for every row, the elapsed
-time, and any row that could not be verified. An unverified row is a **failure**, not a gap — the
-drill's entire value is that it distinguishes "checked and clean" from "not checked".
+Confirm that backups containing the participant's data expire within the 30-day window. Verify that restoring an earlier database backup cannot resurrect deleted tenant permissions or unassigned collection grants (`restore cannot resurrect authorization`).
 
 ## Cadence
 
-Proposed: before `pilot` first accepts real data, then quarterly, and after any change to the
-storage topology, the projection schema, or the erasure implementation. `TODO.md` 3.4 covers the
-integration tests and 3.5 the automation.
-
-## Related pages
-
-- [Restore Drill](Runbook-Restore-Drill)
-- [ADR 0003](ADR-0003-SQL-authoritative-Cosmos-rebuildable)
-- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates)
+Executed before `pilot` launch, quarterly thereafter, and after any modification to storage bucket lifecycle configurations or database cascade schemas.
