@@ -1359,6 +1359,21 @@ def validate_deletion_drill() -> Failures:
     return failures
 
 
+def validate_design_spec() -> list[str]:
+    failures = []
+    try:
+        from verify_design_spec import verify_shared_design_spec, verify_operator_surface_inventory
+
+        for err in verify_shared_design_spec():
+            failures.append(f"Shared design spec error: {err}")
+        for err in verify_operator_surface_inventory():
+            failures.append(f"Operator surface inventory error: {err}")
+    except Exception as exc:
+        failures.append(f"Failed to execute verify_design_spec validation: {exc}")
+
+    return failures
+
+
 def main() -> int:
     failures = [
         *validate_openapi(),
@@ -1384,6 +1399,7 @@ def main() -> int:
         *validate_institution_onboarding(),
         *validate_database_migrations(),
         *validate_deletion_drill(),
+        *validate_design_spec(),
     ]
     if failures:
 
