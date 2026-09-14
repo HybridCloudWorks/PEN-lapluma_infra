@@ -158,12 +158,23 @@ class PdfMappingEngine:
                 errors=[f"Unsupported preparationMode: {mode!r}"],
             )
 
+        # Flatten nested list/dict inputs for repeatable array fields
+        flattened_inputs = dict(input_values)
+        for k, v in list(input_values.items()):
+            if isinstance(v, list):
+                for i, item in enumerate(v):
+                    if isinstance(item, dict):
+                        for sub_k, sub_v in item.items():
+                            flattened_inputs[f"{k}[{i}].{sub_k}"] = sub_v
+                    else:
+                        flattened_inputs[f"{k}[{i}]"] = item
+
         if mode == PreparationMode.FILLABLE_PDF.value:
-            return self._process_fillable_pdf(blueprint, input_values)
+            return self._process_fillable_pdf(blueprint, flattened_inputs)
         elif mode == PreparationMode.STATIC_ASSISTED.value:
-            return self._process_static_assisted(blueprint, input_values)
+            return self._process_static_assisted(blueprint, flattened_inputs)
         elif mode == PreparationMode.EXTERNAL_REFERENCE.value:
-            return self._process_external_reference(blueprint, input_values)
+            return self._process_external_reference(blueprint, flattened_inputs)
         else:
             return MappingResult(
                 preparation_mode=mode,
