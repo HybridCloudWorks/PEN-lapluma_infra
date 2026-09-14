@@ -15,10 +15,12 @@ from urllib.parse import urlsplit
 CONTRACT_VERSION = "0.2.0"
 ALLOWED_ARTIFACT_KINDS = {"SOURCE_DOCUMENT"}
 
-# Every object this zone may touch lives behind an Azure Blob private endpoint. Pinning the host
-# suffix is what stops a request naming an arbitrary external host. A sovereign-cloud move is one
-# edit here.
+# Every object this zone may touch lives behind a Google Cloud Storage private endpoint
+# or an Azure Blob private endpoint. Pinning the host suffix stops a request naming
+# an arbitrary external host.
 BLOB_HOST_SUFFIX = ".blob.core.windows.net"
+GCS_HOST = "storage.googleapis.com"
+GCS_HOST_SUFFIX = ".storage.googleapis.com"
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,13 +137,28 @@ def _validate_blob_uri(raw: str, label: str) -> str:
     cannot be mistaken for two objects.
     """
     parts = urlsplit(raw)
+    if parts.scheme == "gs":
+        if parts.username or parts.password:
+            raise ValueError(f"{label} must carry no credentials; access is managed-identity only")
+        if parts.query or parts.fragment:
+            raise ValueError(f"{label} must carry no query string or fragment")
+        bucket = parts.netloc
+        if not bucket:
+            raise ValueError(f"{label} must name a bucket and an object")
+        segments = [segment for segment in parts.path.split("/") if segment]
+        if not segments:
+            raise ValueError(f"{label} must name a container and a blob")
+        return f"gs://{bucket}/{'/'.join(segments)}"
+
     if parts.scheme != "https":
-        raise ValueError(f"{label} must use HTTPS")
+        raise ValueError(f"{label} must use HTTPS or gs scheme")
     if parts.username or parts.password:
         raise ValueError(f"{label} must carry no credentials; access is managed-identity only")
     host = parts.hostname
-    if not host or not host.endswith(BLOB_HOST_SUFFIX):
-        raise ValueError(f"{label} must address an Azure Blob endpoint")
+    is_azure = bool(host and host.endswith(BLOB_HOST_SUFFIX))
+    is_gcs = bool(host and (host == GCS_HOST or host.endswith(GCS_HOST_SUFFIX)))
+    if not (is_azure or is_gcs):
+        raise ValueError(f"{label} must address a Google Cloud Storage or Azure Blob endpoint")
     if parts.port is not None:
         raise ValueError(f"{label} must use the default HTTPS port")
     if parts.query or parts.fragment:
@@ -150,7 +167,8 @@ def _validate_blob_uri(raw: str, label: str) -> str:
             "permitted credential here"
         )
     segments = [segment for segment in parts.path.split("/") if segment]
-    if len(segments) < 2:
+    min_segments = 1 if (host and host.endswith(GCS_HOST_SUFFIX) and host != GCS_HOST) else 2
+    if len(segments) < min_segments:
         raise ValueError(f"{label} must name a container and a blob")
     return f"https://{host}/{'/'.join(segments)}"
 
