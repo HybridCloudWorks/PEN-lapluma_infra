@@ -115,6 +115,23 @@ jobs:
             exit 1
           fi
 
+      - name: Pin the Terraform CLI version
+        run: |
+          TERRAFORM_VERSION="1.9.5"
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o /tmp/terraform.zip
+          sudo unzip -q -o /tmp/terraform.zip -d /usr/local/bin
+          rm /tmp/terraform.zip
+          terraform version
+
+      - name: Validate Terraform configurations across environments
+        run: |
+          terraform fmt -check -recursive infra/terraform
+          for env in dev staging pilot; do
+            echo "Validating Terraform environment: $env"
+            terraform -chdir=infra/terraform/environments/$env init -backend=false
+            terraform -chdir=infra/terraform/environments/$env validate
+          done
+
       - name: Build non-root service images
         run: |
           docker build --tag lapluma-core-api:validation src/core-api
