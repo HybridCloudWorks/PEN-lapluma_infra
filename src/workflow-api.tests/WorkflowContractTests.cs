@@ -13,6 +13,7 @@ public sealed class WorkflowContractTests
     [Theory]
     [InlineData("workforce-workflow.yaml")]
     [InlineData("documents-upload.yaml")]
+    [InlineData("document-library.yaml")]
     public void The_service_version_matches_the_contract(string contractFile)
     {
         var text = ContractText(contractFile);
@@ -47,7 +48,7 @@ public sealed class WorkflowContractTests
     {
         // No real hostname exists yet (REVIEW R-07 owns that decision); both contracts must keep
         // the reserved-by-RFC example.invalid placeholder until one does.
-        foreach (var file in new[] { "workforce-workflow.yaml", "documents-upload.yaml" })
+        foreach (var file in new[] { "workforce-workflow.yaml", "documents-upload.yaml", "document-library.yaml" })
         {
             Assert.Contains(
                 "https://api.example.invalid/v1", ContractText(file), StringComparison.Ordinal);

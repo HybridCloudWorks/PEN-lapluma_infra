@@ -1,0 +1,416 @@
+openapi: 3.1.0
+info:
+  title: LaPluma Document Library API
+  version: 0.2.0
+  description: >-
+    Authoritative OpenAPI 3.1 contract for the LaPluma Document Library,
+    Collections, immutable Blueprints, publication lifecycle, and legacy package
+    compatibility mappings (INT-01, INT-14).
+servers: [{url: "https://api.example.invalid/v1"}]
+security: [{tenantSession: []}]
+paths:
+  /library/collections:
+    get:
+      operationId: listLibraryCollections
+      summary: List published Document Collections assigned to the caller's tenant
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema: {type: string}
+        - name: tenantId
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: List of assigned Document Collections
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/DocumentCollection'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /library/collections/{namespace}/{collectionId}:
+    get:
+      operationId: getLibraryCollection
+      summary: Get a specific Document Collection by namespace and ID
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema: {type: string}
+        - name: collectionId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: revision
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Resolved Document Collection
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DocumentCollection'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /library/blueprints:
+    get:
+      operationId: listLibraryBlueprints
+      summary: List published Document Blueprints accessible to the caller's tenant
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema: {type: string}
+        - name: tenantId
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: Accessible Document Blueprints
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/DocumentBlueprint'}
+
+  /library/blueprints/{namespace}/{blueprintId}:
+    get:
+      operationId: getLibraryBlueprint
+      summary: Get a specific Document Blueprint by namespace and ID
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema: {type: string}
+        - name: blueprintId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: revision
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Resolved Document Blueprint
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DocumentBlueprint'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /library/package-mappings:
+    get:
+      operationId: listPackageMappings
+      summary: List legacy package code to versioned Collection mappings
+      responses:
+        '200':
+          description: Compatibility package mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/LegacyPackageMapping'}
+
+  /library/blueprints/{namespace}/{blueprintId}/publish:
+    post:
+      operationId: publishBlueprint
+      summary: Publish a reviewed Document Blueprint with independent verification
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema: {type: string}
+        - name: blueprintId
+          in: path
+          required: true
+          schema: {type: string}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BlueprintPublishRequest'}
+      responses:
+        '200':
+          description: Published Document Blueprint
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DocumentBlueprint'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /library/blueprints/{namespace}/{blueprintId}/drift-check:
+    post:
+      operationId: checkBlueprintDrift
+      summary: Check source artifact checksum and quarantine if drifted
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema: {type: string}
+        - name: blueprintId
+          in: path
+          required: true
+          schema: {type: string}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BlueprintDriftCheckRequest'}
+      responses:
+        '200': {description: Checksum verified}
+        '409': {description: Drift detected, blueprint quarantined}
+
+  /library/blueprints/{namespace}/{blueprintId}/rollback:
+    post:
+      operationId: rollbackBlueprint
+      summary: Roll back a published blueprint revision
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema: {type: string}
+        - name: blueprintId
+          in: path
+          required: true
+          schema: {type: string}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BlueprintRollbackRequest'}
+      responses:
+        '200':
+          description: Rolled-back Document Blueprint
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DocumentBlueprint'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /library/tenants/{tenantId}/collections/{namespace}/{collectionId}/assign:
+    post:
+      operationId: assignTenantCollection
+      summary: Assign a published Document Collection to an institution tenant
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: namespace
+          in: path
+          required: true
+          schema: {type: string}
+        - name: collectionId
+          in: path
+          required: true
+          schema: {type: string}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {description: Collection assigned to tenant}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+components:
+  securitySchemes:
+    tenantSession:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-session
+      description: Opaque session token issued to an authenticated tenant user.
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication credentials.
+    NotFound:
+      description: The requested resource does not exist or caller is unauthorized.
+    Conflict:
+      description: State conflict or self-approval invariant violation.
+    Unprocessable:
+      description: Malformed payload or validation failure.
+
+  schemas:
+    PreparationMode:
+      type: string
+      enum:
+        - FILLABLE_PDF
+        - STATIC_ASSISTED
+        - EXTERNAL_REFERENCE
+
+    PublicationState:
+      type: string
+      enum:
+        - DRAFT
+        - VALIDATED
+        - IN_REVIEW
+        - PUBLISHED
+        - QUARANTINED
+        - WITHDRAWN
+        - ROLLED_BACK
+
+    BlueprintArtifactType:
+      type: string
+      enum:
+        - OFFICIAL_PDF
+        - XFA
+        - FLAT
+        - EXTERNAL_LINK
+        - AUTHORED_TEMPLATE
+
+    CollectionMember:
+      type: object
+      required:
+        - blueprintNamespace
+        - blueprintId
+        - blueprintRevision
+        - sortOrder
+        - isRequired
+      properties:
+        blueprintNamespace: {type: string}
+        blueprintId: {type: string}
+        blueprintRevision: {type: integer, minimum: 1}
+        sortOrder: {type: integer, minimum: 1}
+        isRequired: {type: boolean}
+
+    DocumentBlueprint:
+      type: object
+      required:
+        - namespace
+        - blueprintId
+        - revision
+        - title
+        - issuer
+        - preparationMode
+        - artifactType
+        - publicationState
+        - isLatest
+      properties:
+        namespace: {type: string}
+        blueprintId: {type: string}
+        revision: {type: integer, minimum: 1}
+        title: {type: string}
+        issuer: {type: string}
+        officialEditionDate: {type: string, format: date}
+        preparationMode: {$ref: '#/components/schemas/PreparationMode'}
+        artifactType: {$ref: '#/components/schemas/BlueprintArtifactType'}
+        sourceUrl: {type: string, format: uri}
+        sourceSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        publicationState: {$ref: '#/components/schemas/PublicationState'}
+        reviewedBy: {type: string}
+        reviewedAt: {type: string, format: date-time}
+        publishedAt: {type: string, format: date-time}
+        isLatest: {type: boolean}
+        createdAt: {type: string, format: date-time}
+
+    DocumentCollection:
+      type: object
+      required:
+        - namespace
+        - collectionId
+        - revision
+        - title
+        - publicationState
+        - isLatest
+        - members
+      properties:
+        namespace: {type: string}
+        collectionId: {type: string}
+        revision: {type: integer, minimum: 1}
+        title: {type: string}
+        description: {type: string}
+        workflowSettings: {type: object}
+        publicationState: {$ref: '#/components/schemas/PublicationState'}
+        isLatest: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        members:
+          type: array
+          items: {$ref: '#/components/schemas/CollectionMember'}
+
+    LegacyPackageMapping:
+      type: object
+      required:
+        - packageCode
+        - collectionNamespace
+        - collectionId
+        - pinnedRevision
+        - displayName
+        - authority
+        - formNumbers
+        - blueprintMembers
+      properties:
+        packageCode: {type: string}
+        collectionNamespace: {type: string}
+        collectionId: {type: string}
+        pinnedRevision: {type: integer, minimum: 1}
+        displayName: {type: string}
+        authority: {type: string}
+        formNumbers:
+          type: array
+          items: {type: string}
+        blueprintMembers:
+          type: array
+          items:
+            type: object
+            required:
+              - namespace
+              - blueprintId
+              - pinnedRevision
+              - preparationMode
+              - displayOrder
+              - isRequired
+            properties:
+              namespace: {type: string}
+              blueprintId: {type: string}
+              pinnedRevision: {type: integer, minimum: 1}
+              preparationMode: {$ref: '#/components/schemas/PreparationMode'}
+              displayOrder: {type: integer, minimum: 1}
+              isRequired: {type: boolean}
+
+    BlueprintPublishRequest:
+      type: object
+      required:
+        - publisherId
+        - reviewerId
+        - manifestSha256
+      properties:
+        publisherId: {type: string}
+        reviewerId: {type: string}
+        authorId: {type: string}
+        manifestSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+
+    BlueprintDriftCheckRequest:
+      type: object
+      required:
+        - observedSourceSha256
+        - operatorId
+      properties:
+        observedSourceSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        operatorId: {type: string}
+        reason: {type: string}
+
+    BlueprintRollbackRequest:
+      type: object
+      required:
+        - targetRevision
+        - operatorId
+        - reason
+      properties:
+        targetRevision: {type: integer, minimum: 1}
+        operatorId: {type: string}
+        reason: {type: string}
