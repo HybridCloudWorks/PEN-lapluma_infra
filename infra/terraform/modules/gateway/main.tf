@@ -4,9 +4,9 @@ resource "google_api_gateway_api" "api" {
 }
 
 resource "google_api_gateway_api_config" "api_cfg" {
-  provider      = google-beta
-  api           = google_api_gateway_api.api.api_id
-  api_config_id = "lp-cfg-${var.environment}-v2"
+  provider             = google-beta
+  api                  = google_api_gateway_api.api.api_id
+  api_config_id_prefix = "lp-cfg-${var.environment}-"
 
   gateway_config {
     backend_config {
@@ -18,10 +18,14 @@ resource "google_api_gateway_api_config" "api_cfg" {
     document {
       path = "spec.yaml"
       contents = base64encode(<<-EOF
-openapi: "3.0.0"
+swagger: "2.0"
 info:
   title: "LaPluma API Gateway (${var.environment})"
   version: "1.0.0"
+schemes:
+  - "https"
+produces:
+  - "application/json"
 security:
   - lapluma_auth: []
 paths:
@@ -77,6 +81,7 @@ securityDefinitions:
     flow: "implicit"
     authorizationUrl: ""
     x-google-issuer: "${var.oidc_issuer}"
+    x-google-jwks_uri: "${var.oidc_jwks_uri}"
     x-google-audiences: "${var.oidc_audience}"
 EOF
       )

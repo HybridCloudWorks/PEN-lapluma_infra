@@ -25,6 +25,12 @@ variable "oidc_issuer" {
   default     = "https://login.microsoftonline.com/common/v2.0"
 }
 
+variable "oidc_jwks_uri" {
+  type        = string
+  description = "JWKS URI for JWT signature verification"
+  default     = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+}
+
 variable "oidc_audience" {
   type        = string
   description = "Application OIDC audience client ID for gateway edge authentication"
