@@ -1,5 +1,6 @@
 using System.Globalization;
 using LaPluma.CoreApi;
+using LaPluma.CoreApi.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,10 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
 
 builder.Services.AddCatalogSource(builder.Configuration);
 builder.Services.AddCatalogAuthentication(builder.Configuration);
+builder.Services.AddSingleton<ISamlServiceProvider>(sp =>
+    new SamlServiceProvider(
+        builder.Configuration["Saml:SpEntityId"] ?? "https://api.lapluma.app/auth/saml/metadata",
+        builder.Configuration["Saml:SpAcsBaseUrl"] ?? "https://api.lapluma.app/auth/saml/acs"));
 
 var app = builder.Build();
 
@@ -382,6 +387,79 @@ library.MapGet("/blueprints/{namespace}/{blueprintId}/audit", async Task<IResult
 {
     var trail = await publicationService.GetAuditTrailAsync(@namespace, blueprintId, revision, cancellationToken);
     return Results.Ok(trail);
+});
+
+// -----------------------------------------------------------------------------
+// Enterprise SAML 2.0 Identity Provider Endpoints (INF-20 / INT-16)
+// Strictly limited to Google Workspace and Microsoft Entra ID
+// -----------------------------------------------------------------------------
+var auth = app.MapGroup("/auth/saml");
+
+auth.MapGet("/metadata", (ISamlServiceProvider saml) =>
+{
+    var xml = saml.GenerateSpMetadataXml("https://api.lapluma.app/auth/saml/metadata", "https://api.lapluma.app/auth/saml/acs");
+    return Results.Content(xml, "application/samlmetadata+xml");
+});
+
+auth.MapGet("/login", async Task<IResult> (
+    HttpContext context,
+    string domain,
+    string? provider,
+    ISamlServiceProvider saml,
+    CancellationToken ct) =>
+{
+    try
+    {
+        SamlIdpType? preferred = provider?.ToLowerInvariant() switch
+        {
+            "google" or "googleworkspace" => SamlIdpType.GoogleWorkspace,
+            "entra" or "entraid" or "microsoft" => SamlIdpType.EntraIdSaml,
+            _ => null
+        };
+
+        var request = await saml.CreateAuthnRequestAsync(domain, preferred, ct);
+        return Results.Redirect(request.RedirectUrl);
+    }
+    catch (Exception ex)
+    {
+        return CatalogProblem.Result(context, "saml-login-failed", ex.Message, 400);
+    }
+});
+
+auth.MapPost("/acs/{tenantId}", async Task<IResult> (
+    HttpContext context,
+    string tenantId,
+    ISamlServiceProvider saml,
+    CancellationToken ct) =>
+{
+    string? samlResponse = null;
+    if (context.Request.HasFormContentType)
+    {
+        var form = await context.Request.ReadFormAsync(ct);
+        samlResponse = form["SAMLResponse"].ToString();
+    }
+    else if (context.Request.ContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        var body = await context.Request.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
+        if (body.TryGetProperty("samlResponse", out var prop))
+        {
+            samlResponse = prop.GetString();
+        }
+    }
+
+    if (string.IsNullOrWhiteSpace(samlResponse))
+    {
+        return CatalogProblem.Result(context, "missing-saml-response", "SAMLResponse is missing.", 400);
+    }
+
+    var result = await saml.ValidateAssertionResponseAsync(tenantId, samlResponse, "https://api.lapluma.app/auth/saml/metadata", ct);
+    if (!result.IsValid || result.Assertion == null)
+    {
+        return CatalogProblem.Result(context, result.ErrorCode ?? "saml-validation-failed", result.ErrorMessage ?? "SAML Assertion validation failed.", 403);
+    }
+
+    var tokenResponse = await saml.ExchangeAssertionForTokenAsync(result.Assertion, ct);
+    return Results.Ok(tokenResponse);
 });
 
 app.Run();
