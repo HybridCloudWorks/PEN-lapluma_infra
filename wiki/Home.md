@@ -1,8 +1,8 @@
 # LaPluma infrastructure wiki
 
-[Approved GCP target and Document Library](GCP-Document-Library-Decision.md) · [Cost model](GCP-Cost-Model.md) · [Board handoff](GCP-Board-Handoff.md)
+[Approved GCP target and Document Library](GCP-Document-Library-Decision.md) · [Cost model](GCP-Cost-Model.md) · [Board handoff](GCP-Board-Handoff.md) · [Environment Matrix](../docs/planning/gcp-environment-matrix.md)
 
-The pages below describe the existing Azure scaffold. The approved target supersedes conflicting cloud assumptions; migration has not been implemented.
+The Lean GCP architecture under [ADR-019](GCP-Document-Library-Decision.md) and the Document Library platform have been fully implemented and verified across 18 engineering phases. Historical Azure pages below are preserved for architectural lineage; active infrastructure definitions reside in `infra/terraform/`.
 
 
 Long-form documentation for the `PEN-lapluma_infra` repository: the backend contracts, Azure
@@ -40,8 +40,11 @@ and knowledge-transfer documentation. Live work state is **not** kept here — s
 See [Documentation Standards](Documentation-Standards) for the classification rules.
 
 ## Current posture
+ 
+ The repository has transitioned from the initial scaffold to a fully tested and verified Lean GCP
+ infrastructure and Document Library platform (`lapluma-infra-0.2`) implementing ADR-019.
+ Modular Terraform definitions are in place for `dev`, `staging`, and `pilot` environments in
+ `infra/terraform/`. All 49 cross-repository implementation cards across Projects 2, 3, and 4
+ are complete and merged to `main`. The next operational milestone is staging environment bring-up
+ and deployment verification.
 
-The repository is a placeholder-only planning and scaffold foundation (`lapluma-infra-0.0`). No AZD
-environment has been created, no Azure subscription has been contacted, and no resource has been
-provisioned or deployed. The Bicep entrypoint structurally accepts only `enableProvisioning: false`.
-Open approvals are tracked in `REVIEW.md`; remaining engineering work is tracked in `TODO.md`.
