@@ -1,5 +1,13 @@
 terraform {
   required_version = ">= 1.5.0"
+
+  cloud {
+    organization = "hcw"
+    workspaces {
+      name = "lapluma-staging"
+    }
+  }
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -72,6 +80,9 @@ module "compute" {
   project_id                 = var.project_id
   environment                = var.environment
   region                     = var.region
+  core_api_image             = "us-central1-docker.pkg.dev/${var.project_id}/lapluma-services-${var.environment}/core-api:latest"
+  workflow_api_image         = "us-central1-docker.pkg.dev/${var.project_id}/lapluma-services-${var.environment}/workflow-api:latest"
+  processing_worker_image    = "us-central1-docker.pkg.dev/${var.project_id}/lapluma-services-${var.environment}/processing-worker:latest"
   core_api_sa_email          = module.iam.core_api_sa_email
   workflow_api_sa_email      = module.iam.workflow_api_sa_email
   processing_worker_sa_email = module.iam.processing_worker_sa_email

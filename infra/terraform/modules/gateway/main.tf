@@ -37,6 +37,7 @@ paths:
       x-google-backend:
         address: "${var.core_api_url}/healthz"
         jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
       responses:
         '200':
           description: "OK"
@@ -48,9 +49,34 @@ paths:
       x-google-backend:
         address: "${var.workflow_api_url}/healthz"
         jwt_audience: "${var.workflow_api_url}"
+        path_translation: CONSTANT_ADDRESS
       responses:
         '200':
           description: "OK"
+  /auth/saml/metadata:
+    get:
+      summary: "SAML Metadata"
+      operationId: "samlMetadata"
+      security: []
+      x-google-backend:
+        address: "${var.core_api_url}/auth/saml/metadata"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Metadata"
+  /auth/saml/login:
+    get:
+      summary: "SAML Login"
+      operationId: "samlLogin"
+      security: []
+      x-google-backend:
+        address: "${var.core_api_url}/auth/saml/login"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '302':
+          description: "Redirect"
   /v1/library/collections:
     get:
       summary: "Document Collections"
@@ -58,6 +84,7 @@ paths:
       x-google-backend:
         address: "${var.core_api_url}/v1/library/collections"
         jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
       responses:
         '200':
           description: "Collections"
@@ -70,6 +97,7 @@ paths:
       x-google-backend:
         address: "${var.workflow_api_url}/v1/cases"
         jwt_audience: "${var.workflow_api_url}"
+        path_translation: CONSTANT_ADDRESS
       responses:
         '200':
           description: "Cases"

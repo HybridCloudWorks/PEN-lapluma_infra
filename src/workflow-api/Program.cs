@@ -62,6 +62,8 @@ app.UseAuthorization();
 
 app.MapGet("/health", () =>
     Results.Ok(new HealthResponse("ok", ServiceMetadata.Name, ServiceMetadata.Version)));
+app.MapGet("/healthz", () =>
+    Results.Ok(new HealthResponse("ok", ServiceMetadata.Name, ServiceMetadata.Version)));
 // Readiness resolves the source and queries it rather than answering from a literal: if the
 // registration refused a store nobody chose, or the store cannot answer, readiness must say so.
 // It deliberately does not require the answer to be non-empty — an empty client directory is a

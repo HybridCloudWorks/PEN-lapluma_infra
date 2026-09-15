@@ -74,6 +74,16 @@ resource "google_service_account" "gateway_sa" {
   description  = "Identity assumed by API Gateway to invoke backend Cloud Run services"
 }
 
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+resource "google_service_account_iam_member" "gateway_sa_token_creator" {
+  service_account_id = google_service_account.gateway_sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-apigateway.iam.gserviceaccount.com"
+}
+
 # Cloud SQL client access for Core and Workflow APIs only
 resource "google_project_iam_member" "core_api_cloudsql" {
   project = var.project_id
