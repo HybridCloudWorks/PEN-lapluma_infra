@@ -13,17 +13,17 @@ variable "region" {
 
 variable "core_api_image" {
   type    = string
-  default = "us-central1-docker.pkg.dev/placeholder/lapluma/core-api:latest"
+  default = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "workflow_api_image" {
   type    = string
-  default = "us-central1-docker.pkg.dev/placeholder/lapluma/workflow-api:latest"
+  default = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "processing_worker_image" {
   type    = string
-  default = "us-central1-docker.pkg.dev/placeholder/lapluma/processing-worker:latest"
+  default = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "core_api_sa_email" {

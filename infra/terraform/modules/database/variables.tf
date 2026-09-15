@@ -31,3 +31,9 @@ variable "availability_type" {
   type        = string
   default     = "ZONAL"
 }
+
+variable "edition" {
+  description = "Cloud SQL edition: ENTERPRISE or ENTERPRISE_PLUS"
+  type        = string
+  default     = "ENTERPRISE"
+}
