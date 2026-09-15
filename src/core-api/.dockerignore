@@ -8,3 +8,4 @@
 !LaPluma.CoreApi.csproj
 !*.cs
 !Sql/
+!Auth/

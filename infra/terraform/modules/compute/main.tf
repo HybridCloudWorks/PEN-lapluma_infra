@@ -40,6 +40,10 @@ resource "google_cloud_run_v2_service" "core_api" {
         value = var.environment == "pilot" ? "Production" : "Development"
       }
       env {
+        name  = "Catalog__Source"
+        value = "fixture"
+      }
+      env {
         name  = "CLOUD_SQL_CONNECTION_NAME"
         value = var.db_connection_name
       }
@@ -75,6 +79,10 @@ resource "google_cloud_run_v2_service" "workflow_api" {
       env {
         name  = "ASPNETCORE_ENVIRONMENT"
         value = var.environment == "pilot" ? "Production" : "Development"
+      }
+      env {
+        name  = "Workflow__Source"
+        value = "fixture"
       }
       env {
         name  = "CLOUD_SQL_CONNECTION_NAME"

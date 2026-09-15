@@ -52,6 +52,8 @@ app.UseAuthorization();
 
 app.MapGet("/health", () =>
     Results.Ok(new HealthResponse("ok", ServiceMetadata.Name, ServiceMetadata.Version)));
+app.MapGet("/healthz", () =>
+    Results.Ok(new HealthResponse("ok", ServiceMetadata.Name, ServiceMetadata.Version)));
 // Readiness resolves the repository rather than answering from a literal. CatalogRepository
 // initialises its fixture in a static constructor that throws on an unrecognised form number; if
 // that happens, every catalog route returns 500 forever while a literal probe stays green.
