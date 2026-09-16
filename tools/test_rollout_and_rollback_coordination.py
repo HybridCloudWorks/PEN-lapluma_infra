@@ -53,11 +53,11 @@ class RolloutAndRollbackCoordinationTests(unittest.TestCase):
             )
 
     def test_schema_migrations_completeness_and_order(self):
-        """Verifies migrations 001 through 005 are sequentially numbered and present."""
+        """Verifies migrations 001 through 006 are sequentially numbered and present."""
         self.assertTrue(SQL_DIR.exists(), f"Missing {SQL_DIR}")
         sql_files = sorted([f.name for f in SQL_DIR.glob("*.sql")])
-        expected_prefixes = ["001_", "002_", "003_", "004_", "005_"]
-        self.assertEqual(len(sql_files), 5, f"Expected 5 migration files, found {len(sql_files)}")
+        expected_prefixes = ["001_", "002_", "003_", "004_", "005_", "006_"]
+        self.assertEqual(len(sql_files), 6, f"Expected 6 migration files, found {len(sql_files)}")
 
         for expected, actual in zip(expected_prefixes, sql_files):
             self.assertTrue(actual.startswith(expected), f"Expected {expected}, got {actual}")
