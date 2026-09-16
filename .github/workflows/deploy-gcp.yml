@@ -120,6 +120,9 @@ jobs:
           gcloud run deploy "lp-core-api-${ENV}" \
             --image "${REPO}/core-api:${TAG}" \
             --region "${REGION}" \
+            --set-env-vars "ASPNETCORE_ENVIRONMENT=Development,Catalog__Source=fixture" \
+            --memory 512Mi \
+            --cpu 1 \
             --no-allow-unauthenticated \
             --quiet
             
@@ -127,6 +130,9 @@ jobs:
           gcloud run deploy "lp-wf-api-${ENV}" \
             --image "${REPO}/workflow-api:${TAG}" \
             --region "${REGION}" \
+            --set-env-vars "ASPNETCORE_ENVIRONMENT=Development,Workflow__Source=fixture" \
+            --memory 512Mi \
+            --cpu 1 \
             --no-allow-unauthenticated \
             --quiet
             
@@ -134,6 +140,8 @@ jobs:
           gcloud run deploy "lp-proc-worker-${ENV}" \
             --image "${REPO}/processing-worker:${TAG}" \
             --region "${REGION}" \
+            --memory 512Mi \
+            --cpu 1 \
             --no-allow-unauthenticated \
             --quiet
 
