@@ -136,6 +136,12 @@ resource "google_project_iam_member" "github_deployer_sa_user" {
   member  = "serviceAccount:${google_service_account.github_deployer_sa.email}"
 }
 
+resource "google_project_iam_member" "compute_ar_reader" {
+  project = google_project.env_project.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${google_project.env_project.number}-compute@developer.gserviceaccount.com"
+}
+
 # ------------------------------------------------------------------------------
 # 5. Terraform Cloud Workload Identity Federation (OIDC)
 # ------------------------------------------------------------------------------

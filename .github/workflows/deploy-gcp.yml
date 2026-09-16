@@ -60,11 +60,24 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Determine Workload Identity Provider
+        id: wif
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            PROVIDER="${{ vars.GCP_WIF_PROVIDER_DEV }}"
+            [ -z "$PROVIDER" ] && PROVIDER="projects/212649801370/locations/global/workloadIdentityPools/pool-github-dev/providers/provider-github"
+          elif [ "${{ inputs.environment }}" = "staging" ]; then
+            PROVIDER="${{ vars.GCP_WIF_PROVIDER_STAGING }}"
+          else
+            PROVIDER="${{ vars.GCP_WIF_PROVIDER_PILOT }}"
+          fi
+          echo "provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
         with:
           project_id: lapluma-${{ inputs.environment }}-gcp
-          workload_identity_provider: projects/lapluma-${{ inputs.environment }}-gcp/locations/global/workloadIdentityPools/pool-github-${{ inputs.environment }}/providers/provider-github
+          workload_identity_provider: ${{ steps.wif.outputs.provider }}
           service_account: lp-deployer-${{ inputs.environment }}@lapluma-${{ inputs.environment }}-gcp.iam.gserviceaccount.com
 
       - name: Configure Docker authentication for Artifact Registry
@@ -107,18 +120,21 @@ jobs:
           gcloud run deploy "lp-core-api-${ENV}" \
             --image "${REPO}/core-api:${TAG}" \
             --region "${REGION}" \
+            --no-allow-unauthenticated \
             --quiet
             
           echo "Deploying Workflow API to Cloud Run..."
           gcloud run deploy "lp-wf-api-${ENV}" \
             --image "${REPO}/workflow-api:${TAG}" \
             --region "${REGION}" \
+            --no-allow-unauthenticated \
             --quiet
             
           echo "Deploying Document Processing Worker to Cloud Run..."
           gcloud run deploy "lp-proc-worker-${ENV}" \
             --image "${REPO}/processing-worker:${TAG}" \
             --region "${REGION}" \
+            --no-allow-unauthenticated \
             --quiet
 
       - name: Validate database migration bundle
