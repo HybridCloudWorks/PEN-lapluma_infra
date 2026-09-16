@@ -2,14 +2,14 @@
 # GitHub Actions Workload Identity Federation (Zero static service-account keys)
 # ------------------------------------------------------------------------------
 resource "google_iam_workload_identity_pool" "github_pool" {
-  workload_identity_pool_id = "gh-pool-${var.environment}"
+  workload_identity_pool_id = "pool-github-${var.environment}"
   display_name              = "GitHub Actions Pool - ${var.environment}"
   description               = "OIDC federation identity pool for GitHub Actions CI/CD"
 }
 
 resource "google_iam_workload_identity_pool_provider" "github_provider" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
-  workload_identity_pool_provider_id = "gh-provider-${var.environment}"
+  workload_identity_pool_provider_id = "provider-github"
   display_name                       = "GitHub Actions Provider"
 
   attribute_mapping = {
