@@ -74,7 +74,7 @@ resource "google_iam_workload_identity_pool_provider" "tfc_provider" {
   attribute_condition = "assertion.terraform_organization_name == '${var.tfc_organization_name}'"
 
   oidc {
-    issuer_uri        = "https://app.terraform.io"
+    issuer_uri = "https://app.terraform.io"
     allowed_audiences = [
       "gcp.workload.identity",
       "//iam.googleapis.com/${google_iam_workload_identity_pool.tfc_pool.name}/providers/${var.tfc_provider_id}"
