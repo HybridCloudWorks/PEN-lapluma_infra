@@ -1,0 +1,8 @@
+project_name          = "LaPluma Dev"
+project_id            = "lapluma-dev-gcp"
+org_id                = "42574862375"
+billing_account_id    = "01AEE9-772C7A-9720CC"
+environment           = "dev"
+region                = "us-central1"
+github_repository     = "HybridCloudWorks/PEN-lapluma_infra"
+tfc_organization_name = "hcw"
