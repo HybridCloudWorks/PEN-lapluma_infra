@@ -25,6 +25,17 @@ resource "google_sql_database_instance" "postgres" {
       enabled                        = true
       point_in_time_recovery_enabled = true
       start_time                     = "03:00"
+      transaction_log_retention_days = 7
+      backup_retention_settings {
+        retained_backups = 7
+        retention_unit   = "COUNT"
+      }
+    }
+
+    maintenance_window {
+      day          = 7
+      hour         = 4
+      update_track = "stable"
     }
 
     database_flags {
