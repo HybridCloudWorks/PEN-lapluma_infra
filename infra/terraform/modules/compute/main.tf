@@ -47,6 +47,28 @@ resource "google_cloud_run_v2_service" "core_api" {
         name  = "CLOUD_SQL_CONNECTION_NAME"
         value = var.db_connection_name
       }
+
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 10
+        failure_threshold     = 3
+        http_get {
+          path = "/ready"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 5
+        timeout_seconds       = 2
+        period_seconds        = 15
+        failure_threshold     = 3
+        http_get {
+          path = "/health"
+          port = 8080
+        }
+      }
     }
   }
 }
@@ -88,6 +110,28 @@ resource "google_cloud_run_v2_service" "workflow_api" {
         name  = "CLOUD_SQL_CONNECTION_NAME"
         value = var.db_connection_name
       }
+
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 10
+        failure_threshold     = 3
+        http_get {
+          path = "/ready"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 5
+        timeout_seconds       = 2
+        period_seconds        = 15
+        failure_threshold     = 3
+        http_get {
+          path = "/health"
+          port = 8080
+        }
+      }
     }
   }
 }
@@ -115,6 +159,28 @@ resource "google_cloud_run_v2_service" "processing_worker" {
           memory = "1024Mi"
         }
         cpu_idle = true
+      }
+
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 10
+        failure_threshold     = 3
+        http_get {
+          path = "/ready"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 5
+        timeout_seconds       = 2
+        period_seconds        = 15
+        failure_threshold     = 3
+        http_get {
+          path = "/health"
+          port = 8080
+        }
       }
     }
   }
