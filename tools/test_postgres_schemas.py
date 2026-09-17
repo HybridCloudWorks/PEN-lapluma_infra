@@ -2,9 +2,14 @@
 
 import pathlib
 import re
+import sys
 import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+if str(REPO_ROOT / "tools") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 CATALOG_MIGRATION = REPO_ROOT / "src" / "core-api" / "Sql" / "001_catalog_schema_postgres.sql"
 WORKFLOW_MIGRATION = REPO_ROOT / "src" / "workflow-api" / "Sql" / "001_workflow_schema_postgres.sql"
