@@ -224,6 +224,50 @@ paths:
       responses:
         '200':
           description: "Clients"
+  /v1/documents/upload-sessions:
+    post:
+      summary: "Create Upload Session"
+      operationId: "gatewayCreateUploadSession"
+      parameters:
+        - name: "Idempotency-Key"
+          in: "header"
+          required: false
+          type: "string"
+      x-google-backend:
+        address: "${var.workflow_api_url}/v1/documents/upload-sessions"
+        jwt_audience: "${var.workflow_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '201':
+          description: "Upload Session Created"
+        '400':
+          description: "Bad Request"
+        '422':
+          description: "Validation Error"
+  /v1/documents/upload-sessions/{sessionId}/complete:
+    post:
+      summary: "Complete Upload Session"
+      operationId: "gatewayCompleteUploadSession"
+      parameters:
+        - name: "sessionId"
+          in: "path"
+          required: true
+          type: "string"
+        - name: "Idempotency-Key"
+          in: "header"
+          required: false
+          type: "string"
+      x-google-backend:
+        address: "${var.workflow_api_url}"
+        jwt_audience: "${var.workflow_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: "Upload Complete"
+        '400':
+          description: "Bad Request"
+        '422':
+          description: "Validation Error"
 EOF
       )
     }
