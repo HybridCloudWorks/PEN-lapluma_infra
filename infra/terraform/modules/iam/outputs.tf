@@ -25,3 +25,7 @@ output "acquisition_sa_email" {
 output "gateway_sa_email" {
   value = google_service_account.gateway_sa.email
 }
+
+output "pubsub_invoker_sa_email" {
+  value = google_service_account.pubsub_invoker_sa.email
+}

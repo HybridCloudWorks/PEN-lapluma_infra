@@ -74,6 +74,13 @@ resource "google_service_account" "gateway_sa" {
   description  = "Identity assumed by API Gateway to invoke backend Cloud Run services"
 }
 
+# Pub/Sub Push Invoker Identity
+resource "google_service_account" "pubsub_invoker_sa" {
+  account_id   = "lp-ps-invoker-${var.environment}"
+  display_name = "LaPluma Pub/Sub Push Invoker SA (${var.environment})"
+  description  = "Service account used by Cloud Pub/Sub push subscriptions to invoke Cloud Run worker endpoints"
+}
+
 data "google_project" "current" {
   project_id = var.project_id
 }
