@@ -53,3 +53,9 @@ variable "pubsub_invoker_sa_email" {
   description = "Service account email of Pub/Sub invoker authorized to invoke the worker service"
   default     = ""
 }
+
+variable "migration_image" {
+  type        = string
+  description = "Container image for Cloud Run PostgreSQL 16 schema migration job"
+  default     = "postgres:16-alpine"
+}

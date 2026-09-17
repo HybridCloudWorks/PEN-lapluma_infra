@@ -49,6 +49,22 @@ class PostgresSchemaMigrationTests(unittest.TestCase):
         # Verify parentheses are balanced
         self.assertEqual(sql.count("("), sql.count(")"))
 
+    def test_migration_runner_dry_run(self) -> None:
+        from tools.run_postgres_migrations import run_migrations
+        result = run_migrations(dry_run=True)
+        self.assertEqual(result, 0)
+
+    def test_cloud_run_migration_job_declared_in_terraform(self) -> None:
+        compute_tf = REPO_ROOT / "infra" / "terraform" / "modules" / "compute" / "main.tf"
+        self.assertTrue(compute_tf.is_file(), f"Missing {compute_tf}")
+        content = compute_tf.read_text(encoding="utf-8")
+
+        self.assertIn('resource "google_cloud_run_v2_job" "db_migration"', content)
+        self.assertIn('lp-db-migration-${var.environment}', content)
+        self.assertIn('cloud_sql_instance', content)
+        self.assertIn('POSTGRES_DB_CATALOG', content)
+        self.assertIn('POSTGRES_DB_WORKFLOW', content)
+
 
 if __name__ == "__main__":
     unittest.main()
