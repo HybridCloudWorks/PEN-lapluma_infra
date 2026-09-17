@@ -141,3 +141,12 @@ resource "google_cloud_run_v2_service_iam_member" "workflow_api_gateway_invoker"
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.gateway_sa_email}"
 }
+
+resource "google_cloud_run_v2_service_iam_member" "processing_worker_pubsub_invoker" {
+  count    = var.pubsub_invoker_sa_email != "" ? 1 : 0
+  project  = google_cloud_run_v2_service.processing_worker.project
+  location = google_cloud_run_v2_service.processing_worker.location
+  name     = google_cloud_run_v2_service.processing_worker.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.pubsub_invoker_sa_email}"
+}

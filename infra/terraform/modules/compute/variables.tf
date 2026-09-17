@@ -47,3 +47,9 @@ variable "gateway_sa_email" {
   description = "Service account email of API Gateway authorized to invoke Cloud Run services"
   default     = ""
 }
+
+variable "pubsub_invoker_sa_email" {
+  type        = string
+  description = "Service account email of Pub/Sub invoker authorized to invoke the worker service"
+  default     = ""
+}
