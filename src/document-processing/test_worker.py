@@ -85,5 +85,90 @@ class HealthSurfaceTests(unittest.TestCase):
         self.assertNotIn("Python", server_header)
 
 
+class PubSubIngestionTests(unittest.TestCase):
+    server: ThreadingHTTPServer
+    base: str
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.server.shutdown()
+        cls.server.server_close()
+
+    def _post_pubsub(self, payload: dict) -> tuple[int, dict]:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.base}/pubsub",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=5) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as err:
+            return err.status, json.loads(err.read().decode("utf-8"))
+
+    def test_pubsub_valid_quarantine_upload_event_promotes_document(self) -> None:
+        import base64
+        event = {
+            "name": "cases/case-101/passport.pdf",
+            "bucket": "lp-quarantine-dev",
+            "contentType": "application/pdf",
+            "size": 524288,
+        }
+        b64_data = base64.b64encode(json.dumps(event).encode("utf-8")).decode("utf-8")
+        payload = {"message": {"data": b64_data, "messageId": "msg-001"}}
+
+        status, body = self._post_pubsub(payload)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["status"], "ok")
+        self.assertEqual(body["event"], "quarantine_processed")
+        self.assertEqual(body["action"], "promoted_to_documents_bucket")
+
+    def test_pubsub_path_traversal_quarantined_safely(self) -> None:
+        import base64
+        event = {
+            "name": "../../../etc/passwd",
+            "bucket": "lp-quarantine-dev",
+            "contentType": "application/pdf",
+            "size": 1024,
+        }
+        b64_data = base64.b64encode(json.dumps(event).encode("utf-8")).decode("utf-8")
+        payload = {"message": {"data": b64_data, "messageId": "msg-002"}}
+
+        status, body = self._post_pubsub(payload)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["status"], "quarantined")
+        self.assertEqual(body["reason"], "invalid-path")
+
+    def test_pubsub_unsupported_content_type_quarantined(self) -> None:
+        import base64
+        event = {
+            "name": "cases/case-101/malicious.exe",
+            "bucket": "lp-quarantine-dev",
+            "contentType": "application/x-msdownload",
+            "size": 1024,
+        }
+        b64_data = base64.b64encode(json.dumps(event).encode("utf-8")).decode("utf-8")
+        payload = {"message": {"data": b64_data, "messageId": "msg-003"}}
+
+        status, body = self._post_pubsub(payload)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["status"], "quarantined")
+        self.assertEqual(body["reason"], "unsupported-content-type")
+
+    def test_pubsub_missing_message_returns_400(self) -> None:
+        status, body = self._post_pubsub({})
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "bad-request")
+
+
 if __name__ == "__main__":
     unittest.main()
+
