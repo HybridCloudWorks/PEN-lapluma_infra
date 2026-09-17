@@ -21,33 +21,63 @@ resource "google_api_gateway_api_config" "api_cfg" {
 swagger: "2.0"
 info:
   title: "LaPluma API Gateway (${var.environment})"
+  description: "Unified public ingress for LaPluma Core and Workflow services"
   version: "1.0.0"
 schemes:
   - "https"
 produces:
   - "application/json"
-security:
-  - lapluma_auth: []
 paths:
-  /catalog/healthz:
+  /catalog/health:
     get:
       summary: "Catalog Health"
-      operationId: "catalogHealth"
-      security: []
+      operationId: "catalogHealthLegacy"
       x-google-backend:
-        address: "${var.core_api_url}/healthz"
+        address: "${var.core_api_url}/health"
         jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "OK"
+  /catalog/healthz:
+    get:
+      summary: "Catalog Health Probe"
+      operationId: "catalogHealth"
+      x-google-backend:
+        address: "${var.core_api_url}/health"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "OK"
+  /catalog/ready:
+    get:
+      summary: "Catalog Readiness Probe"
+      operationId: "catalogReady"
+      x-google-backend:
+        address: "${var.core_api_url}/ready"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Ready"
+  /workflow/health:
+    get:
+      summary: "Workflow Health"
+      operationId: "workflowHealthLegacy"
+      x-google-backend:
+        address: "${var.workflow_api_url}/health"
+        jwt_audience: "${var.workflow_api_url}"
         path_translation: CONSTANT_ADDRESS
       responses:
         '200':
           description: "OK"
   /workflow/healthz:
     get:
-      summary: "Workflow Health"
+      summary: "Workflow Health Probe"
       operationId: "workflowHealth"
-      security: []
       x-google-backend:
-        address: "${var.workflow_api_url}/healthz"
+        address: "${var.workflow_api_url}/health"
         jwt_audience: "${var.workflow_api_url}"
         path_translation: CONSTANT_ADDRESS
       responses:
@@ -57,7 +87,8 @@ paths:
     get:
       summary: "SAML Metadata"
       operationId: "samlMetadata"
-      security: []
+      produces:
+        - "application/samlmetadata+xml"
       x-google-backend:
         address: "${var.core_api_url}/auth/saml/metadata"
         jwt_audience: "${var.core_api_url}"
@@ -69,7 +100,15 @@ paths:
     get:
       summary: "SAML Login"
       operationId: "samlLogin"
-      security: []
+      parameters:
+        - name: "domain"
+          in: "query"
+          required: true
+          type: "string"
+        - name: "provider"
+          in: "query"
+          required: false
+          type: "string"
       x-google-backend:
         address: "${var.core_api_url}/auth/saml/login"
         jwt_audience: "${var.core_api_url}"
@@ -77,6 +116,61 @@ paths:
       responses:
         '302':
           description: "Redirect"
+  /auth/saml/acs/{tenantId}:
+    post:
+      summary: "SAML Assertion Consumer Service"
+      operationId: "samlAcs"
+      parameters:
+        - name: "tenantId"
+          in: "path"
+          required: true
+          type: "string"
+      x-google-backend:
+        address: "${var.core_api_url}"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: "Token Response"
+        '400':
+          description: "Bad Request"
+        '403':
+          description: "Unauthorized"
+  /v1/catalog/categories:
+    get:
+      summary: "Catalog Categories"
+      operationId: "catalogCategories"
+      x-google-backend:
+        address: "${var.core_api_url}/v1/catalog/categories"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Hierarchy"
+  /v1/catalog/packages:
+    get:
+      summary: "Catalog Packages"
+      operationId: "catalogPackages"
+      parameters:
+        - name: "categoryCode"
+          in: "query"
+          required: false
+          type: "string"
+        - name: "subcategoryCode"
+          in: "query"
+          required: false
+          type: "string"
+        - name: "activationState"
+          in: "query"
+          required: false
+          type: "string"
+      x-google-backend:
+        address: "${var.core_api_url}/v1/catalog/packages"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Packages"
   /v1/library/collections:
     get:
       summary: "Document Collections"
@@ -88,8 +182,6 @@ paths:
       responses:
         '200':
           description: "Collections"
-        '401':
-          description: "Unauthorized"
   /v1/cases:
     get:
       summary: "Workflow Cases"
@@ -101,16 +193,37 @@ paths:
       responses:
         '200':
           description: "Cases"
-        '401':
-          description: "Unauthorized"
-securityDefinitions:
-  lapluma_auth:
-    type: "oauth2"
-    flow: "implicit"
-    authorizationUrl: ""
-    x-google-issuer: "${var.oidc_issuer}"
-    x-google-jwks_uri: "${var.oidc_jwks_uri}"
-    x-google-audiences: "${var.oidc_audience}"
+  /v1/session:
+    get:
+      summary: "Workflow Session Context"
+      operationId: "gatewaySession"
+      x-google-backend:
+        address: "${var.workflow_api_url}/v1/session"
+        jwt_audience: "${var.workflow_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Session"
+  /v1/clients:
+    get:
+      summary: "Client Directory"
+      operationId: "gatewayListClients"
+      parameters:
+        - name: "query"
+          in: "query"
+          required: false
+          type: "string"
+        - name: "cursor"
+          in: "query"
+          required: false
+          type: "string"
+      x-google-backend:
+        address: "${var.workflow_api_url}/v1/clients"
+        jwt_audience: "${var.workflow_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Clients"
 EOF
       )
     }
