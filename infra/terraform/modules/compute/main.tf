@@ -150,3 +150,58 @@ resource "google_cloud_run_v2_service_iam_member" "processing_worker_pubsub_invo
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.pubsub_invoker_sa_email}"
 }
+
+# ------------------------------------------------------------------------------
+# Cloud Run Job: Database Migrations (PostgreSQL 16 under ADR-019)
+# Executed on-demand or during deployment pipelines. Scale-to-zero compute footprint.
+# ------------------------------------------------------------------------------
+resource "google_cloud_run_v2_job" "db_migration" {
+  name     = "lp-db-migration-${var.environment}"
+  location = var.region
+
+  template {
+    template {
+      service_account = var.core_api_sa_email
+
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [var.db_connection_name]
+        }
+      }
+
+      containers {
+        image = var.migration_image
+
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "512Mi"
+          }
+        }
+
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+
+        env {
+          name  = "CLOUD_SQL_CONNECTION_NAME"
+          value = var.db_connection_name
+        }
+        env {
+          name  = "POSTGRES_DB_CATALOG"
+          value = "lapluma_catalog"
+        }
+        env {
+          name  = "POSTGRES_DB_WORKFLOW"
+          value = "lapluma_workflow"
+        }
+        env {
+          name  = "ENVIRONMENT"
+          value = var.environment
+        }
+      }
+    }
+  }
+}
