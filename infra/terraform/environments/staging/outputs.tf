@@ -1,3 +1,7 @@
+output "gateway_url" {
+  value = module.gateway.gateway_url
+}
+
 output "core_api_url" {
   value = module.compute.core_api_url
 }
@@ -16,4 +20,8 @@ output "workload_identity_provider" {
 
 output "artifact_registry_repository_url" {
   value = module.compute.artifact_registry_repository_url
+}
+
+output "migration_job_name" {
+  value = module.compute.migration_job_name
 }
