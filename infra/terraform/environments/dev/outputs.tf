@@ -1,3 +1,7 @@
+output "gateway_url" {
+  value = module.gateway.gateway_url
+}
+
 output "core_api_url" {
   value = module.compute.core_api_url
 }
