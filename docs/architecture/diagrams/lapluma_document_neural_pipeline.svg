@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" width="100%" height="auto" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #FFFFFF;">
+<defs>
+  <style>
+    .title { font-size: 16px; font-weight: 700; fill: #202124; }
+    .subtitle { font-size: 12px; font-weight: 500; fill: #5f6368; }
+    .lane-title { font-size: 13px; font-weight: 700; fill: #3c4043; }
+    .box-title { font-size: 12px; font-weight: 700; }
+    .box-desc { font-size: 10px; font-weight: 400; }
+    .edge-label { font-size: 9px; font-weight: 600; fill: #444746; text-anchor: middle; }
+    .arrow { stroke-width: 1.5; fill: none; }
+    .arrow-secure { stroke-width: 2; stroke-dasharray: 4,3; fill: none; }
+    .arrow-async { stroke-width: 2; fill: none; }
+  </style>
+  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#5F6368" />
+  </marker>
+  <marker id="arrowhead-secure" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#FBBC04" />
+  </marker>
+  <marker id="arrowhead-async" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#34A853" />
+  </marker>
+  <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+  </filter>
+</defs>
+<text x="30" y="32" class="title">LaPluma Document Processing &amp; Neural Vision Pipeline</text><text x="30" y="50" class="subtitle">On-Device Zero-Cloud PII Masking, Direct Resumable Uploads &amp; Asynchronous Compilation</text>
+  <rect x="30" y="70" width="280" height="500" rx="10" ry="10" fill="#F8F9FA" stroke="#4285F4" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 30 102 L 310 102" stroke="#4285F4" stroke-width="1.5"/>
+  <text x="44" y="92" class="lane-title">1. On-Device Neural Vision</text>
+  <rect x="340" y="70" width="320" height="500" rx="10" ry="10" fill="#FDF8E2" stroke="#FBBC04" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 340 102 L 660 102" stroke="#FBBC04" stroke-width="1.5"/>
+  <text x="354" y="92" class="lane-title">2. Direct Storage Ingress</text>
+  <rect x="690" y="70" width="380" height="500" rx="10" ry="10" fill="#E6F4EA" stroke="#34A853" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 690 102 L 1070 102" stroke="#34A853" stroke-width="1.5"/>
+  <text x="704" y="92" class="lane-title">3. Asynchronous Worker Pipeline</text>
+  <g filter="url(#shadow)">
+    <rect x="50" y="115" width="240" height="75" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="139" class="box-title" fill="#174EA6">Camera Feed (Sampled)</text>
+    <text x="62" y="157" class="box-desc" fill="#174EA6" opacity="0.9">PixelBuffer Background Stream</text>
+    <text x="62" y="172" class="box-desc" fill="#174EA6" opacity="0.8">Non-Blocking Worker Actor</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="215" width="240" height="75" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="239" class="box-title" fill="#174EA6">ICAO Doc 9303 Engine</text>
+    <text x="62" y="257" class="box-desc" fill="#174EA6" opacity="0.9">TD1, TD2, TD3 Check-Digits</text>
+    <text x="62" y="272" class="box-desc" fill="#174EA6" opacity="0.8">Positional 7-3-1 Weighting</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="315" width="240" height="75" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="62" y="339" class="box-title" fill="#B06000">On-Device PII Masking</text>
+    <text x="62" y="357" class="box-desc" fill="#B06000" opacity="0.9">SSN &amp; A-Number Token Masking</text>
+    <text x="62" y="372" class="box-desc" fill="#B06000" opacity="0.8">Zero Unredacted Cloud Leakage</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="415" width="240" height="75" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="439" class="box-title" fill="#174EA6">Liquid Glass AR HUD</text>
+    <text x="62" y="457" class="box-desc" fill="#174EA6" opacity="0.9">Magnetic Alignment Haptics</text>
+    <text x="62" y="472" class="box-desc" fill="#174EA6" opacity="0.8">Real-Time Visual Guidance</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="115" width="280" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="372" y="139" class="box-title" fill="#0D652D">Upload Session Grant</text>
+    <text x="372" y="157" class="box-desc" fill="#0D652D" opacity="0.9">POST /v1/documents/upload-sessions</text>
+    <text x="372" y="172" class="box-desc" fill="#0D652D" opacity="0.8">Size, Hash &amp; MIME Enforcement</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="215" width="280" height="75" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="372" y="239" class="box-title" fill="#B06000">Authentic V4 URL Signer</text>
+    <text x="372" y="257" class="box-desc" fill="#B06000" opacity="0.9">Google IAM signBlob RSA Signature</text>
+    <text x="372" y="272" class="box-desc" fill="#B06000" opacity="0.8">15-Minute Short-Lived Scope</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="315" width="280" height="75" rx="8" ry="8" fill="#FCE8E6" stroke="#EA4335" stroke-width="2"/>
+    <text x="372" y="339" class="box-title" fill="#C5221F">GCS Quarantine Bucket</text>
+    <text x="372" y="357" class="box-desc" fill="#C5221F" opacity="0.9">Direct Resumable PUT Upload</text>
+    <text x="372" y="372" class="box-desc" fill="#C5221F" opacity="0.8">Isolated from Production Vault</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="415" width="280" height="75" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="372" y="439" class="box-title" fill="#B06000">Authentic Storage Verifier</text>
+    <text x="372" y="457" class="box-desc" fill="#B06000" opacity="0.9">POST /complete Checksum Audit</text>
+    <text x="372" y="472" class="box-desc" fill="#B06000" opacity="0.8">Verifies CRC32C &amp; SHA-256 in GCS</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="710" y="115" width="340" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="722" y="139" class="box-title" fill="#0D652D">Cloud Pub/Sub Trigger</text>
+    <text x="722" y="157" class="box-desc" fill="#0D652D" opacity="0.9">OBJECT_FINALIZE Event</text>
+    <text x="722" y="172" class="box-desc" fill="#0D652D" opacity="0.8">doc-processing-requests Topic</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="710" y="215" width="340" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="722" y="239" class="box-title" fill="#0D652D">Python Document Worker</text>
+    <text x="722" y="257" class="box-desc" fill="#0D652D" opacity="0.9">Cloud Run Execution (Concurrency=1)</text>
+    <text x="722" y="272" class="box-desc" fill="#0D652D" opacity="0.8">Isolated Ephemeral Processing</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="710" y="315" width="340" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="722" y="339" class="box-title" fill="#0D652D">PDF Mapping Engine</text>
+    <text x="722" y="357" class="box-desc" fill="#0D652D" opacity="0.9">Official Form Geometry Mapping</text>
+    <text x="722" y="372" class="box-desc" fill="#0D652D" opacity="0.8">USCIS Strict Field Validation</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="710" y="415" width="340" height="75" rx="8" ry="8" fill="#FCE8E6" stroke="#EA4335" stroke-width="2"/>
+    <text x="722" y="439" class="box-title" fill="#C5221F">Production Document Archive</text>
+    <text x="722" y="457" class="box-desc" fill="#C5221F" opacity="0.9">Encrypted Final PDF Storage</text>
+    <text x="722" y="472" class="box-desc" fill="#C5221F" opacity="0.8">90-Day Retention Enforcement</text>
+  </g><path d="M 170 190 L 170 215" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 170 290 L 170 315" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 170 390 L 170 415" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 290 352 L 360 152" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><text x="325" y="240" class="edge-label">Init Session</text><path d="M 500 190 L 500 215" class="arrow-secure" stroke="#FBBC04" marker-end="url(#arrowhead-secure)"/><path d="M 290 352 L 360 352" class="arrow-async" stroke="#34A853" marker-end="url(#arrowhead-async)"/><text x="325" y="345" class="edge-label">PUT Blob</text><path d="M 500 390 L 500 415" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 640 452 L 710 152" class="arrow-async" stroke="#34A853" marker-end="url(#arrowhead-async)"/><text x="675" y="295" class="edge-label">Pub/Sub</text><path d="M 880 190 L 880 215" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 880 290 L 880 315" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 880 390 L 880 415" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/></svg>

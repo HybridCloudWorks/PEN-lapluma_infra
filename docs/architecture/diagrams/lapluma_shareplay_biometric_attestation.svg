@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" width="100%" height="auto" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #FFFFFF;">
+<defs>
+  <style>
+    .title { font-size: 16px; font-weight: 700; fill: #202124; }
+    .subtitle { font-size: 12px; font-weight: 500; fill: #5f6368; }
+    .lane-title { font-size: 13px; font-weight: 700; fill: #3c4043; }
+    .box-title { font-size: 12px; font-weight: 700; }
+    .box-desc { font-size: 10px; font-weight: 400; }
+    .edge-label { font-size: 9px; font-weight: 600; fill: #444746; text-anchor: middle; }
+    .arrow { stroke-width: 1.5; fill: none; }
+    .arrow-secure { stroke-width: 2; stroke-dasharray: 4,3; fill: none; }
+    .arrow-async { stroke-width: 2; fill: none; }
+  </style>
+  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#5F6368" />
+  </marker>
+  <marker id="arrowhead-secure" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#FBBC04" />
+  </marker>
+  <marker id="arrowhead-async" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#34A853" />
+  </marker>
+  <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+  </filter>
+</defs>
+<text x="30" y="32" class="title">LaPluma Caseworker SharePlay &amp; Biometric Attestation</text><text x="30" y="50" class="subtitle">FaceTime Live Co-Review, 240Hz Apple Pencil Pro Kinematics &amp; Hardware Secure Enclave Envelope</text>
+  <rect x="30" y="70" width="280" height="500" rx="10" ry="10" fill="#F8F9FA" stroke="#4285F4" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 30 102 L 310 102" stroke="#4285F4" stroke-width="1.5"/>
+  <text x="44" y="92" class="lane-title">iPadOS 27 Caseworker Console</text>
+  <rect x="340" y="70" width="320" height="500" rx="10" ry="10" fill="#FDF8E2" stroke="#FBBC04" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 340 102 L 660 102" stroke="#FBBC04" stroke-width="1.5"/>
+  <text x="354" y="92" class="lane-title">Encrypted SharePlay Real-Time Mesh</text>
+  <rect x="690" y="70" width="380" height="500" rx="10" ry="10" fill="#E6F4EA" stroke="#34A853" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 690 102 L 1070 102" stroke="#34A853" stroke-width="1.5"/>
+  <text x="704" y="92" class="lane-title">Client Device &amp; Legal Attestation</text>
+  <g filter="url(#shadow)">
+    <rect x="50" y="115" width="240" height="80" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="139" class="box-title" fill="#174EA6">Apple Pencil Pro Telemetry</text>
+    <text x="62" y="157" class="box-desc" fill="#174EA6" opacity="0.9">240Hz Pressure, Tilt, Azimuth</text>
+    <text x="62" y="172" class="box-desc" fill="#174EA6" opacity="0.8">Barrel Roll &amp; Haptic Squeeze</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="225" width="240" height="80" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="249" class="box-title" fill="#174EA6">Synchronous Live Canvas</text>
+    <text x="62" y="267" class="box-desc" fill="#174EA6" opacity="0.9">Vector Stroke Engine</text>
+    <text x="62" y="282" class="box-desc" fill="#174EA6" opacity="0.8">Rate-Throttled Network Sync (30Hz)</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="335" width="240" height="80" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="62" y="359" class="box-title" fill="#B06000">Hardware Secure Enclave</text>
+    <text x="62" y="377" class="box-desc" fill="#B06000" opacity="0.9">SecureEnclave.P256 Private Key</text>
+    <text x="62" y="392" class="box-desc" fill="#B06000" opacity="0.8">Face ID / Biometric Prompt</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="445" width="240" height="75" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="62" y="469" class="box-title" fill="#B06000">Apple App Attest Proof</text>
+    <text x="62" y="487" class="box-desc" fill="#B06000" opacity="0.9">DCAppAttestService Verification</text>
+    <text x="62" y="502" class="box-desc" fill="#B06000" opacity="0.8">Non-Repudiable Device Check</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="115" width="280" height="85" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="372" y="139" class="box-title" fill="#0D652D">GroupActivities Session</text>
+    <text x="372" y="157" class="box-desc" fill="#0D652D" opacity="0.9">FaceTime End-to-End Encryption</text>
+    <text x="372" y="172" class="box-desc" fill="#0D652D" opacity="0.8">Reliable / Unreliable Channels</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="235" width="280" height="85" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="372" y="259" class="box-title" fill="#0D652D">GroupSessionMessenger</text>
+    <text x="372" y="277" class="box-desc" fill="#0D652D" opacity="0.9">Stroke Vector Synchronization</text>
+    <text x="372" y="292" class="box-desc" fill="#0D652D" opacity="0.8">Split-Brain Auto-Reconciliation</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="360" y="355" width="280" height="85" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="372" y="379" class="box-title" fill="#B06000">Cryptographic Envelope</text>
+    <text x="372" y="397" class="box-desc" fill="#B06000" opacity="0.9">Form Hash + Telemetry Hash</text>
+    <text x="372" y="412" class="box-desc" fill="#B06000" opacity="0.8">Canonical Signed P-256 Digest</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="710" y="115" width="340" height="85" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="722" y="139" class="box-title" fill="#174EA6">Client Co-Review Canvas</text>
+    <text x="722" y="157" class="box-desc" fill="#174EA6" opacity="0.9">Real-Time Pointer &amp; Annotations</text>
+    <text x="722" y="172" class="box-desc" fill="#174EA6" opacity="0.8">Liquid Glass Adaptive Scrim</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="710" y="235" width="340" height="85" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="722" y="259" class="box-title" fill="#B06000">Client Statutory Affirmation</text>
+    <text x="722" y="277" class="box-desc" fill="#B06000" opacity="0.9">W3C WebAuthn User Verification</text>
+    <text x="722" y="292" class="box-desc" fill="#B06000" opacity="0.8">BIPA-Compliant Written Consent</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="710" y="355" width="340" height="85" rx="8" ry="8" fill="#FCE8E6" stroke="#EA4335" stroke-width="2"/>
+    <text x="722" y="379" class="box-title" fill="#C5221F">Canonical Attestation Vault</text>
+    <text x="722" y="397" class="box-desc" fill="#C5221F" opacity="0.9">Public Key Registry + App Attest CA</text>
+    <text x="722" y="412" class="box-desc" fill="#C5221F" opacity="0.8">Permanent Immutable Legal Audit</text>
+  </g><path d="M 170 195 L 170 225" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 290 265 L 360 157" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><text x="325" y="200" class="edge-label">Sync Stroke</text><path d="M 500 200 L 500 235" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 640 277 L 710 157" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><text x="675" y="210" class="edge-label">Render Remote</text><path d="M 290 375 L 360 397" class="arrow-secure" stroke="#FBBC04" marker-end="url(#arrowhead-secure)"/><text x="325" y="375" class="edge-label">Seal Key</text><path d="M 290 482 L 360 415" class="arrow-secure" stroke="#FBBC04" marker-end="url(#arrowhead-secure)"/><text x="325" y="460" class="edge-label">App Attest</text><path d="M 640 397 L 710 397" class="arrow-secure" stroke="#FBBC04" marker-end="url(#arrowhead-secure)"/><text x="675" y="390" class="edge-label">Archive Proof</text><path d="M 880 320 L 880 355" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/></svg>
