@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 720" width="100%" height="auto" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #FFFFFF;">
+<defs>
+  <style>
+    .title { font-size: 16px; font-weight: 700; fill: #202124; }
+    .subtitle { font-size: 12px; font-weight: 500; fill: #5f6368; }
+    .lane-title { font-size: 13px; font-weight: 700; fill: #3c4043; }
+    .box-title { font-size: 12px; font-weight: 700; }
+    .box-desc { font-size: 10px; font-weight: 400; }
+    .edge-label { font-size: 9px; font-weight: 600; fill: #444746; text-anchor: middle; }
+    .arrow { stroke-width: 1.5; fill: none; }
+    .arrow-secure { stroke-width: 2; stroke-dasharray: 4,3; fill: none; }
+    .arrow-async { stroke-width: 2; fill: none; }
+  </style>
+  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#5F6368" />
+  </marker>
+  <marker id="arrowhead-secure" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#FBBC04" />
+  </marker>
+  <marker id="arrowhead-async" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#34A853" />
+  </marker>
+  <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+  </filter>
+</defs>
+<text x="30" y="32" class="title">LaPluma Enterprise System Architecture (GCP &amp; Apple Native)</text><text x="30" y="50" class="subtitle">Complete Multi-Tier System Topology: Mobile Client, Ingress Perimeter, Cloud Run Microservices, and Secure Persistence</text>
+  <rect x="30" y="70" width="310" height="620" rx="10" ry="10" fill="#F8F9FA" stroke="#4285F4" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 30 102 L 340 102" stroke="#4285F4" stroke-width="1.5"/>
+  <text x="44" y="92" class="lane-title">1. Client &amp; Apple Hardware Tier</text>
+  <rect x="370" y="70" width="300" height="620" rx="10" ry="10" fill="#FDF8E2" stroke="#FBBC04" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 370 102 L 670 102" stroke="#FBBC04" stroke-width="1.5"/>
+  <text x="384" y="92" class="lane-title">2. Ingress &amp; Zero-Trust Perimeter</text>
+  <rect x="700" y="70" width="330" height="620" rx="10" ry="10" fill="#E6F4EA" stroke="#34A853" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 700 102 L 1030 102" stroke="#34A853" stroke-width="1.5"/>
+  <text x="714" y="92" class="lane-title">3. Managed Compute Tier (Cloud Run v2)</text>
+  <rect x="1060" y="70" width="310" height="620" rx="10" ry="10" fill="#FCE8E6" stroke="#EA4335" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <path d="M 1060 102 L 1370 102" stroke="#EA4335" stroke-width="1.5"/>
+  <text x="1074" y="92" class="lane-title">4. Data, Storage &amp; Enterprise Identity</text>
+  <g filter="url(#shadow)">
+    <rect x="50" y="115" width="270" height="68" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="139" class="box-title" fill="#174EA6">LaPluma Mobile Client</text>
+    <text x="62" y="157" class="box-desc" fill="#174EA6" opacity="0.9">SwiftUI 6, Liquid Glass Tokens</text>
+    <text x="62" y="172" class="box-desc" fill="#174EA6" opacity="0.8">Dynamic Type &amp; Passkeys</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="195" width="270" height="68" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="219" class="box-title" fill="#174EA6">Smart Loupe Vision Engine</text>
+    <text x="62" y="237" class="box-desc" fill="#174EA6" opacity="0.9">On-Device Neural Engine OCR</text>
+    <text x="62" y="252" class="box-desc" fill="#174EA6" opacity="0.8">ICAO Doc 9303 &amp; PII Redaction</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="275" width="270" height="68" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="62" y="299" class="box-title" fill="#B06000">Apple Secure Enclave</text>
+    <text x="62" y="317" class="box-desc" fill="#B06000" opacity="0.9">P-256 Hardware Private Key</text>
+    <text x="62" y="332" class="box-desc" fill="#B06000" opacity="0.8">Biometric Telemetry Attestation</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="355" width="270" height="68" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="379" class="box-title" fill="#174EA6">FaceTime SharePlay Canvas</text>
+    <text x="62" y="397" class="box-desc" fill="#174EA6" opacity="0.9">GroupActivities Protocol</text>
+    <text x="62" y="412" class="box-desc" fill="#174EA6" opacity="0.8">Caseworker Co-Review</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="435" width="270" height="68" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="62" y="459" class="box-title" fill="#B06000">Hardware Keychain Storage</text>
+    <text x="62" y="477" class="box-desc" fill="#B06000" opacity="0.9">kSecAttrAccessibleAfterFirstUnlock</text>
+    <text x="62" y="492" class="box-desc" fill="#B06000" opacity="0.8">Passkey WebAuthn Credentials</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="50" y="515" width="270" height="68" rx="8" ry="8" fill="#E8F0FE" stroke="#4285F4" stroke-width="2"/>
+    <text x="62" y="539" class="box-title" fill="#174EA6">Encrypted Offline Storage</text>
+    <text x="62" y="557" class="box-desc" fill="#174EA6" opacity="0.9">AES-256-GCM Local Database</text>
+    <text x="62" y="572" class="box-desc" fill="#174EA6" opacity="0.8">Pending Capture Queue</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="385" y="115" width="270" height="68" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="397" y="139" class="box-title" fill="#B06000">Cloud Armor WAF</text>
+    <text x="397" y="157" class="box-desc" fill="#B06000" opacity="0.9">DDoS Mitigation &amp; Geo-IP Rules</text>
+    <text x="397" y="172" class="box-desc" fill="#B06000" opacity="0.8">Rate Limiting (100 req/min)</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="385" y="205" width="270" height="75" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="397" y="229" class="box-title" fill="#B06000">GCP API Gateway</text>
+    <text x="397" y="247" class="box-desc" fill="#B06000" opacity="0.9">OpenAPI 2.0 Perimeter Proxy</text>
+    <text x="397" y="262" class="box-desc" fill="#B06000" opacity="0.8">OIDC JWT Validation &amp; Routing</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="385" y="305" width="270" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="397" y="329" class="box-title" fill="#0D652D">Direct GCS Upload Channel</text>
+    <text x="397" y="347" class="box-desc" fill="#0D652D" opacity="0.9">V4 Signed Resumable Uploads</text>
+    <text x="397" y="362" class="box-desc" fill="#0D652D" opacity="0.8">Bypasses 32MB Gateway Limit</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="385" y="405" width="270" height="75" rx="8" ry="8" fill="#FEF7E0" stroke="#FBBC04" stroke-width="2"/>
+    <text x="397" y="429" class="box-title" fill="#B06000">Google Secret Manager</text>
+    <text x="397" y="447" class="box-desc" fill="#B06000" opacity="0.9">Zero Static Keys &amp; Keyless IAM</text>
+    <text x="397" y="462" class="box-desc" fill="#B06000" opacity="0.8">SAML Certs &amp; DB Passwords</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="715" y="115" width="300" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="727" y="139" class="box-title" fill="#0D652D">lp-core-api (Cloud Run)</text>
+    <text x="727" y="157" class="box-desc" fill="#0D652D" opacity="0.9">.NET 10 ASP.NET Core Microservice</text>
+    <text x="727" y="172" class="box-desc" fill="#0D652D" opacity="0.8">Catalog, Guidance, SAML/OIDC</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="715" y="215" width="300" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="727" y="239" class="box-title" fill="#0D652D">lp-workflow-api (Cloud Run)</text>
+    <text x="727" y="257" class="box-desc" fill="#0D652D" opacity="0.9">.NET 10 ASP.NET Core Microservice</text>
+    <text x="727" y="272" class="box-desc" fill="#0D652D" opacity="0.8">Upload Sessions, Case State Machine</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="715" y="315" width="300" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="727" y="339" class="box-title" fill="#0D652D">lp-document-worker (Cloud Run)</text>
+    <text x="727" y="357" class="box-desc" fill="#0D652D" opacity="0.9">Python 3.12 Asynchronous Worker</text>
+    <text x="727" y="372" class="box-desc" fill="#0D652D" opacity="0.8">PDF Mapping Engine &amp; USCIS Validator</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="715" y="415" width="300" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="727" y="439" class="box-title" fill="#0D652D">Cloud Scheduler</text>
+    <text x="727" y="457" class="box-desc" fill="#0D652D" opacity="0.9">Automated Catalog Sweeps</text>
+    <text x="727" y="472" class="box-desc" fill="#0D652D" opacity="0.8">Retention Lifecycle Expiration</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1075" y="115" width="280" height="80" rx="8" ry="8" fill="#FCE8E6" stroke="#EA4335" stroke-width="2"/>
+    <text x="1087" y="139" class="box-title" fill="#C5221F">Cloud SQL PostgreSQL 16</text>
+    <text x="1087" y="157" class="box-desc" fill="#C5221F" opacity="0.9">Private VPC Peering Only</text>
+    <text x="1087" y="172" class="box-desc" fill="#C5221F" opacity="0.8">JSONB Blueprints &amp; State</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1075" y="215" width="280" height="75" rx="8" ry="8" fill="#FCE8E6" stroke="#EA4335" stroke-width="2"/>
+    <text x="1087" y="239" class="box-title" fill="#C5221F">Private Cloud Storage</text>
+    <text x="1087" y="257" class="box-desc" fill="#C5221F" opacity="0.9">Uniform Bucket-Level Access</text>
+    <text x="1087" y="272" class="box-desc" fill="#C5221F" opacity="0.8">Quarantine Bucket Separation</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1075" y="315" width="280" height="75" rx="8" ry="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
+    <text x="1087" y="339" class="box-title" fill="#0D652D">Cloud Pub/Sub</text>
+    <text x="1087" y="357" class="box-desc" fill="#0D652D" opacity="0.9">doc-processing-requests &amp; DLQ</text>
+    <text x="1087" y="372" class="box-desc" fill="#0D652D" opacity="0.8">At-Least-Once Delivery</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1075" y="415" width="280" height="75" rx="8" ry="8" fill="#F3E8FD" stroke="#A142F4" stroke-width="2"/>
+    <text x="1087" y="439" class="box-title" fill="#681DA8">Microsoft Entra ID</text>
+    <text x="1087" y="457" class="box-desc" fill="#681DA8" opacity="0.9">OIDC &amp; SAML 2.0 Multi-Tenant</text>
+    <text x="1087" y="472" class="box-desc" fill="#681DA8" opacity="0.8">Admin Consent AADSTS90094 Loop</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1075" y="515" width="280" height="75" rx="8" ry="8" fill="#F3E8FD" stroke="#A142F4" stroke-width="2"/>
+    <text x="1087" y="539" class="box-title" fill="#681DA8">Google Workspace</text>
+    <text x="1087" y="557" class="box-desc" fill="#681DA8" opacity="0.9">OIDC &amp; SAML 2.0</text>
+    <text x="1087" y="572" class="box-desc" fill="#681DA8" opacity="0.8">Domain Scoping (hd parameter)</text>
+  </g><path d="M 320 149 L 385 149" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><text x="352" y="142" class="edge-label">HTTPS</text><path d="M 520 183 L 520 205" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><path d="M 655 242 L 715 152" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><text x="685" y="195" class="edge-label">Route Core</text><path d="M 655 252 L 715 252" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><text x="685" y="245" class="edge-label">Route Wf</text><path d="M 320 342 L 385 342" class="arrow-async" stroke="#34A853" marker-end="url(#arrowhead-async)"/><text x="352" y="335" class="edge-label">100MB PUT</text><path d="M 655 342 L 1075 252" class="arrow-async" stroke="#34A853" marker-end="url(#arrowhead-async)"/><text x="865" y="295" class="edge-label">Signed Ingress</text><path d="M 1015 152 L 1075 152" class="arrow-secure" stroke="#FBBC04" marker-end="url(#arrowhead-secure)"/><text x="1045" y="145" class="edge-label">Private VPC</text><path d="M 1015 252 L 1075 162" class="arrow-secure" stroke="#FBBC04" marker-end="url(#arrowhead-secure)"/><text x="1045" y="205" class="edge-label">Private VPC</text><path d="M 865 290 L 865 315" class="arrow" stroke="#5F6368" marker-end="url(#arrowhead)"/><text x="895" y="305" class="edge-label">Delegate</text><path d="M 1015 352 L 1075 352" class="arrow-async" stroke="#34A853" marker-end="url(#arrowhead-async)"/><text x="1045" y="345" class="edge-label">Pub/Sub</text></svg>
