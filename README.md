@@ -100,6 +100,7 @@ Contract** page.
 | [`REVIEW.md`](REVIEW.md) | Blockers only a human decision, approval, or access grant can clear |
 | [`TODO.md`](TODO.md) | The engineering work queue |
 | [GitHub Wiki](https://github.com/HybridCloudWorks/PEN-lapluma_infra/wiki) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record, decision records, operational runbooks |
+| [`docs/runbooks/`](docs/runbooks/) | Operational runbooks including Staging Environment Power & Cost Management |
 
 The `wiki/` directory holds those pages as files, ready to publish. They are staged rather than
 published because the wiki is a separate Git repository for access-control purposes: it is

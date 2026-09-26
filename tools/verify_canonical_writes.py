@@ -1,4 +1,4 @@
-﻿"""
+"""
 Verification script for Canonical Case Writes, Section Commits, Conflicts & Approval Invalidation (INT-04).
 
 Validates:
@@ -29,7 +29,7 @@ def check_schema_invariants() -> list[str]:
 
     text = SQL_SCHEMA.read_text(encoding="utf-8")
 
-    if "CREATE TABLE workflow.case_field_value" not in text:
+    if "CREATE TABLE workflow.case_field_value" not in text and "CREATE TABLE IF NOT EXISTS workflow.case_field_value" not in text:
         errors.append("Missing workflow.case_field_value table definition")
     if "is_human_confirmed" not in text:
         errors.append("workflow.case_field_value missing is_human_confirmed column")
@@ -38,12 +38,12 @@ def check_schema_invariants() -> list[str]:
     if "PRIMARY KEY (case_id, canonical_path)" not in text:
         errors.append("workflow.case_field_value missing composite primary key (case_id, canonical_path)")
 
-    if "CREATE TABLE workflow.case_approval" not in text:
+    if "CREATE TABLE workflow.case_approval" not in text and "CREATE TABLE IF NOT EXISTS workflow.case_approval" not in text:
         errors.append("Missing workflow.case_approval table definition")
     if "is_invalidated" not in text or "invalidation_reason" not in text:
         errors.append("workflow.case_approval missing invalidation tracking columns")
 
-    if "CREATE TABLE workflow.outbox_event" not in text:
+    if "CREATE TABLE workflow.outbox_event" not in text and "CREATE TABLE IF NOT EXISTS workflow.outbox_event" not in text:
         errors.append("Missing workflow.outbox_event table definition")
 
     return errors
