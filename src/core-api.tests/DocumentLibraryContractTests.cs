@@ -84,19 +84,19 @@ public sealed class DocumentLibraryContractTests
         Assert.True(File.Exists(workflowSqlPath), $"Expected {workflowSqlPath} to exist.");
 
         var librarySql = File.ReadAllText(librarySqlPath);
-        Assert.Contains("CREATE TABLE library.document_blueprint", librarySql);
-        Assert.Contains("CREATE TABLE library.document_collection", librarySql);
-        Assert.Contains("CREATE TABLE library.collection_blueprint_member", librarySql);
-        Assert.Contains("CREATE TABLE library.tenant_collection_assignment", librarySql);
-        Assert.Contains("CREATE TABLE library.tenant_blueprint_grant", librarySql);
+        Assert.True(librarySql.Contains("CREATE TABLE library.document_blueprint") || librarySql.Contains("CREATE TABLE IF NOT EXISTS library.document_blueprint"));
+        Assert.True(librarySql.Contains("CREATE TABLE library.document_collection") || librarySql.Contains("CREATE TABLE IF NOT EXISTS library.document_collection"));
+        Assert.True(librarySql.Contains("CREATE TABLE library.collection_blueprint_member") || librarySql.Contains("CREATE TABLE IF NOT EXISTS library.collection_blueprint_member"));
+        Assert.True(librarySql.Contains("CREATE TABLE library.tenant_collection_assignment") || librarySql.Contains("CREATE TABLE IF NOT EXISTS library.tenant_collection_assignment"));
+        Assert.True(librarySql.Contains("CREATE TABLE library.tenant_blueprint_grant") || librarySql.Contains("CREATE TABLE IF NOT EXISTS library.tenant_blueprint_grant"));
         Assert.Contains("GIN (fields_schema)", librarySql);
 
         var workflowSql = File.ReadAllText(workflowSqlPath);
-        Assert.Contains("CREATE TABLE workflow.case_workspace", workflowSql);
-        Assert.Contains("CREATE TABLE workflow.case_pinned_blueprint", workflowSql);
-        Assert.Contains("CREATE TABLE workflow.case_field_value", workflowSql);
-        Assert.Contains("CREATE TABLE workflow.case_approval", workflowSql);
-        Assert.Contains("CREATE TABLE workflow.upload_session", workflowSql);
-        Assert.Contains("CREATE TABLE workflow.outbox_event", workflowSql);
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.case_workspace") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.case_workspace"));
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.case_pinned_blueprint") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.case_pinned_blueprint"));
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.case_field_value") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.case_field_value"));
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.case_approval") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.case_approval"));
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.upload_session") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.upload_session"));
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.outbox_event") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.outbox_event"));
     }
 }

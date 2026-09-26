@@ -53,18 +53,18 @@ public sealed class PostgresWorkflowPersistenceTests
         // Idempotency columns and index on client_folder
         Assert.Contains("idempotency_key VARCHAR(128) NULL UNIQUE", workflowSql);
         Assert.Contains("payload_hash    CHAR(64)     NULL", workflowSql);
-        Assert.Contains("CREATE INDEX idx_folder_idempotency", workflowSql);
+        Assert.True(workflowSql.Contains("CREATE INDEX idx_folder_idempotency") || workflowSql.Contains("CREATE INDEX IF NOT EXISTS idx_folder_idempotency"));
 
         // Per-person trust boundary
-        Assert.Contains("CREATE TABLE workflow.folder_person", workflowSql);
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.folder_person") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.folder_person"));
         Assert.Contains("ck_minor_no_credential CHECK (NOT (is_minor AND holds_own_credential))", workflowSql);
 
         // Edition drift protection
-        Assert.Contains("CREATE TABLE workflow.case_pinned_blueprint", workflowSql);
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.case_pinned_blueprint") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.case_pinned_blueprint"));
         Assert.Contains("drift_detected             BOOLEAN", workflowSql);
 
         // Transactional outbox
-        Assert.Contains("CREATE TABLE workflow.outbox_event", workflowSql);
-        Assert.Contains("CREATE INDEX idx_outbox_unpublished", workflowSql);
+        Assert.True(workflowSql.Contains("CREATE TABLE workflow.outbox_event") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.outbox_event"));
+        Assert.True(workflowSql.Contains("CREATE INDEX idx_outbox_unpublished") || workflowSql.Contains("CREATE INDEX IF NOT EXISTS idx_outbox_unpublished"));
     }
 }
