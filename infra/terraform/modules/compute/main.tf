@@ -40,6 +40,14 @@ resource "google_cloud_run_v2_service" "core_api" {
         value = var.environment == "pilot" ? "Production" : "Development"
       }
       env {
+        name  = "Authentication__Audience"
+        value = var.oidc_audience
+      }
+      env {
+        name  = "Authentication__Issuer"
+        value = var.oidc_issuer
+      }
+      env {
         name  = "Catalog__Source"
         value = "fixture"
       }
@@ -101,6 +109,14 @@ resource "google_cloud_run_v2_service" "workflow_api" {
       env {
         name  = "ASPNETCORE_ENVIRONMENT"
         value = var.environment == "pilot" ? "Production" : "Development"
+      }
+      env {
+        name  = "Authentication__Audience"
+        value = var.oidc_audience
+      }
+      env {
+        name  = "Authentication__Issuer"
+        value = var.oidc_issuer
       }
       env {
         name  = "Workflow__Source"

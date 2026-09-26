@@ -88,6 +88,8 @@ module "compute" {
   processing_worker_sa_email = module.iam.processing_worker_sa_email
   gateway_sa_email           = module.iam.gateway_sa_email
   db_connection_name         = module.database.instance_connection_name
+  oidc_issuer                = var.oidc_issuer
+  oidc_audience              = var.oidc_audience
 }
 
 module "gateway" {

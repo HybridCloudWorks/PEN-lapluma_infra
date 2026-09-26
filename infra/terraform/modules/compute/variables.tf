@@ -59,3 +59,15 @@ variable "migration_image" {
   description = "Container image for Cloud Run PostgreSQL 16 schema migration job"
   default     = "postgres:16-alpine"
 }
+
+variable "oidc_issuer" {
+  type        = string
+  description = "Application OIDC issuer URL for backend second-lock authentication"
+  default     = "https://login.microsoftonline.com/common/v2.0"
+}
+
+variable "oidc_audience" {
+  type        = string
+  description = "Application OIDC audience client ID for backend second-lock authentication"
+  default     = "api://lapluma-workforce-staging"
+}
