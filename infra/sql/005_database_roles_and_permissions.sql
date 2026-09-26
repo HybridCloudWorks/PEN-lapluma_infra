@@ -15,6 +15,9 @@
 --   4. lapluma_worker: Processing worker principal.
 --      - STRICTLY ISOLATED: Denied direct database connection entirely.
 
+CREATE SCHEMA IF NOT EXISTS library;
+CREATE SCHEMA IF NOT EXISTS workflow;
+
 DO $$
 BEGIN
     -- Core API Application Role
@@ -79,3 +82,18 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA library GRANT SELECT, INSERT, UPDATE ON TABLE
 ALTER DEFAULT PRIVILEGES IN SCHEMA workflow GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO lapluma_app_workflow;
 ALTER DEFAULT PRIVILEGES IN SCHEMA workflow REVOKE ALL ON TABLES FROM lapluma_app_core;
 ALTER DEFAULT PRIVILEGES IN SCHEMA workflow REVOKE ALL ON TABLES FROM lapluma_library_admin;
+
+-- -----------------------------------------------------------------------------
+-- Service Login Grants for lapluma_app
+-- -----------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lapluma_app') THEN
+        GRANT lapluma_app_core TO lapluma_app;
+        GRANT lapluma_app_workflow TO lapluma_app;
+        GRANT USAGE ON SCHEMA library, workflow TO lapluma_app;
+        GRANT ALL ON ALL TABLES IN SCHEMA library, workflow TO lapluma_app;
+        GRANT ALL ON ALL SEQUENCES IN SCHEMA library, workflow TO lapluma_app;
+    END IF;
+END
+$$;
