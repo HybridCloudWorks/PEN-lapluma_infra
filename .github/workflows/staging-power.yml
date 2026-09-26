@@ -1,0 +1,40 @@
+name: Staging Environment Power Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Power management action (status, pause, resume)'
+        required: true
+        default: 'status'
+        type: choice
+        options:
+          - status
+          - pause
+          - resume
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  manage:
+    name: Manage Staging Power
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/832133379721/locations/global/workloadIdentityPools/gh-pool-staging/providers/gh-provider-staging'
+          service_account: 'lp-deployer-staging@project-27d49bcd-4a1d-4d7a-8a7.iam.gserviceaccount.com'
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Execute Power Action
+        shell: pwsh
+        run: |
+          ./infra/scripts/manage-environment.ps1 -Action ${{ inputs.action }}
