@@ -224,6 +224,155 @@ paths:
       responses:
         '200':
           description: "Clients"
+    post:
+      summary: "Create Client"
+      operationId: "gatewayCreateClient"
+      parameters:
+        - name: "Idempotency-Key"
+          in: "header"
+          required: false
+          type: "string"
+        - name: "body"
+          in: "body"
+          required: true
+          schema:
+            type: "object"
+      x-google-backend:
+        address: "${var.workflow_api_url}/v1/clients"
+        jwt_audience: "${var.workflow_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '201':
+          description: "Client Created"
+        '400':
+          description: "Bad Request"
+        '409':
+          description: "Conflict"
+        '422':
+          description: "Validation Error"
+  /v1/cases/{caseId}/workspace:
+    get:
+      summary: "Get Case Workspace"
+      operationId: "gatewayGetCaseWorkspace"
+      parameters:
+        - name: "caseId"
+          in: "path"
+          required: true
+          type: "string"
+      x-google-backend:
+        address: "${var.workflow_api_url}"
+        jwt_audience: "${var.workflow_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: "Case Workspace"
+        '404':
+          description: "Not Found"
+  /v1/cases/{caseId}/sections/{sectionId}/commit:
+    post:
+      summary: "Commit Section Values"
+      operationId: "gatewayCommitSection"
+      parameters:
+        - name: "caseId"
+          in: "path"
+          required: true
+          type: "string"
+        - name: "sectionId"
+          in: "path"
+          required: true
+          type: "string"
+        - name: "Idempotency-Key"
+          in: "header"
+          required: false
+          type: "string"
+        - name: "If-Match"
+          in: "header"
+          required: false
+          type: "string"
+        - name: "body"
+          in: "body"
+          required: true
+          schema:
+            type: "object"
+      x-google-backend:
+        address: "${var.workflow_api_url}"
+        jwt_audience: "${var.workflow_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: "Section Committed"
+        '400':
+          description: "Bad Request"
+        '404':
+          description: "Not Found"
+        '409':
+          description: "Conflict"
+        '412':
+          description: "Version Conflict"
+  /v1/library/blueprints:
+    get:
+      summary: "List Document Blueprints"
+      operationId: "gatewayListBlueprints"
+      parameters:
+        - name: "query"
+          in: "query"
+          required: false
+          type: "string"
+      x-google-backend:
+        address: "${var.core_api_url}/v1/library/blueprints"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Blueprints"
+  /v1/library/blueprints/{namespace}/{blueprintId}:
+    get:
+      summary: "Get Document Blueprint"
+      operationId: "gatewayGetBlueprint"
+      parameters:
+        - name: "namespace"
+          in: "path"
+          required: true
+          type: "string"
+        - name: "blueprintId"
+          in: "path"
+          required: true
+          type: "string"
+        - name: "revision"
+          in: "query"
+          required: false
+          type: "integer"
+      x-google-backend:
+        address: "${var.core_api_url}"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: "Blueprint"
+        '404':
+          description: "Not Found"
+  /v1/library/blueprints/{namespace}/{blueprintId}/guidance:
+    get:
+      summary: "Get Document Blueprint Guidance"
+      operationId: "gatewayGetBlueprintGuidance"
+      parameters:
+        - name: "namespace"
+          in: "path"
+          required: true
+          type: "string"
+        - name: "blueprintId"
+          in: "path"
+          required: true
+          type: "string"
+      x-google-backend:
+        address: "${var.core_api_url}"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: "Blueprint Guidance"
+        '404':
+          description: "Not Found"
   /v1/documents/upload-sessions:
     post:
       summary: "Create Upload Session"
