@@ -13,7 +13,7 @@ CREATE SCHEMA IF NOT EXISTS library;
 -- -----------------------------------------------------------------------------
 -- Institution Tenants
 -- -----------------------------------------------------------------------------
-CREATE TABLE library.institution_tenant
+CREATE TABLE IF NOT EXISTS library.institution_tenant
 (
     tenant_id    VARCHAR(64)  NOT NULL PRIMARY KEY,
     display_name VARCHAR(256) NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE library.institution_tenant
 -- -----------------------------------------------------------------------------
 -- Document Blueprints (Immutable Revisions)
 -- -----------------------------------------------------------------------------
-CREATE TABLE library.document_blueprint
+CREATE TABLE IF NOT EXISTS library.document_blueprint
 (
     namespace             VARCHAR(64)  NOT NULL, -- 'uscis', 'dos', 'irs', or tenant ID for private variants
     blueprint_id          VARCHAR(64)  NOT NULL, -- e.g. 'i-130', 'n-400', 'ds-11'
@@ -63,19 +63,19 @@ CREATE TABLE library.document_blueprint
         CHECK (source_url IS NULL OR source_url LIKE 'https://%')
 );
 
-CREATE INDEX idx_blueprint_lookup 
+CREATE INDEX IF NOT EXISTS idx_blueprint_lookup 
     ON library.document_blueprint (namespace, blueprint_id, is_latest);
 
-CREATE INDEX idx_blueprint_fields_gin 
+CREATE INDEX IF NOT EXISTS idx_blueprint_fields_gin 
     ON library.document_blueprint USING GIN (fields_schema);
 
-CREATE INDEX idx_blueprint_evidence_gin 
+CREATE INDEX IF NOT EXISTS idx_blueprint_evidence_gin 
     ON library.document_blueprint USING GIN (evidence_requirements);
 
 -- -----------------------------------------------------------------------------
 -- Document Collections (Versioned Selections of Blueprints)
 -- -----------------------------------------------------------------------------
-CREATE TABLE library.document_collection
+CREATE TABLE IF NOT EXISTS library.document_collection
 (
     namespace         VARCHAR(64)  NOT NULL, -- 'official' or tenant-specific namespace
     collection_id     VARCHAR(64)  NOT NULL, -- e.g. 'family_reunification_i130'
@@ -94,13 +94,13 @@ CREATE TABLE library.document_collection
         CHECK (publication_state IN ('DRAFT', 'VALIDATED', 'IN_REVIEW', 'PUBLISHED', 'WITHDRAWN', 'ROLLED_BACK'))
 );
 
-CREATE INDEX idx_collection_lookup 
+CREATE INDEX IF NOT EXISTS idx_collection_lookup 
     ON library.document_collection (namespace, collection_id, is_latest);
 
 -- -----------------------------------------------------------------------------
 -- Collection Members (Blueprint Reference and Ordering)
 -- -----------------------------------------------------------------------------
-CREATE TABLE library.collection_blueprint_member
+CREATE TABLE IF NOT EXISTS library.collection_blueprint_member
 (
     collection_namespace VARCHAR(64) NOT NULL,
     collection_id        VARCHAR(64) NOT NULL,
@@ -127,7 +127,7 @@ CREATE TABLE library.collection_blueprint_member
 -- -----------------------------------------------------------------------------
 -- Tenant Collection Assignments
 -- -----------------------------------------------------------------------------
-CREATE TABLE library.tenant_collection_assignment
+CREATE TABLE IF NOT EXISTS library.tenant_collection_assignment
 (
     tenant_id            VARCHAR(64) NOT NULL REFERENCES library.institution_tenant (tenant_id) ON DELETE CASCADE,
     collection_namespace VARCHAR(64) NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE library.tenant_collection_assignment
 -- -----------------------------------------------------------------------------
 -- Tenant Private Blueprint Grants
 -- -----------------------------------------------------------------------------
-CREATE TABLE library.tenant_blueprint_grant
+CREATE TABLE IF NOT EXISTS library.tenant_blueprint_grant
 (
     tenant_id           VARCHAR(64) NOT NULL REFERENCES library.institution_tenant (tenant_id) ON DELETE CASCADE,
     blueprint_namespace VARCHAR(64) NOT NULL,

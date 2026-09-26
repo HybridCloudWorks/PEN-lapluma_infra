@@ -13,7 +13,7 @@ CREATE SCHEMA IF NOT EXISTS workflow;
 -- -----------------------------------------------------------------------------
 -- Client Folders
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.client_folder
+CREATE TABLE IF NOT EXISTS workflow.client_folder
 (
     id              VARCHAR(64)  NOT NULL PRIMARY KEY,
     tenant_id       VARCHAR(64)  NOT NULL REFERENCES library.institution_tenant (tenant_id),
@@ -24,13 +24,13 @@ CREATE TABLE workflow.client_folder
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_folder_tenant ON workflow.client_folder (tenant_id);
-CREATE INDEX idx_folder_idempotency ON workflow.client_folder (idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_folder_tenant ON workflow.client_folder (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_folder_idempotency ON workflow.client_folder (idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 -- -----------------------------------------------------------------------------
 -- Folder Persons (Per-Person Trust Boundary - ADR-007)
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.folder_person
+CREATE TABLE IF NOT EXISTS workflow.folder_person
 (
     id                   VARCHAR(64)  NOT NULL,
     folder_id            VARCHAR(64)  NOT NULL REFERENCES workflow.client_folder (id) ON DELETE CASCADE,
@@ -46,7 +46,7 @@ CREATE TABLE workflow.folder_person
 -- -----------------------------------------------------------------------------
 -- Case Workspaces
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.case_workspace
+CREATE TABLE IF NOT EXISTS workflow.case_workspace
 (
     id                         VARCHAR(64)  NOT NULL PRIMARY KEY,
     folder_id                  VARCHAR(64)  NOT NULL REFERENCES workflow.client_folder (id) ON DELETE CASCADE,
@@ -69,13 +69,13 @@ CREATE TABLE workflow.case_workspace
         REFERENCES library.document_collection (namespace, collection_id, revision)
 );
 
-CREATE INDEX idx_case_folder ON workflow.case_workspace (folder_id);
-CREATE INDEX idx_case_tenant ON workflow.case_workspace (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_case_folder ON workflow.case_workspace (folder_id);
+CREATE INDEX IF NOT EXISTS idx_case_tenant ON workflow.case_workspace (tenant_id);
 
 -- -----------------------------------------------------------------------------
 -- Case Pinned Blueprints (Immutable protection against edition drift)
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.case_pinned_blueprint
+CREATE TABLE IF NOT EXISTS workflow.case_pinned_blueprint
 (
     case_id                    VARCHAR(64) NOT NULL REFERENCES workflow.case_workspace (id) ON DELETE CASCADE,
     blueprint_namespace        VARCHAR(64) NOT NULL,
@@ -95,7 +95,7 @@ CREATE TABLE workflow.case_pinned_blueprint
 -- -----------------------------------------------------------------------------
 -- Case Field Values (Canonical values, confirmations, and provenance)
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.case_field_value
+CREATE TABLE IF NOT EXISTS workflow.case_field_value
 (
     case_id               VARCHAR(64)   NOT NULL REFERENCES workflow.case_workspace (id) ON DELETE CASCADE,
     canonical_path        VARCHAR(256)  NOT NULL, -- e.g. 'applicant.name.first'
@@ -117,12 +117,12 @@ CREATE TABLE workflow.case_field_value
         CHECK (source_kind IN ('DOCUMENT_OCR', 'QUESTIONNAIRE', 'MANUAL_ENTRY', 'STUB', 'AI_PROPOSAL'))
 );
 
-CREATE INDEX idx_field_value_person ON workflow.case_field_value (case_id, attributed_person_id);
+CREATE INDEX IF NOT EXISTS idx_field_value_person ON workflow.case_field_value (case_id, attributed_person_id);
 
 -- -----------------------------------------------------------------------------
 -- Case Approvals (Audit trail & invalidation)
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.case_approval
+CREATE TABLE IF NOT EXISTS workflow.case_approval
 (
     id                   UUID        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id              VARCHAR(64) NOT NULL REFERENCES workflow.case_workspace (id) ON DELETE CASCADE,
@@ -137,12 +137,12 @@ CREATE TABLE workflow.case_approval
         CHECK (approval_kind IN ('PREPARER_CONFIRMATION', 'APPLICANT_REVIEW', 'FINAL_SIGN_OFF'))
 );
 
-CREATE INDEX idx_approval_case ON workflow.case_approval (case_id, is_invalidated);
+CREATE INDEX IF NOT EXISTS idx_approval_case ON workflow.case_approval (case_id, is_invalidated);
 
 -- -----------------------------------------------------------------------------
 -- Upload Sessions (Direct GCS upload grants)
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.upload_session
+CREATE TABLE IF NOT EXISTS workflow.upload_session
 (
     id                 VARCHAR(64)   NOT NULL PRIMARY KEY,
     case_id            VARCHAR(64)   NULL REFERENCES workflow.case_workspace (id) ON DELETE SET NULL,
@@ -162,12 +162,12 @@ CREATE TABLE workflow.upload_session
         CHECK (state IN ('CREATED', 'UPLOADED', 'VERIFIED', 'PROCESSED', 'FAILED', 'EXPIRED'))
 );
 
-CREATE INDEX idx_upload_folder ON workflow.upload_session (folder_id);
+CREATE INDEX IF NOT EXISTS idx_upload_folder ON workflow.upload_session (folder_id);
 
 -- -----------------------------------------------------------------------------
 -- Transactional Outbox (Reliable Pub/Sub Event Dispatch)
 -- -----------------------------------------------------------------------------
-CREATE TABLE workflow.outbox_event
+CREATE TABLE IF NOT EXISTS workflow.outbox_event
 (
     id             UUID        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregate_type VARCHAR(64) NOT NULL,
@@ -179,5 +179,5 @@ CREATE TABLE workflow.outbox_event
     created_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_outbox_unpublished 
+CREATE INDEX IF NOT EXISTS idx_outbox_unpublished 
     ON workflow.outbox_event (created_at) WHERE (NOT published);
