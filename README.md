@@ -98,7 +98,7 @@ Contract** page.
 | `README.md` | This file: repository purpose, setup, and navigation |
 | [`CHANGELOG.md`](CHANGELOG.md) | Completed work |
 | [`REVIEW.md`](REVIEW.md) | Blockers only a human decision, approval, or access grant can clear |
-| [`TODO.md`](TODO.md) | The engineering work queue |
+| [GitHub Work Board](https://github.com/orgs/HybridCloudWorks/projects/4) | The engineering work queue |
 | [GitHub Wiki](https://github.com/HybridCloudWorks/PEN-lapluma_infra/wiki) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record, decision records, operational runbooks |
 | [`docs/runbooks/`](docs/runbooks/) | Operational runbooks including Staging Environment Power & Cost Management |
 
