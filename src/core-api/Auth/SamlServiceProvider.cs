@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
@@ -7,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Xml;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace LaPluma.CoreApi.Auth;
 
@@ -186,22 +188,8 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         var issueInstant = _clock.GetUtcNow();
         var acsUrl = AssertionConsumerUrl(config.TenantId);
 
-        var requestXml = $"""
-        <samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-            xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
-            ID="{id}"
-            Version="2.0"
-            IssueInstant="{issueInstant:O}"
-            Destination="{config.SsoServiceUrl}"
-            AssertionConsumerServiceURL="{acsUrl}"
-            ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST">
-            <saml:Issuer>{SpEntityId}</saml:Issuer>
-            <samlp:NameIDPolicy Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" AllowCreate="true"/>
-        </samlp:AuthnRequest>
-        """;
-
-        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(requestXml));
-        var redirectUrl = $"{config.SsoServiceUrl}?SAMLRequest={Uri.EscapeDataString(base64)}";
+        var requestXml = AuthnRequestXml(id, issueInstant, config.SsoServiceUrl, acsUrl);
+        var redirectUrl = RedirectBindingUrl(config.SsoServiceUrl, requestXml);
 
         return Task.FromResult(new SamlAuthnRequest(
             Id: id,
@@ -239,6 +227,56 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
     }
 
     private string AssertionConsumerUrl(string tenantId) => $"{SpAcsBaseUrl}/{tenantId}";
+
+    /// <summary>
+    /// The AuthnRequest, written through <see cref="XmlWriter"/> so a URL carrying <c>&amp;</c>
+    /// (an SSO URL with more than one query parameter) is escaped rather than breaking the XML.
+    /// IssueInstant is UTC with a <c>Z</c> designator, as SAML core section 1.3.3 requires.
+    /// </summary>
+    private string AuthnRequestXml(string id, DateTimeOffset issueInstant, string destination, string acsUrl)
+    {
+        var xml = new StringBuilder();
+        var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
+        using (var writer = XmlWriter.Create(xml, settings))
+        {
+            writer.WriteStartElement("samlp", "AuthnRequest", ProtocolNamespace);
+            writer.WriteAttributeString("xmlns", "saml", null, AssertionNamespace);
+            writer.WriteAttributeString("ID", id);
+            writer.WriteAttributeString("Version", "2.0");
+            writer.WriteAttributeString("IssueInstant", issueInstant.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture));
+            writer.WriteAttributeString("Destination", destination);
+            writer.WriteAttributeString("AssertionConsumerServiceURL", acsUrl);
+            writer.WriteAttributeString("ProtocolBinding", "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST");
+            writer.WriteElementString("saml", "Issuer", AssertionNamespace, SpEntityId);
+            writer.WriteStartElement("samlp", "NameIDPolicy", ProtocolNamespace);
+            writer.WriteAttributeString("Format", "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress");
+            writer.WriteAttributeString("AllowCreate", "true");
+            writer.WriteEndElement();
+            writer.WriteEndElement();
+        }
+
+        return xml.ToString();
+    }
+
+    /// <summary>
+    /// The HTTP-Redirect binding (SAML bindings section 3.4.4.1): the request is DEFLATE-compressed
+    /// as raw RFC 1951 data with no zlib header (<see cref="DeflateStream"/>, not
+    /// <see cref="ZLibStream"/>), then Base64-encoded, then URL-encoded as the SAMLRequest
+    /// parameter. The parameter is added to whatever query the SSO URL already carries; a Google
+    /// Workspace URL already holds <c>?idpid=</c>, so it must be joined with <c>&amp;</c>. No
+    /// RelayState is sent; if one is added it goes in its own parameter, after SAMLRequest.
+    /// </summary>
+    private static string RedirectBindingUrl(string ssoServiceUrl, string requestXml)
+    {
+        using var compressed = new MemoryStream();
+        using (var deflate = new DeflateStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            deflate.Write(Encoding.UTF8.GetBytes(requestXml));
+        }
+
+        var samlRequest = Convert.ToBase64String(compressed.ToArray());
+        return QueryHelpers.AddQueryString(ssoServiceUrl, "SAMLRequest", samlRequest);
+    }
 
     private SamlValidationResult Validate(string tenantId, string input, string expectedAudience)
     {

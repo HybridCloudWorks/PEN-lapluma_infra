@@ -1,5 +1,18 @@
 name: Deploy to GCP Cloud Run (P1)
 
+# Where each environment deploys comes from repository variables, never from this file:
+#
+#   environment | project             | region             | WIF provider             | deployer service account
+#   ------------|---------------------|--------------------|--------------------------|-------------------------
+#   dev         | GCP_PROJECT_DEV     | GCP_REGION_DEV     | GCP_WIF_PROVIDER_DEV     | GCP_DEPLOYER_SA_DEV
+#   staging     | GCP_PROJECT_STAGING | GCP_REGION_STAGING | GCP_WIF_PROVIDER_STAGING | GCP_DEPLOYER_SA_STAGING
+#   pilot       | GCP_PROJECT_PILOT   | GCP_REGION_PILOT   | GCP_WIF_PROVIDER_PILOT   | GCP_DEPLOYER_SA_PILOT
+#
+# infra/scripts/setup-deploy-identity.ps1 -Environment <env> prepares the provider and the deployer
+# account and prints the four `gh variable set` commands for that environment. The job stops before
+# authenticating if any of the four is missing, and names it. Deploys run from main only: the
+# provider accepts no other ref. See docs/runbooks/session-tokens-and-saml-identity-providers.md.
+
 on:
   workflow_dispatch:
     inputs:
@@ -60,33 +73,85 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Determine Workload Identity Provider
-        id: wif
+      - name: Resolve deployment target from repository variables
+        id: target
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          GCP_PROJECT_DEV: ${{ vars.GCP_PROJECT_DEV }}
+          GCP_REGION_DEV: ${{ vars.GCP_REGION_DEV }}
+          GCP_WIF_PROVIDER_DEV: ${{ vars.GCP_WIF_PROVIDER_DEV }}
+          GCP_DEPLOYER_SA_DEV: ${{ vars.GCP_DEPLOYER_SA_DEV }}
+          GCP_PROJECT_STAGING: ${{ vars.GCP_PROJECT_STAGING }}
+          GCP_REGION_STAGING: ${{ vars.GCP_REGION_STAGING }}
+          GCP_WIF_PROVIDER_STAGING: ${{ vars.GCP_WIF_PROVIDER_STAGING }}
+          GCP_DEPLOYER_SA_STAGING: ${{ vars.GCP_DEPLOYER_SA_STAGING }}
+          GCP_PROJECT_PILOT: ${{ vars.GCP_PROJECT_PILOT }}
+          GCP_REGION_PILOT: ${{ vars.GCP_REGION_PILOT }}
+          GCP_WIF_PROVIDER_PILOT: ${{ vars.GCP_WIF_PROVIDER_PILOT }}
+          GCP_DEPLOYER_SA_PILOT: ${{ vars.GCP_DEPLOYER_SA_PILOT }}
         run: |
-          if [ "${{ inputs.environment }}" = "dev" ]; then
-            PROVIDER="${{ vars.GCP_WIF_PROVIDER_DEV }}"
-            [ -z "$PROVIDER" ] && PROVIDER="projects/212649801370/locations/global/workloadIdentityPools/pool-github-dev/providers/provider-github"
-          elif [ "${{ inputs.environment }}" = "staging" ]; then
-            PROVIDER="${{ vars.GCP_WIF_PROVIDER_STAGING }}"
-          else
-            PROVIDER="${{ vars.GCP_WIF_PROVIDER_PILOT }}"
+          set -euo pipefail
+
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Deploys run from main only (this run is on $GITHUB_REF). The workload identity provider accepts tokens for refs/heads/main and nothing else."
+            exit 1
           fi
-          echo "provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+
+          case "$TARGET_ENVIRONMENT" in
+            dev | staging | pilot) suffix="${TARGET_ENVIRONMENT^^}" ;;
+            *) echo "::error::Unknown environment '$TARGET_ENVIRONMENT'."; exit 1 ;;
+          esac
+
+          missing=()
+          for kind in PROJECT REGION WIF_PROVIDER DEPLOYER_SA; do
+            name="GCP_${kind}_${suffix}"
+            [ -n "${!name:-}" ] || missing+=("$name")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Repository variable(s) not set for $TARGET_ENVIRONMENT: ${missing[*]}. Run infra/scripts/setup-deploy-identity.ps1 -Environment $TARGET_ENVIRONMENT; it prints the gh variable set commands."
+            exit 1
+          fi
+
+          project="GCP_PROJECT_${suffix}"; project="${!project}"
+          region="GCP_REGION_${suffix}"; region="${!region}"
+          provider="GCP_WIF_PROVIDER_${suffix}"; provider="${!provider}"
+          deployer="GCP_DEPLOYER_SA_${suffix}"; deployer="${!deployer}"
+
+          # A mis-pasted value otherwise fails much later, inside the auth action or gcloud.
+          invalid=()
+          [[ "$project" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]] || invalid+=("GCP_PROJECT_${suffix} is not a project ID")
+          [[ "$region" =~ ^[a-z]+-[a-z]+[0-9]+$ ]] || invalid+=("GCP_REGION_${suffix} is not a region")
+          [[ "$provider" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/providers/[a-z0-9-]+$ ]] || invalid+=("GCP_WIF_PROVIDER_${suffix} is not projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>")
+          [[ "$deployer" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]+\.iam\.gserviceaccount\.com$ ]] || invalid+=("GCP_DEPLOYER_SA_${suffix} is not a service account email")
+          if [ "${#invalid[@]}" -gt 0 ]; then
+            printf '::error::%s\n' "${invalid[@]}"
+            exit 1
+          fi
+
+          {
+            echo "project_id=$project"
+            echo "region=$region"
+            echo "workload_identity_provider=$provider"
+            echo "service_account=$deployer"
+          } >> "$GITHUB_OUTPUT"
+          echo "Deploying $TARGET_ENVIRONMENT to project $project ($region) as $deployer."
 
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
         with:
-          project_id: lapluma-${{ inputs.environment }}-gcp
-          workload_identity_provider: ${{ steps.wif.outputs.provider }}
-          service_account: lp-deployer-${{ inputs.environment }}@lapluma-${{ inputs.environment }}-gcp.iam.gserviceaccount.com
+          project_id: ${{ steps.target.outputs.project_id }}
+          workload_identity_provider: ${{ steps.target.outputs.workload_identity_provider }}
+          service_account: ${{ steps.target.outputs.service_account }}
 
       - name: Configure Docker authentication for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+        env:
+          REGION: ${{ steps.target.outputs.region }}
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
       - name: Build and push microservice images
         env:
-          REGION: us-central1
-          PROJECT_ID: lapluma-${{ inputs.environment }}-gcp
+          REGION: ${{ steps.target.outputs.region }}
+          PROJECT_ID: ${{ steps.target.outputs.project_id }}
           ENV: ${{ inputs.environment }}
           TAG: ${{ github.sha }}
         run: |
@@ -109,8 +174,8 @@ jobs:
 
       - name: Deploy Cloud Run services
         env:
-          REGION: us-central1
-          PROJECT_ID: lapluma-${{ inputs.environment }}-gcp
+          REGION: ${{ steps.target.outputs.region }}
+          PROJECT_ID: ${{ steps.target.outputs.project_id }}
           ENV: ${{ inputs.environment }}
           TAG: ${{ github.sha }}
         run: |
@@ -121,6 +186,7 @@ jobs:
           # leave both APIs failing closed.
           echo "Deploying Core API to Cloud Run..."
           gcloud run deploy "lp-core-api-${ENV}" \
+            --project "${PROJECT_ID}" \
             --image "${REPO}/core-api:${TAG}" \
             --region "${REGION}" \
             --update-env-vars "ASPNETCORE_ENVIRONMENT=Development,Catalog__Source=fixture" \
@@ -131,6 +197,7 @@ jobs:
             
           echo "Deploying Workflow API to Cloud Run..."
           gcloud run deploy "lp-wf-api-${ENV}" \
+            --project "${PROJECT_ID}" \
             --image "${REPO}/workflow-api:${TAG}" \
             --region "${REGION}" \
             --update-env-vars "ASPNETCORE_ENVIRONMENT=Development,Workflow__Source=fixture" \
@@ -141,6 +208,7 @@ jobs:
             
           echo "Deploying Document Processing Worker to Cloud Run..."
           gcloud run deploy "lp-proc-worker-${ENV}" \
+            --project "${PROJECT_ID}" \
             --image "${REPO}/processing-worker:${TAG}" \
             --region "${REGION}" \
             --memory 512Mi \

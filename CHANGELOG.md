@@ -29,6 +29,19 @@ human decision live in `REVIEW.md`. Older entries cite "backlog item" numbers fr
   Terraform-managed settings. Staging and dev stay offline until the steps in
   `docs/runbooks/session-tokens-and-saml-identity-providers.md` are complete.
 
+- **Staging can be restored after the authentication fix without side effects.** Terraform no longer
+  manages Cloud SQL's power state (`ignore_changes` on `activation_policy`), so an apply no longer
+  starts the deliberately stopped instance (INF-27). `deploy-gcp.yml` takes each environment's
+  project, region, workload identity provider and deployer account from `GCP_*_<ENV>` repository
+  variables, fails naming any that is missing, and deploys from `main` only; it had pointed staging
+  at the deleted `lapluma-staging-gcp`. The GitHub provider is pinned to the repository's immutable
+  `repository_id` and `repository_owner_id` and to `main`, and the new
+  `infra/scripts/setup-deploy-identity.ps1` applies that pin and the deployer's least-privilege roles
+  once per environment. SAML sign-in now sends a valid HTTP-Redirect request: the AuthnRequest is
+  raw-DEFLATE compressed before Base64, and `SAMLRequest` joins an SSO URL's existing query (Google's
+  `?idpid=`) with `&`. Migration 007 drops `library.institution_idp_configuration`, which nothing
+  read and which 006 seeded with placeholder certificates.
+
 - **The .NET images and the core API restore are clean again.** The `core-api` and `workflow-api`
   images now start from the `mcr.microsoft.com/dotnet/sdk:10.0` and `aspnet:10.0` digests that carry
   .NET 10.0.13 (SDK 10.0.402, built 2026-10-13), which fixes the ASP.NET Core and .NET runtime

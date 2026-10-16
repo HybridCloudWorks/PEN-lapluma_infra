@@ -49,6 +49,14 @@ resource "google_sql_database_instance" "postgres" {
   }
 
   deletion_protection = var.environment == "pilot" ? true : false
+
+  lifecycle {
+    # Power state is not Terraform's to manage. settings sets no activation_policy, and the provider
+    # then plans ALWAYS, so without this any apply would start an instance that was stopped on
+    # purpose. infra/scripts/manage-environment.ps1 (pause/resume) owns it, and staging stays stopped
+    # until INF-27 is fixed: the instance still has a public IPv4 address and does not enforce SSL.
+    ignore_changes = [settings[0].activation_policy]
+  }
 }
 
 resource "google_sql_database" "catalog_db" {

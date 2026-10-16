@@ -13,13 +13,19 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
   display_name                       = "GitHub Actions Provider"
 
   attribute_mapping = {
-    "google.subject"       = "assertion.sub"
-    "attribute.actor"      = "assertion.actor"
-    "attribute.repository" = "assertion.repository"
-    "attribute.ref"        = "assertion.ref"
+    "google.subject"                = "assertion.sub"
+    "attribute.actor"               = "assertion.actor"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.ref"                 = "assertion.ref"
   }
 
-  attribute_condition = "assertion.repository == '${var.github_repository}'"
+  # Pinned to the repository's numeric IDs, which are never reused, rather than to its name, which
+  # can be re-registered after a rename, transfer or deletion. Only main may obtain a token.
+  # infra/scripts/setup-deploy-identity.ps1 writes this same mapping and condition to the live
+  # provider; keep the two identical, or the next plan shows an update to this resource.
+  attribute_condition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && assertion.ref == 'refs/heads/main'"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"

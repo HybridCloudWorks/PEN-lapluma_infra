@@ -43,7 +43,7 @@ LaPluma provisions three completely isolated Google Cloud Platform (GCP) environ
 
 ### 2.1 Complete Project Separation
 - **No Shared IAM Roles:** Service accounts in `lapluma-dev-gcp` have zero permissions in `lapluma-staging-gcp` or `lapluma-pilot-gcp`.
-- **Workload Identity Federation:** GitHub Actions authenticates via project-specific Workload Identity Pools (`pool-github-${env}`). Tokens are strictly scoped to `assertion.repository == 'HybridCloudWorks/PEN-lapluma_infra'` and the target environment branch.
+- **Workload Identity Federation:** GitHub Actions authenticates via project-specific Workload Identity Pools (`pool-github-${env}`). Tokens are strictly scoped to the repository's immutable `repository_id` and `repository_owner_id` and to `refs/heads/main` (`infra/terraform/modules/iam`; applied to the live provider by `infra/scripts/setup-deploy-identity.ps1`).
 - **No Network Bridges:** Inter-project VPC peering is prohibited. Microservices communicate solely across API Gateway with verified cryptographic assertions.
 
 ### 2.2 Strict Synthetic Data Boundaries (Dev & Staging)

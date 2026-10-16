@@ -68,6 +68,44 @@ The two secrets are not Terraform inputs and Terraform does not create them, so 
 enters state. Terraform grants the core API service account `roles/secretmanager.secretAccessor` on
 each and mounts their `latest` version; `terraform apply` fails while either secret is missing.
 
+### Deploy workflow variables
+
+`deploy-gcp.yml` takes its target from repository variables (**Settings > Secrets and variables >
+Actions > Variables**), never from the workflow file, and stops before authenticating, naming any
+that is missing:
+
+| Environment | Project | Region | Workload identity provider | Deployer service account |
+|-------------|---------|--------|----------------------------|--------------------------|
+| dev | `GCP_PROJECT_DEV` | `GCP_REGION_DEV` | `GCP_WIF_PROVIDER_DEV` | `GCP_DEPLOYER_SA_DEV` |
+| staging | `GCP_PROJECT_STAGING` | `GCP_REGION_STAGING` | `GCP_WIF_PROVIDER_STAGING` | `GCP_DEPLOYER_SA_STAGING` |
+| pilot | `GCP_PROJECT_PILOT` | `GCP_REGION_PILOT` | `GCP_WIF_PROVIDER_PILOT` | `GCP_DEPLOYER_SA_PILOT` |
+
+The provider value is `projects/<project number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>`.
+Staging runs in project `project-27d49bcd-4a1d-4d7a-8a7`, not `lapluma-staging-gcp`, which is
+pending deletion.
+
+`infra/scripts/setup-deploy-identity.ps1` prepares an environment once and prints the four
+`gh variable set` commands. It is idempotent and supports `-WhatIf`. It:
+
+- pins the GitHub provider to this repository's immutable `repository_id` and `repository_owner_id`
+  and to `refs/heads/main`, with the same attribute mapping and condition `modules/iam` declares, so
+  the next plan shows no change to it. A deploy dispatched from any other branch is refused;
+- grants the deployer `roles/artifactregistry.writer` on `lapluma-services-<env>` only,
+  `roles/run.developer` on the three services only, `roles/iam.serviceAccountUser` on their runtime
+  accounts only, and read-only `roles/run.viewer` on the project;
+- lists any broader roles the deployer holds without removing them. `staging-power.yml` uses the same
+  account, so `roles/cloudsql.admin` and `roles/apigateway.viewer` stay.
+
+In staging and pilot the pool, provider and deployer account belong to Terraform (`module.iam`): the
+script updates them in place but will not create them.
+
+### Cloud SQL power state
+
+Terraform does not manage whether the instance runs (`lifecycle.ignore_changes` on
+`settings[0].activation_policy` in `modules/database`), so `terraform apply` neither starts nor stops
+it. `infra/scripts/manage-environment.ps1` (or `staging-power.yml`) does. Staging stays stopped until
+INF-27 is fixed: the instance has a public IPv4 address and does not enforce SSL.
+
 ## 3. Provisioning the secrets
 
 Do this from a trusted workstation or Cloud Shell, once per environment. Never commit the files,
@@ -130,6 +168,9 @@ Then write the IdP list as a JSON array, one object per tenant and IdP:
   metadata** gives the entity ID, SSO URL, and certificate.
 - Entra ID: **Enterprise applications >** the app **> Single sign-on**. *Microsoft Entra
   Identifier* is the entity ID, *Login URL* the SSO URL, and *Certificate (Base64)* the certificate.
+- Use the SSO URL exactly as the metadata gives it. Google's carries `?idpid=...`; the core API adds
+  `SAMLRequest` to that query with `&` and sends the request with the HTTP-Redirect binding
+  (raw DEFLATE, then Base64, then URL encoding).
 - `signingCertificates` may hold two certificates during a rollover.
 - If no institution is ready yet, store `[]`. Sign-in is then disabled and everything else still
   requires a token.
@@ -151,7 +192,14 @@ to `INGRESS_TRAFFIC_ALL` (the declared state), so it must not run until the new 
    `session_token_issuer = https://lp-gateway-staging-am9yq93d.uc.gateway.dev` and remove
    `oidc_issuer` and `oidc_audience`. Dev: set `session_token_issuer` in `terraform.tfvars` (see
    `terraform.tfvars.example`).
-4. **Deploy the new images** with the *Deploy to GCP Cloud Run* workflow for the environment.
+4. **Deploy the new images** with the *Deploy to GCP Cloud Run* workflow for the environment,
+   dispatched from `main`. The first time, prepare the deploy identity and set the four variables
+   ([Deploy workflow variables](#deploy-workflow-variables)); for staging:
+   ```powershell
+   ./infra/scripts/setup-deploy-identity.ps1 -Environment staging -ProjectId project-27d49bcd-4a1d-4d7a-8a7 -WhatIf
+   ./infra/scripts/setup-deploy-identity.ps1 -Environment staging -ProjectId project-27d49bcd-4a1d-4d7a-8a7
+   # then run the four gh variable set commands it prints
+   ```
    Ingress is still internal, so nothing becomes reachable. Confirm the serving revision runs the
    new image:
    ```bash
@@ -164,7 +212,10 @@ to `INGRESS_TRAFFIC_ALL` (the declared state), so it must not run until the new 
    two `google_secret_manager_secret_iam_member` bindings; a new API config with
    `securityDefinitions`; and the gateway moving to it. The image reference may also move from the
    deploy workflow's commit tag back to `:latest` (staging, the same image) or to the placeholder
-   image (dev, whose root does not pin service images). Stop on anything else. Then
+   image (dev, whose root does not pin service images). If `setup-deploy-identity.ps1` has not been
+   run for the environment, the GitHub provider's attribute mapping and condition also update to the
+   repository-ID pin. The Cloud SQL instance must not appear: Terraform ignores its activation
+   policy. Stop on anything else. Then
    `terraform apply`. **Dev only:** re-run the deploy workflow afterwards to replace the
    placeholder image.
 6. **Verify from outside**, against `https://<gateway-hostname>`:
@@ -179,8 +230,9 @@ to `INGRESS_TRAFFIC_ALL` (the declared state), so it must not run until the new 
 
    `tools/live_test_gateway.py` needs a real session token in `LAPLUMA_AUTH_TOKEN`.
 7. **Cloud SQL last.** Both APIs still serve fixtures (`Catalog__Source` and `Workflow__Source` are
-   `fixture`), so nothing on the request path needs the database and none of the checks above
-   start it. Start it only when it is needed, and preferably after INF-27 lands:
+   `fixture`), so nothing on the request path needs the database, and neither the checks above nor
+   `terraform apply` start it ([Cloud SQL power state](#cloud-sql-power-state)). Start it only when
+   it is needed, and preferably after INF-27 lands:
    `infra/scripts/manage-environment.ps1 -Action resume` for staging, or
    `gcloud sql instances patch <instance> --project="$PROJECT" --activation-policy=ALWAYS`.
 

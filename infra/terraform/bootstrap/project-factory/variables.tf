@@ -40,6 +40,18 @@ variable "github_repository" {
   default     = "HybridCloudWorks/PEN-lapluma_infra"
 }
 
+variable "github_repository_id" {
+  description = "Immutable numeric ID of github_repository (gh api repos/<owner>/<repo> --jq .id)"
+  type        = string
+  default     = "1321114423"
+}
+
+variable "github_repository_owner_id" {
+  description = "Immutable numeric ID of the repository owner (gh api repos/<owner>/<repo> --jq .owner.id)"
+  type        = string
+  default     = "312844660"
+}
+
 variable "tfc_organization_name" {
   description = "HCP Terraform Cloud Organization name allowed to authenticate via TFC OIDC"
   type        = string
