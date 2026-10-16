@@ -5,6 +5,17 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ## Unreleased
 
+### Security
+
+- **The .NET images and the core API restore are clean again.** The `core-api` and `workflow-api`
+  images now start from the `mcr.microsoft.com/dotnet/sdk:10.0` and `aspnet:10.0` digests that carry
+  .NET 10.0.13 (SDK 10.0.402, built 2026-10-13), which fixes the ASP.NET Core and .NET runtime
+  CVEs the image scan reported against 10.0.12 (code-scanning alerts #45–#56), and replace the
+  2026-09-11 Ubuntu base behind CVE-2026-84782 in openssl (alerts #43, #44) with the 2026-10-13 one. `core-api` pins
+  `System.Security.Cryptography.Pkcs` 9.0.21: Microsoft.Data.SqlClient 7.0.2 resolved 9.0.13,
+  which is inside GHSA-846f-f764-76mx, and NuGet audit failed the restore under
+  `TreatWarningsAsErrors`.
+
 ### Added
 
 - **The Workflow API — the app-facing hosting service — exists as `src/workflow-api`.** The iOS
