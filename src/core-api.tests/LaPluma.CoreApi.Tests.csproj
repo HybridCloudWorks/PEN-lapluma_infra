@@ -18,5 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../core-api/LaPluma.CoreApi.csproj" />
+    <!-- Only for the cross-service session-token test. Aliased because both services declare a
+         global Program; without the alias the two entry points would collide. -->
+    <ProjectReference Include="../workflow-api/LaPluma.WorkflowApi.csproj" Aliases="workflowapi" />
   </ItemGroup>
 </Project>

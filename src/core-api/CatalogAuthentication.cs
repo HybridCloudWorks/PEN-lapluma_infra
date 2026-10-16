@@ -1,14 +1,18 @@
+using LaPluma.CoreApi.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LaPluma.CoreApi;
 
 /// <summary>
 /// Authentication and authorization for the catalog surface.
 ///
-/// The design terminates JWT validation at the API Management edge. A service whose only protection
-/// is an upstream gateway fails open the moment anything reaches it directly — and inside the core
-/// subnet, plenty can. This is the second lock, not the first.
+/// The only credential this service accepts is a LaPluma session token: an RS256 JWT it minted
+/// itself after a verified SAML sign-in (see <see cref="SessionTokenIssuer"/>). It is validated by
+/// the standard JWT bearer handler — issuer, audience, lifetime, and signature against this
+/// service's own public key — with no metadata fetch and no alternative path. API Gateway checks
+/// the same token at the edge; a service whose only protection is an upstream gateway fails open
+/// the moment anything reaches it directly, so this is the second lock, not the first.
 /// </summary>
 public static class CatalogAuthentication
 {
@@ -25,112 +29,23 @@ public static class CatalogAuthentication
         var issuer = configuration[IssuerSetting];
         var configured = !string.IsNullOrWhiteSpace(audience) && !string.IsNullOrWhiteSpace(issuer);
 
+        // Loaded here rather than on first use so an unusable key stops the host at startup.
+        var keys = SessionTokenKeys.FromConfiguration(configuration);
+        services.AddSingleton(keys);
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<SessionTokenIssuer>();
+
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
-                // Authority is left unset when unconfigured so the handler never reaches out for
-                // OIDC metadata it has no address for. Nothing can validate, so nothing is trusted.
-                options.Authority = configured ? issuer : null;
-                options.Audience = audience;
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = issuer,
-                    ValidAudience = audience,
-                    // The default five minutes is generous for a token that never leaves a VNet.
-                    ClockSkew = TimeSpan.FromSeconds(30),
-                };
-
+                // No Authority and no metadata address: the handler validates against the keys
+                // supplied below and never reaches out for configuration.
+                options.MapInboundClaims = true;
+                options.TokenValidationParameters =
+                    SessionTokenValidation.CreateParameters(issuer, audience, keys.ValidationKeys);
                 options.Events = new JwtBearerEvents
                 {
-                    OnMessageReceived = context =>
-                    {
-                        var authHeader = context.Request.Headers.Authorization.ToString();
-                        if (string.IsNullOrWhiteSpace(authHeader))
-                        {
-                            return Task.CompletedTask;
-                        }
-
-                        if (authHeader.StartsWith("Bearer lp_saml_", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var raw = authHeader["Bearer lp_saml_".Length..].Trim();
-                            try
-                            {
-                                var decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(raw));
-                                var parts = decoded.Split('|');
-                                var tenant = parts.Length > 0 ? parts[0] : "tenant-staging";
-                                var email = parts.Length > 1 ? parts[1] : "user@hybridcloudworks.com";
-                                var identity = new System.Security.Claims.ClaimsIdentity([
-                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, email),
-                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, email),
-                                    new System.Security.Claims.Claim("tenant_id", tenant),
-                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "caseworker"),
-                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "preparer"),
-                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "reviewer")
-                                ], JwtBearerDefaults.AuthenticationScheme);
-
-                                context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
-                                context.Success();
-                            }
-                            catch
-                            {
-                                // Let standard handler process
-                            }
-                        }
-                        else if (authHeader.StartsWith("Bearer lp_test_", StringComparison.OrdinalIgnoreCase) ||
-                                 authHeader.Equals("Bearer test-caller", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var identity = new System.Security.Claims.ClaimsIdentity([
-                                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "caseworker@hybridcloudworks.com"),
-                                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, "caseworker@hybridcloudworks.com"),
-                                new System.Security.Claims.Claim("tenant_id", "tenant_hybridcloudworks"),
-                                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "caseworker"),
-                                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "preparer"),
-                                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "reviewer")
-                            ], JwtBearerDefaults.AuthenticationScheme);
-
-                            context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
-                            context.Success();
-                        }
-                        else if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var token = authHeader["Bearer ".Length..].Trim();
-                            try
-                            {
-                                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-                                if (handler.CanReadToken(token))
-                                {
-                                    var jwt = handler.ReadJwtToken(token);
-                                    if (jwt.Issuer.Equals("https://accounts.google.com", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value
-                                            ?? jwt.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value
-                                            ?? jwt.Subject;
-                                        var identity = new System.Security.Claims.ClaimsIdentity([
-                                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, email),
-                                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, email),
-                                            new System.Security.Claims.Claim("tenant_id", "tenant_hybridcloudworks"),
-                                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "caseworker"),
-                                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "preparer"),
-                                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "reviewer")
-                                        ], JwtBearerDefaults.AuthenticationScheme);
-
-                                        context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
-                                        context.Success();
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                // Let standard handler process
-                            }
-                        }
-
-                        return Task.CompletedTask;
-                    }
+                    OnMessageReceived = SessionTokenValidation.SelectBearerToken,
                 };
             });
 
