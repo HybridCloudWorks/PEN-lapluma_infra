@@ -8,6 +8,27 @@ human decision live in `REVIEW.md`. Older entries cite "backlog item" numbers fr
 
 ### Security
 
+- **Authentication now rests on verified signatures alone (INF-21 to INF-24).** Both APIs accepted
+  development-only credentials in every environment, did not check the signature of the JWTs they
+  read, and issued an unsigned session token; the SAML consumer checked only that a signature
+  element was present, against placeholder certificates. All of that is removed. A SAML assertion is
+  now accepted only if `SignedXml` verifies it against the IdP certificate pinned in configuration,
+  with exactly one Assertion whose ID the signature's single Reference names, RSA with SHA-256 or
+  stronger (SHA-1 refused), current `NotBefore`/`NotOnOrAfter`, this service provider as Audience,
+  the tenant's consumer URL as Recipient, and no earlier use. A successful sign-in returns a
+  one-hour RS256 session JWT (`tenant_id`, `email`, `role`) signed with a key from Secret Manager
+  and published at `/.well-known/jwks.json`. Both APIs validate it with the standard JWT bearer
+  handler only, reading it from `X-Forwarded-Authorization` when it arrives through API Gateway, and
+  API Gateway now requires it on every route except health, readiness, the key set, and the SAML
+  endpoints. Test authentication lives only in the test projects; tests generate their own keys
+  and certificates. New settings: `SessionTokens__SigningKeyPem` and `Saml__IdentityProvidersJson`
+  (Secret Manager, `lp-session-signing-key-<env>` and `lp-saml-idps-<env>`),
+  `Authentication__JwksUri`, and the Terraform variables `session_token_issuer`,
+  `session_token_audience`, and `session_token_jwks_uri`, which replace `oidc_issuer` and
+  `oidc_audience`. `deploy-gcp.yml` now passes `--update-env-vars`, so a deploy no longer erases the
+  Terraform-managed settings. Staging and dev stay offline until the steps in
+  `docs/runbooks/session-tokens-and-saml-identity-providers.md` are complete.
+
 - **The .NET images and the core API restore are clean again.** The `core-api` and `workflow-api`
   images now start from the `mcr.microsoft.com/dotnet/sdk:10.0` and `aspnet:10.0` digests that carry
   .NET 10.0.13 (SDK 10.0.402, built 2026-10-13), which fixes the ASP.NET Core and .NET runtime
