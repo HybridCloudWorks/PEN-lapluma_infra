@@ -242,7 +242,7 @@ class TestPubSubWorkflowAndUsage(unittest.TestCase):
 
     def test_operator_ux_boundary_conformance(self) -> None:
         """Verify infra operator tooling boundary conforms to grayscale CLI/CI (INF-13)."""
-        wiki_overview = ROOT / "wiki" / "Architecture-Overview.md"
+        wiki_overview = ROOT / "docs" / "wiki" / "Architecture-Overview.md"
         self.assertTrue(wiki_overview.exists())
         content = wiki_overview.read_text(encoding="utf-8")
         self.assertIn("Grayscale", content, "Operator surfaces must specify grayscale theme")

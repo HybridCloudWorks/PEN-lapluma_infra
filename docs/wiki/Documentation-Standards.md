@@ -1,3 +1,7 @@
+---
+title: "Documentation standards"
+---
+
 # Documentation standards
 
 There must never be competing sources of truth. Content determines destination; a filename never
@@ -10,12 +14,12 @@ does.
 | `README.md` (repository root only) | Repository purpose, overview, quick start, installation, configuration overview, repository conventions, navigation to documentation | No architecture, design, ADRs, roadmaps, plans, technical debt, engineering notes, blockers, TODOs, migration or remediation plans, work logs, status reports, runbooks, or troubleshooting guides |
 | `CHANGELOG.md` | Completed feature additions, enhancements, fixes, released breaking changes, completed security fixes | No planned or future work, technical debt, open bugs, blockers, TODOs, design discussion, or work in progress |
 | `REVIEW.md` | Only blockers a human decision, approval, credential, or access grant can clear | No bugs, refactoring, technical debt, enhancements, test work, documentation work, or general engineering tasks |
-| `TODO.md` | Every actionable engineering item discovered anywhere in the repository | — |
+| Private LaPluma project boards (formerly `TODO.md`) | Every actionable engineering item discovered anywhere in the repository | — |
 | This wiki | Everything else: architecture, design, ADRs, roadmaps, plans, remediation plans, runbooks, troubleshooting, feature docs, development and migration guides, engineering notes, test strategies, operational procedures, support docs, knowledge transfer, research, design reviews, investigation results | — |
 
 If content is not directly related to understanding, installing, configuring, onboarding to, or
 navigating the repository, it does not belong in `README.md`. If the work is not complete, it does
-not belong in `CHANGELOG.md`. If an engineer can resolve it independently, it belongs in `TODO.md`,
+not belong in `CHANGELOG.md`. If an engineer can resolve it independently, it belongs on the project boards,
 not `REVIEW.md`.
 
 ## Classification
@@ -25,7 +29,7 @@ Classify by content, not by filename.
 1. Is this repository-purpose information? → `README.md`
 2. Is this completed work? → `CHANGELOG.md`
 3. Does this require a human decision or action that an engineer cannot take? → `REVIEW.md`
-4. Is this actionable engineering work? → `TODO.md`
+4. Is this actionable engineering work? → the project boards
 5. None of the above? → this wiki
 
 ## Required fields
@@ -37,7 +41,7 @@ References · Recommended next step.
 
 Every blocker needs a clearly identified owner and a clearly described action.
 
-### `TODO.md` items
+### Project-board items
 
 Title · Priority · Description · Dependencies · Recommended action · Status · Notes for future
 engineers.
@@ -68,7 +72,7 @@ verified, and only then recommended for deletion.
 Any `README.md` outside the repository root is documentation, not repository metadata. Extract its
 useful content, move the long-form parts to this wiki, remove duplication, preserve context, verify
 that nothing was lost and that cross-references still resolve, and only then recommend deleting it.
-Record the migration in the consolidation report and add follow-up work to `TODO.md` if the cleanup
+Record the migration in the consolidation report and add follow-up work to the project boards if the cleanup
 cannot be completed immediately.
 
 ## Workflow
@@ -86,6 +90,6 @@ migration has been verified.
 README.md    → repository purpose
 CHANGELOG.md → completed features
 REVIEW.md    → human-resolvable blockers
-TODO.md      → engineering work queue
+Boards       → engineering work queue (private LaPluma project boards)
 Wiki         → all remaining documentation
 ```

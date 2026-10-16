@@ -1,7 +1,7 @@
 # Isolated GCP Environment Matrix & Operational Policies
 
 **Status:** Approved Reference  
-**ADR Reference:** [ADR-019](../../docs/adr/ADR-019-lean-gcp-document-library.md) (Lean Managed GCP Platform & Document Library Architecture)  
+**ADR Reference:** [ADR-019](https://hybridcloudworks.github.io/PEN-lapluma_app/adr/ADR-019-lean-gcp-document-library.html) (Lean Managed GCP Platform & Document Library Architecture)  
 **Last Updated:** 2026-09-14  
 
 ---

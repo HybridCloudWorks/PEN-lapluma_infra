@@ -1,3 +1,7 @@
+---
+title: "ADR 0004 — Service Bus Premium over Standard"
+---
+
 # ADR 0004 — Service Bus Premium over Standard
 
 ## Status
@@ -66,7 +70,7 @@ inbound work and outbound results both travel over private endpoints. That is on
 this decision.
 
 Duplicate detection, dead-lettering, and message locks come from the platform, so idempotency and
-poison-message handling are configuration rather than code. `TODO.md` 5.4 added the dead-letter
+poison-message handling are configuration rather than code. Backlog item 5.4 (private LaPluma project boards) added the dead-letter
 policy on the `domain-events` subscriptions for this reason.
 
 The revisit condition: if the private-only posture is ever relaxed for other reasons, Standard
@@ -75,7 +79,7 @@ cost is buying the network property, and dropping the tier drops the property.
 
 ## References
 
-- [Architecture Overview](Architecture-Overview) — Azure service mapping
-- [ADR 0002](ADR-0002-Three-Container-Apps-environments) — the zone isolation this supports
-- `REVIEW.md` R-03 (cost); [Security and Data Protection](Security-and-Data-Protection) (the ratified egress table)
+- [Architecture Overview](Architecture-Overview.md) — Azure service mapping
+- [ADR 0002](ADR-0002-Three-Container-Apps-environments.md) — the zone isolation this supports
+- `REVIEW.md` R-03 (cost); [Security and Data Protection](Security-and-Data-Protection.md) (the ratified egress table)
 - `infra/modules/messaging.bicep`

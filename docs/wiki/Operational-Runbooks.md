@@ -1,3 +1,7 @@
+---
+title: "Operational runbooks"
+---
+
 # Operational runbooks
 
 Procedures for operating the pilot: what to do when something breaks, who is expected to do it, and
@@ -16,20 +20,20 @@ how the two recovery obligations — restore and deletion — are proved rather 
 
 | Runbook | Covers |
 |---------|--------|
-| [Incident Response](Runbook-Incident-Response) | Detecting, classifying, containing, and closing an incident |
-| [On-Call Procedure](Runbook-On-Call-Procedure) | Rotation, escalation, handover, and what on-call is not expected to do |
-| [Restore Drill](Runbook-Restore-Drill) | Proving each store can be restored, on a schedule, with evidence |
-| [Deletion Drill](Runbook-Deletion-Drill) | Proving erasure reaches every store, including the ones that are easy to forget |
+| [Incident Response](Runbook-Incident-Response.md) | Detecting, classifying, containing, and closing an incident |
+| [On-Call Procedure](Runbook-On-Call-Procedure.md) | Rotation, escalation, handover, and what on-call is not expected to do |
+| [Restore Drill](Runbook-Restore-Drill.md) | Proving each store can be restored, on a schedule, with evidence |
+| [Deletion Drill](Runbook-Deletion-Drill.md) | Proving erasure reaches every store, including the ones that are easy to forget |
 
 ## Before these can be relied on
 
 | Prerequisite | Where it is tracked |
 |--------------|---------------------|
 | A named operations and on-call owner | `REVIEW.md` R-04 |
-| ~~An approved retention and erasure contract~~ | Ratified — see [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) |
+| ~~An approved retention and erasure contract~~ | Ratified — see [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md) |
 | A `staging` environment to validate the steps against | `REVIEW.md` R-01 through R-05 |
-| Automated restore and deletion drills | `TODO.md` 3.5 |
-| Erasure and retention sweep integration tests | `TODO.md` 3.4 |
+| Automated restore and deletion drills | Backlog item 3.5 (private LaPluma project boards) |
+| Erasure and retention sweep integration tests | Backlog item 3.4 (private LaPluma project boards) |
 
 The runbooks name roles from R-04 — operations owner, security owner, privacy owner — rather than
 people. When R-04 resolves, the roles resolve with it and these pages need no edit.
@@ -50,6 +54,6 @@ value appears on these pages, and none should be added.
 
 ## Related pages
 
-- [Security and Data Protection](Security-and-Data-Protection)
-- [Environments and Release Path](Environments-and-Release-Path)
-- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates)
+- [Security and Data Protection](Security-and-Data-Protection.md)
+- [Environments and Release Path](Environments-and-Release-Path.md)
+- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md)

@@ -1,3 +1,7 @@
+---
+title: "Architecture decision records"
+---
+
 # Architecture decision records
 
 **Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
@@ -20,13 +24,13 @@ is marked rather than left to be inferred.
 
 | Record | Decision | Status |
 |--------|----------|--------|
-| [ADR 0001](ADR-0001-AZD-and-Bicep-over-Terraform) | AZD with Bicep, not Terraform | Accepted |
-| [ADR 0002](ADR-0002-Three-Container-Apps-environments) | Three Container Apps environments, not one with internal isolation | Accepted |
-| [ADR 0003](ADR-0003-SQL-authoritative-Cosmos-rebuildable) | Azure SQL authoritative, Cosmos rebuildable projections | Accepted |
-| [ADR 0004](ADR-0004-Service-Bus-Premium-over-Standard) | Service Bus Premium, not Standard | Accepted |
-| [ADR 0005](ADR-0005-Managed-HSM-over-Key-Vault-keys) | Managed HSM, not Key Vault-managed keys | Accepted, partly gated |
-| [ADR 0006](ADR-0006-Federated-deployment-identity) | Federated deployment identity, no stored secret | Accepted, not yet implemented |
-| [ADR 0007](ADR-0007-Workflow-API-as-second-core-service) | Workflow API as a second core-zone service, not a Core API extension or a new zone | Accepted, partly gated |
+| [ADR 0001](ADR-0001-AZD-and-Bicep-over-Terraform.md) | AZD with Bicep, not Terraform | Accepted |
+| [ADR 0002](ADR-0002-Three-Container-Apps-environments.md) | Three Container Apps environments, not one with internal isolation | Accepted |
+| [ADR 0003](ADR-0003-SQL-authoritative-Cosmos-rebuildable.md) | Azure SQL authoritative, Cosmos rebuildable projections | Accepted |
+| [ADR 0004](ADR-0004-Service-Bus-Premium-over-Standard.md) | Service Bus Premium, not Standard | Accepted |
+| [ADR 0005](ADR-0005-Managed-HSM-over-Key-Vault-keys.md) | Managed HSM, not Key Vault-managed keys | Accepted, partly gated |
+| [ADR 0006](ADR-0006-Federated-deployment-identity.md) | Federated deployment identity, no stored secret | Accepted, not yet implemented |
+| [ADR 0007](ADR-0007-Workflow-API-as-second-core-service.md) | Workflow API as a second core-zone service, not a Core API extension or a new zone | Accepted, partly gated |
 
 ## Writing a new record
 
@@ -47,6 +51,6 @@ the new decision is right.
 
 ## Related pages
 
-- [Architecture Overview](Architecture-Overview)
-- [Azure Component Research Record](Azure-Component-Research-Record)
-- [Security and Data Protection](Security-and-Data-Protection)
+- [Architecture Overview](Architecture-Overview.md)
+- [Azure Component Research Record](Azure-Component-Research-Record.md)
+- [Security and Data Protection](Security-and-Data-Protection.md)

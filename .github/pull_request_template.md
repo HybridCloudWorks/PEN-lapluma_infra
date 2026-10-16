@@ -4,7 +4,7 @@ Keep this short. Rationale that outlives the pull request belongs in CHANGELOG.m
 
 ## What changed and why
 
-<!-- One or two paragraphs. Link the TODO.md item or REVIEW.md ID this closes, if any. -->
+<!-- One or two paragraphs. Link the project-board item or REVIEW.md ID this closes, if any. -->
 
 ## Verification
 

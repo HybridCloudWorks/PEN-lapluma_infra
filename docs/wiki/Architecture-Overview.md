@@ -1,3 +1,7 @@
+---
+title: "Architecture overview"
+---
+
 # Architecture overview
 
 **Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
@@ -7,7 +11,7 @@
 services, deployed in South Central US.
 
 The constraints this architecture exists to enforce are documented in
-[Security and Data Protection](Security-and-Data-Protection).
+[Security and Data Protection](Security-and-Data-Protection.md).
 
 ## Planned components
 
@@ -26,9 +30,9 @@ The constraints this architecture exists to enforce are documented in
 `src/core-api`, `src/workflow-api`, `src/document-processing`, `src/functions`, `contracts`, and
 `infra` exist today, and the two .NET services serve real request pipelines. Neither has yet run
 against a durable store: the catalog is configured for a SQL database that has never executed, and
-the workflow surface serves an in-memory fixture it must be told explicitly to serve. `TODO.md`
-**5.2** and **5.8** track the stores behind each.
-`src/package-worker` has not been created yet; that gap is `TODO.md` **5.1**.
+the workflow surface serves an in-memory fixture it must be told explicitly to serve. Backlog
+items **5.2** and **5.8** (private LaPluma project boards) track the stores behind each.
+`src/package-worker` has not been created yet; that gap is backlog item **5.1**.
 
 ## Component dependencies
 
@@ -118,7 +122,7 @@ Per **INF-12**, **INF-13**, and **INT-10**, visual styling across LaPluma follow
 An audit of the infrastructure repository establishes the following inventory:
 1. **Current Operator Tooling**: All current blueprint onboarding, tenant provisioning, migration tracking, and publication operations are managed through CLI tooling (`tools/blueprint_cli.py`, `tools/onboard_institution.py`, `tools/migrate_db.py`) and automated GitHub Actions workflows. **No custom web frontend is currently deployed in `PEN-lapluma_infra`**.
 2. **Established Frontends Only (INF-13)**: The grayscale specification applies strictly to established or separately approved operator interfaces. In accordance with architectural principles avoiding frontend proliferation, no new frontend is created solely for styling or initial customer onboarding. Existing established CLI tooling preserves clean monochromatic and neutral formatting without decorative pastel or unapproved color schemes.
-3. **Future Web / Portal Surfaces**: Any future administrative web portals, audit dashboards, or operator inspection consoles developed within this repository must implement the Grayscale Specification defined in [`docs/design/shared-design-specification.md`](file:///c:/Users/saulp/Workspace/PEN-lapluma_infra/docs/design/shared-design-specification.md):
+3. **Future Web / Portal Surfaces**: Any future administrative web portals, audit dashboards, or operator inspection consoles developed within this repository must implement the Grayscale Specification defined in [`docs/design/shared-design-specification.md`](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/docs/design/shared-design-specification.md):
    - **Backgrounds**: Canvas `#171717`, Flat Cards `#242424`, Controls/Inputs `#333333`, Dividers `#444444`.
    - **Foregrounds**: Primary Text `#F5F5F5`, Secondary Text `#C7C7C7`, Primary Action `#FFFFFF` button with `#171717` dark ink.
    - **Geometry**: 4px base grid rhythm, flat 12px cards (`Radius.card = 12`), 32px controls, 40px navigation pills, and zero drop shadows.
@@ -126,10 +130,10 @@ An audit of the infrastructure repository establishes the following inventory:
 
 ## Related pages
 
-- [Architecture Decision Records](Architecture-Decision-Records) — why the trust zones, the data
+- [Architecture Decision Records](Architecture-Decision-Records.md) — why the trust zones, the data
   stores, and the transport are what they are, and what was rejected
-- [Azure Deployment Plan](Azure-Deployment-Plan)
-- [Environments and Release Path](Environments-and-Release-Path)
-- [Security and Data Protection](Security-and-Data-Protection)
-- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates)
+- [Azure Deployment Plan](Azure-Deployment-Plan.md)
+- [Environments and Release Path](Environments-and-Release-Path.md)
+- [Security and Data Protection](Security-and-Data-Protection.md)
+- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md)
 

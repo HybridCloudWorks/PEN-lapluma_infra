@@ -1,3 +1,7 @@
+---
+title: "ADR 0002 — Three Container Apps environments over one"
+---
+
 # ADR 0002 — Three Container Apps environments over one
 
 ## Status
@@ -72,7 +76,7 @@ adding one would mean adding a network rule, which is visible in review.
 
 ## References
 
-- [Architecture Overview](Architecture-Overview) — trust zones
-- [Security and Data Protection](Security-and-Data-Protection) — network boundaries
-- [ADR 0004](ADR-0004-Service-Bus-Premium-over-Standard) — why the inter-zone transport is private
+- [Architecture Overview](Architecture-Overview.md) — trust zones
+- [Security and Data Protection](Security-and-Data-Protection.md) — network boundaries
+- [ADR 0004](ADR-0004-Service-Bus-Premium-over-Standard.md) — why the inter-zone transport is private
 - `infra/modules/compute.bicep`, `infra/modules/network.bicep`

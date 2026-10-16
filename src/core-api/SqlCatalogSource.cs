@@ -10,7 +10,8 @@ namespace LaPluma.CoreApi;
 /// **This code has never executed a query.** No environment has been provisioned —
 /// `enableProvisioning` is restricted to `false` — so there is no database to run it against, and
 /// none of it is covered by a test that touches SQL. It compiles, it is reviewed, and that is the
-/// whole of the assurance behind it. `TODO.md` carries the integration test that will be the first
+/// whole of the assurance behind it. The private LaPluma project boards carry the integration test
+/// that will be the first
 /// real exercise of these queries.
 ///
 /// Authentication is `Active Directory Default`, which resolves the workload's managed identity via

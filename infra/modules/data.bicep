@@ -273,7 +273,7 @@ resource blobLifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@202
 // reads like a guarantee and enforces nothing. An unlocked policy can still be shortened or removed,
 // which is exactly why the lock is a deliberate, irreversible, out-of-band step taken in `staging`
 // and `pilot`, now that the seven-year period is ratified — and never in `dev`, where test data has to
-// be removable. TODO.md carries the runbook step.
+// be removable. The private LaPluma project boards carry the runbook step.
 resource auditImmutability 'Microsoft.Storage/storageAccounts/blobServices/containers/immutabilityPolicies@2023-05-01' = {
   parent: purposeContainers[indexOf(storagePurposes, 'audit')]
   name: 'default'

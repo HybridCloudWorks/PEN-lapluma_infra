@@ -1,3 +1,7 @@
+---
+title: "Approved target: lean GCP and Document Library"
+---
+
 # Approved target: lean GCP and Document Library
 
 **Decision date:** 2026-09-13. **Status:** Accepted target; implementation remains planned.
@@ -98,9 +102,7 @@ not a verbatim substitute. The board snapshot retains that reference and its lim
 
 ## Execution and planning records
 
-- [Infrastructure board](https://github.com/orgs/HybridCloudWorks/projects/2)
-- [App board](https://github.com/orgs/HybridCloudWorks/projects/3)
-- [Integration board](https://github.com/orgs/HybridCloudWorks/projects/4)
+- Infrastructure, app and integration boards: tracked on the private LaPluma project boards
 - [Pilot/growth cost model](GCP-Cost-Model.md), including processing and additional environments
 - [Dated board handoff](GCP-Board-Handoff.md) and [verified baseline snapshot](planning/gcp-board-verification.json)
 

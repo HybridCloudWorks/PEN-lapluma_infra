@@ -1,7 +1,11 @@
+---
+title: "Runbook — restore drill"
+---
+
 # Runbook — restore drill
 
 > Draft. Never executed. Every command is written against the resource shapes declared in `infra/`,
-> not against a deployed resource. See [Operational Runbooks](Operational-Runbooks).
+> not against a deployed resource. See [Operational Runbooks](Operational-Runbooks.md).
 
 ## Why this is a drill and not a document
 
@@ -113,7 +117,7 @@ ADR 0003's central invariant no longer holds.
 ## Record
 
 Per drill: date, environment, operator role, which stores were restored, the wall-clock time for
-each, what was verified, what failed, and what was corrected. File failures as `TODO.md` items.
+each, what was verified, what failed, and what was corrected. File failures as items on the private LaPluma project boards.
 
 The time figures are the point. Recovery expectations agreed without a measured restore time are
 guesses, and this drill is how they stop being guesses.
@@ -121,11 +125,11 @@ guesses, and this drill is how they stop being guesses.
 ## Cadence
 
 Proposed: before `pilot` first accepts real data, then quarterly, and after any change to the key
-hierarchy or the storage topology. `TODO.md` 3.5 automates the drill; automation does not remove the
+hierarchy or the storage topology. Backlog item 3.5 automates the drill; automation does not remove the
 key-material step, which needs a human to confirm the quorum is real.
 
 ## Related pages
 
-- [Deletion Drill](Runbook-Deletion-Drill)
-- [ADR 0003](ADR-0003-SQL-authoritative-Cosmos-rebuildable)
-- [ADR 0005](ADR-0005-Managed-HSM-over-Key-Vault-keys)
+- [Deletion Drill](Runbook-Deletion-Drill.md)
+- [ADR 0003](ADR-0003-SQL-authoritative-Cosmos-rebuildable.md)
+- [ADR 0005](ADR-0005-Managed-HSM-over-Key-Vault-keys.md)

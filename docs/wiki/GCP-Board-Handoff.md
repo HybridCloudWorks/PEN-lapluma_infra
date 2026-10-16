@@ -1,8 +1,14 @@
+---
+title: "GCP and Document Library Board Execution & Delivery Record"
+---
+
 # GCP and Document Library Board Execution & Delivery Record
 
-- [LaPluma GCP Platform & Document Library](https://github.com/orgs/HybridCloudWorks/projects/2) — **19 / 19 Done** (`INF-01` through `INF-19`)
-- [LaPluma App — Full Forms & Pastel UX](https://github.com/orgs/HybridCloudWorks/projects/3) — **14 / 14 Done** (`APP-01` through `APP-14`)
-- [LaPluma — App + Infra Integration](https://github.com/orgs/HybridCloudWorks/projects/4) — **16 / 16 Done** (`INT-01` through `INT-15` + `DESIGN-REF`)
+These boards are the private LaPluma project boards; they are not visible to the public.
+
+- LaPluma GCP Platform & Document Library — **19 / 19 Done** (`INF-01` through `INF-19`)
+- LaPluma App — Full Forms & Pastel UX — **14 / 14 Done** (`APP-01` through `APP-14`)
+- LaPluma — App + Infra Integration — **16 / 16 Done** (`INT-01` through `INT-15` + `DESIGN-REF`)
 
 ## Execution & Delivery Status (2026-09-15)
 
@@ -18,4 +24,4 @@ All **49 implementation cards** across Projects 2, 3, and 4 have been implemente
 
 **Next Milestone:** Staging environment bring-up and GCP deployment validation (`infra/terraform/environments/staging`).
 
-[Approved Target (ADR-019)](GCP-Document-Library-Decision.md) · [Cost Model](GCP-Cost-Model.md) · [Environment Matrix](../docs/planning/gcp-environment-matrix.md)
+[Approved Target (ADR-019)](GCP-Document-Library-Decision.md) · [Cost Model](GCP-Cost-Model.md) · [Environment Matrix](https://github.com/HybridCloudWorks/PEN-lapluma_infra/blob/main/docs/planning/gcp-environment-matrix.md)

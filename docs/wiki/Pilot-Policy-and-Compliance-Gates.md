@@ -1,3 +1,7 @@
+---
+title: "Pilot policy and compliance gates"
+---
+
 # Pilot policy and compliance gates
 
 ## Alpha 0.2 catalog scope
@@ -140,6 +144,6 @@ server-side maximum of 999 enrolled users.
 
 ## Related pages
 
-- [Security and Data Protection](Security-and-Data-Protection)
-- [Environments and Release Path](Environments-and-Release-Path)
-- [Architecture Overview](Architecture-Overview)
+- [Security and Data Protection](Security-and-Data-Protection.md)
+- [Environments and Release Path](Environments-and-Release-Path.md)
+- [Architecture Overview](Architecture-Overview.md)

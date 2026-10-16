@@ -1,9 +1,13 @@
+---
+title: "ADR 0005 — Managed HSM over Key Vault-managed keys"
+---
+
 # ADR 0005 — Managed HSM over Key Vault-managed keys
 
 ## Status
 
 Accepted, partly gated. The pool is declared in `infra/modules/security.bicep`. Binding
-customer-managed keys to the data stores is `TODO.md` 2.1, and the administrator set, key hierarchy,
+customer-managed keys to the data stores is backlog item 2.1 (private LaPluma project boards), and the administrator set, key hierarchy,
 quorum, and cost are `REVIEW.md` R-10 and R-03.
 
 ## Context
@@ -77,8 +81,8 @@ that is awkward to reverse.
 
 ## References
 
-- [Security and Data Protection](Security-and-Data-Protection) — key management boundaries
-- [Azure Component Research Record](Azure-Component-Research-Record) — key management section
+- [Security and Data Protection](Security-and-Data-Protection.md) — key management boundaries
+- [Azure Component Research Record](Azure-Component-Research-Record.md) — key management section
 - `REVIEW.md` R-10 (administration, key hierarchy, quorum), R-03 (cost)
-- `TODO.md` 2.1 — binding the keys to the data stores
+- Backlog item 2.1 — binding the keys to the data stores
 - `infra/modules/security.bicep`

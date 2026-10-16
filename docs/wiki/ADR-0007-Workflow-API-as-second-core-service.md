@@ -1,10 +1,14 @@
+---
+title: "ADR 0007 — Workflow API as a second core-zone service"
+---
+
 # ADR 0007 — Workflow API as a second core-zone service
 
 ## Status
 
 Accepted, partly gated. The scaffold is implemented in `src/workflow-api` and
 `infra/modules/compute.bicep`; the tenant-session scheme it will eventually validate is gated on
-`REVIEW.md` **R-06** and **R-20**, and the durable store on `TODO.md` **5.8**.
+`REVIEW.md` **R-06** and **R-20**, and the durable store on backlog item **5.8** (private LaPluma project boards).
 
 ## Context
 
@@ -87,5 +91,5 @@ operation with a typed 501, and does not map the anonymous relay surface at all.
 - `contracts/openapi/workforce-workflow.yaml` and `contracts/openapi/documents-upload.yaml`
 - `src/workflow-api/`, `infra/modules/compute.bicep`, `infra/modules/rbac.bicep`
 - `tools/validate_foundation.py::validate_workflow_contract`
-- `REVIEW.md` R-06, R-07, R-19, R-20 · `TODO.md` 1.1, 5.8, 5.9
-- App repository: `ARCH-HANDOFF.md`, `docs/adr/ADR-015`
+- `REVIEW.md` R-06, R-07, R-19, R-20 · backlog items 1.1, 5.8, 5.9
+- App repository: `docs/project/ARCH-HANDOFF.md`, `docs/wiki/adr/ADR-015`

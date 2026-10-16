@@ -1,3 +1,7 @@
+---
+title: "Configuration contract"
+---
+
 # Configuration contract
 
 Every non-secret configuration input the `lapluma-infra-0.0` foundation consumes, its expected
@@ -5,11 +9,11 @@ format, the role that owns the value, and the component that consumes it.
 
 This page is the **contract**. It does not track whether a value has been supplied or approved:
 values that are still waiting on a human decision, approval, or access grant are listed as blockers
-in `REVIEW.md`, and implementation work is listed in `TODO.md`.
+in `REVIEW.md`, and implementation work is listed on the private LaPluma project boards.
 
 > **No secret value belongs on this page, in the repository, in a Bicep parameter file, in a
 > committed AZD environment file, in a build log, or in a deployment output.** See
-> [Security and Data Protection](Security-and-Data-Protection).
+> [Security and Data Protection](Security-and-Data-Protection.md).
 
 ## How configuration reaches Azure
 
@@ -71,7 +75,7 @@ parameters into the `network`, `observability`, `security`, `messaging`, and `da
 | `Catalog__Source` | `sql` or `fixture` | Backend | Which catalog the Core API serves; set to `sql` in `infra/modules/compute.bicep`, and an unrecognised value refuses to start |
 | `Catalog__SqlServer` / `Catalog__SqlDatabase` | Generated server FQDN and database name | Platform | Core API catalog connection, assembled with `ActiveDirectoryDefault`; never a connection string |
 | `Catalog__CosmosEndpoint` | Generated account endpoint URI | Platform | Rebuildable projection writer |
-| `Workflow__Source` | `fixture` | Backend | Which workflow store the Workflow API serves. It has no default: unset refuses to start, so a deployment always states what it serves. The durable store is `TODO.md` **5.8** |
+| `Workflow__Source` | `fixture` | Backend | Which workflow store the Workflow API serves. It has no default: unset refuses to start, so a deployment always states what it serves. The durable store is backlog item **5.8** |
 | `Workflow__QuarantineBlobEndpoint` | Generated blob endpoint URI, or empty | Platform | Account the Workflow API mints write-only upload SAS against. Empty leaves upload issuing fail-closed, answering 503 rather than a URL that cannot work |
 | `PORT` | Container default `8080` | Backend | Processing health listener, read by `src/document-processing/worker.py` |
 | `ACQUISITION_SCHEDULE` | Six-field NCRONTAB expression | Catalog operations | Timer trigger in `src/functions/function_app.py` |
@@ -156,6 +160,6 @@ These stayed literals because making them adjustable would make a guarantee opti
 
 ## Related pages
 
-- [Environments and Release Path](Environments-and-Release-Path)
-- [Security and Data Protection](Security-and-Data-Protection)
-- [Architecture Overview](Architecture-Overview)
+- [Environments and Release Path](Environments-and-Release-Path.md)
+- [Security and Data Protection](Security-and-Data-Protection.md)
+- [Architecture Overview](Architecture-Overview.md)

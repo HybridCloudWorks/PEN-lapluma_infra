@@ -1,11 +1,12 @@
 # Review — human-resolvable blockers
 
-**Approved direction (2026-09-13):** The owner selected [lean GCP with platform encryption, PostgreSQL and Pub/Sub](wiki/GCP-Document-Library-Decision.md). Conflicting Azure provider/SKU, HSM/CMEK, dual-database and private-transfer proposals below are superseded as target decisions. Historical Azure identity/access values must not be invented or requested as prerequisites for GCP planning. Actual GCP project/billing access, production identity/domain values and applicable human policy approvals still require their owners before deployment. This publication does not grant those credentials or authorize live PII processing.
+**Approved direction (2026-09-13):** The owner selected [lean GCP with platform encryption, PostgreSQL and Pub/Sub](docs/wiki/GCP-Document-Library-Decision.md). Conflicting Azure provider/SKU, HSM/CMEK, dual-database and private-transfer proposals below are superseded as target decisions. Historical Azure identity/access values must not be invented or requested as prerequisites for GCP planning. Actual GCP project/billing access, production identity/domain values and applicable human policy approvals still require their owners before deployment. This publication does not grant those credentials or authorize live PII processing.
 
 
 Items on this page cannot be resolved by an engineer without external input: a decision, an
-approval, a credential, or an access grant. Anything an engineer can solve independently belongs in
-`TODO.md`.
+approval, a credential, or an access grant. Anything an engineer can solve independently belongs on
+the private LaPluma project boards. "Backlog item" numbers below (for example **5.8**) are the
+former `TODO.md` item numbers.
 
 Every item states the problem, why it blocks progress, the required owner, the required action, the
 impact if it stays unresolved, its references, and the recommended next step.
@@ -197,7 +198,7 @@ is actually about.
 For quota, the proposal is that the capability check covers, at minimum: Managed HSM availability
 and pool quota, API Management v2 tier availability, Container Apps workload profile quota in each
 of the three managed environments, Flex Consumption availability for the Functions plan, availability
-zones (the resilience settings under `TODO.md` 3.1 assume they exist), and the Document Intelligence
+zones (the resilience settings under backlog item 3.1 assume they exist), and the Document Intelligence
 models named under **R-12**. A pass on the first four and a fail on the last
 still blocks the pilot's core capability, so the model check is not an afterthought in this list.
 
@@ -342,7 +343,7 @@ safely and the iOS client has nothing to authenticate against.
 **References.** Identity and public interface table on the Configuration Contract wiki page; Edge
 zone on the Architecture Overview wiki page. The Core API's own JWT validation is built and fails
 closed, so this item supplies the audience and issuer it validates against rather than gating
-whether it validates at all; until then no catalog request can succeed. `TODO.md` item **1.1**
+whether it validates at all; until then no catalog request can succeed. Backlog item **1.1**
 (the API Management edge) is the remaining engineering work.
 
 **Proposed answer.** Three registrations, one audience, three scopes.
@@ -516,7 +517,7 @@ and restore procedure, and approve the recurring cost.
 implemented, and provisioning cannot run at all because the parameters are required.
 
 **References.** Foundation inputs on the Configuration Contract wiki page; decision areas on the
-Security and Data Protection wiki page. Blocks `TODO.md` item **2.1**.
+Security and Data Protection wiki page. Blocks backlog item **2.1**.
 
 **Proposed answer.** Group-held administration with no standing members, one key per purpose, and a
 security-domain quorum recorded before any key exists. The object IDs themselves are not proposed —
@@ -592,7 +593,7 @@ with an evidence reference.
 core extraction capability cannot be built or tested.
 
 **References.** Document and AI configuration on the Configuration Contract wiki page; Document
-Intelligence note on the Azure Component Research Record wiki page. Blocks `TODO.md` item **5.3**.
+Intelligence note on the Azure Component Research Record wiki page. Blocks backlog item **5.3**.
 
 **Proposed answer.** No generative path in Alpha 0.2, two prebuilt models for Path A, and an API
 version this page will not guess.
@@ -624,7 +625,7 @@ restating as part of the proposal because `DOCUMENT_INTELLIGENCE_ENDPOINT` is a 
 URI: if the endpoint is unreachable the adapter must fail, and a key fallback is the mechanism by
 which "unreachable privately" quietly becomes "reachable publicly".
 
-Approving the Path A half of this alone unblocks `TODO.md` **5.3** for the non-generative path,
+Approving the Path A half of this alone unblocks backlog item **5.3** for the non-generative path,
 which is the pilot's core extraction capability. The generative decision does not gate it.
 
 **Recommended next step.** AI owner ratifies the two model IDs and supplies the current GA API
@@ -651,7 +652,7 @@ languages, and establish the versioning scheme for classifier releases.
 `CATALOG_ONLY`, and the pilot cannot serve real users.
 
 **References.** UPL release gate on the Pilot Policy and Compliance Gates wiki page. Blocks
-`TODO.md` item **5.5**.
+backlog item **5.5**.
 
 **Proposed answer.** Seven prohibited acts, English only for Alpha 0.2, an immutable version scheme,
 and a held-out corpus the classifier's author cannot see.
@@ -724,7 +725,7 @@ and no credential handling.
 cannot be exercised end to end.
 
 **References.** Alpha 0.2 catalog scope and pilot policy baselines on the Pilot Policy and
-Compliance Gates wiki page. Blocks `TODO.md` item **5.1**.
+Compliance Gates wiki page. Blocks backlog item **5.1**.
 
 **Proposed answer.** A record shape, an order to work in, and an activation ceiling that holds until
 each record is complete.
@@ -894,6 +895,11 @@ authorities once their source URLs are recorded under **R-14**.
 
 ### R-17 — GitHub Wiki write access for documentation publication
 
+**Status (2026-10-15): superseded.** The pages moved to `docs/wiki/` and publish as the
+[documentation site](https://hybridcloudworks.github.io/PEN-lapluma_infra/) through
+`.github/workflows/pages.yml`, so wiki write access is no longer needed. Close this item once the
+site is live.
+
 **Problem.** Twenty-two wiki pages are written and staged in the repository's `wiki/` directory, but
 they cannot be published. The wiki Git remote rejects writes from the automation used to prepare
 them.
@@ -920,12 +926,12 @@ account or automation that will maintain them.
 **Impact if unresolved.** Long-form documentation stays in a staging directory rather than its
 authoritative destination, which is exactly the documentation sprawl this model exists to remove.
 
-**References.** Documentation Standards wiki page; `TODO.md` item **6.1**.
+**References.** Documentation Standards wiki page; backlog item **6.1**.
 
 **Proposed answer.** None to draft — this is a permission, not a decision, and no wording here
 changes whether the wiki remote accepts a push. What can be reduced is the work the grant unlocks:
 the twenty-two pages are complete, cross-linked, and staged in `wiki/`, so publication is a clone, a copy,
-and a push, with no authoring left. The only judgement involved is the second half of `TODO.md`
+and a push, with no authoring left. The only judgement involved is the second half of backlog item
 **6.1** — that `wiki/` is deleted from this repository once the pages render, since a staging
 directory that outlives its purpose becomes a second copy that drifts.
 
@@ -938,7 +944,7 @@ from this repository.
 ### R-18 — Secret scanning and push protection are repository settings
 
 **Problem.** GitHub secret scanning and push protection are not enabled on this repository, as
-recorded in `TODO.md` item 2.4. They are repository settings rather than workflow configuration, so
+recorded in backlog item 2.4. They are repository settings rather than workflow configuration, so
 no change in this repository can turn them on.
 
 **Why it blocks progress.** The custom scanner in `tools/validate_foundation.py` covers five
@@ -962,7 +968,7 @@ free for public repositories and need no Advanced Security licence.
 caught before it is used. This is the one gap on this page whose consequence is immediate rather
 than procedural.
 
-**References.** `TODO.md` item **2.4**, whose workflow half is complete. Related to **R-17**: both
+**References.** Backlog item **2.4**, whose workflow half is complete. Related to **R-17**: both
 are repository administration rather than engineering.
 
 **Proposed answer.** Enable both, with push protection set to block rather than warn, and no bypass
@@ -1012,9 +1018,9 @@ an app-side check that its local copies match that revision.
 one: both sides pass their own CI while the generated client and the service disagree about the
 contract they both claim to implement.
 
-**References.** App repository `docs/adr/ADR-015` (repository boundary), app
-`MOBILE_IMPLEMENTATION_LEDGER.md` (`LAPLUMA_CONTRACT_REVISION`, `LAPLUMA_INFRA_REPOSITORY`),
-`tools/validate_foundation.py::validate_workflow_contract`, `TODO.md` item **5.8**.
+**References.** App repository `docs/wiki/adr/ADR-015` (repository boundary), app
+`docs/project/MOBILE_IMPLEMENTATION_LEDGER.md` (`LAPLUMA_CONTRACT_REVISION`, `LAPLUMA_INFRA_REPOSITORY`),
+`tools/validate_foundation.py::validate_workflow_contract`, backlog item **5.8**.
 
 **Proposed answer.** The second shape. Contracts live here (per ADR-015); the app repository
 records `LAPLUMA_CONTRACT_REVISION` as a full commit SHA of this repository and carries a CI check
@@ -1059,9 +1065,9 @@ the canonical HTTPS host for problem types (or ratify the URN namespace as perma
 production mode refuses to start without a real client — and every workflow endpoint remains
 staff/service-token only.
 
-**References.** App repository `ARCH-HANDOFF.md` (authentication expectation, five steps), app
-`docs/adr/ADR-011`, `contracts/openapi/workforce-workflow.yaml` security schemes,
-`src/workflow-api/WorkflowAuthentication.cs`, **R-06**, **R-07**, `TODO.md` item **5.8**.
+**References.** App repository `docs/project/ARCH-HANDOFF.md` (authentication expectation, five steps), app
+`docs/wiki/adr/ADR-011`, `contracts/openapi/workforce-workflow.yaml` security schemes,
+`src/workflow-api/WorkflowAuthentication.cs`, **R-06**, **R-07**, backlog item **5.8**.
 
 **Proposed answer.** Keep Entra JWT validation as the permanent service-to-service second lock, and
 build the tenant session service as a separate core-zone service that exchanges a completed
@@ -1109,7 +1115,7 @@ describes.
 **References.** `contracts/openapi/workforce-workflow.yaml` (`listClients`, `cursor`), app
 repository `LaPlumaWorkforceApp.swift` (the `cursor: nil` call site),
 `ApertureAPIClient.clientDirectory`, `src/workflow-api/WorkflowFixtureSource.cs`, **R-19**
-(the cross-repository pin any coordinated contract change depends on), `TODO.md` item **5.8**.
+(the cross-repository pin any coordinated contract change depends on), backlog item **5.8**.
 
 **Proposed answer.** Add an explicit page size to the contract — default 50, maximum 200 — and
 sequence it: app-side cursor loop first, server paging second, in that order and in separate
@@ -1118,5 +1124,5 @@ returning the whole directory, which is honest about what it does.
 
 **Recommended next step.** The mobile lead confirms the client can follow a cursor and says when
 that lands; the platform owner then amends `listClients` under the R-19 pinning mechanism, and
-`TODO.md` 5.8 carries the server half so it is implemented against the durable store rather than
+backlog item 5.8 carries the server half so it is implemented against the durable store rather than
 retrofitted to the fixture.

@@ -1,3 +1,7 @@
+---
+title: "ADR 0003 — Azure SQL authoritative, Cosmos DB rebuildable projections"
+---
+
 # ADR 0003 — Azure SQL authoritative, Cosmos DB rebuildable projections
 
 ## Status
@@ -75,12 +79,12 @@ A divergence is recoverable by rebuild, which is the property the whole decision
 stops being true the moment anything writes to Cosmos that SQL does not also hold. That is the
 invariant to defend in review.
 
-Cosmos is a second store to provision, secure, monitor, and pay for. `TODO.md` 3.2's invariant
+Cosmos is a second store to provision, secure, monitor, and pay for. Backlog item 3.2's (private LaPluma project boards) invariant
 tests and the erasure integration tests both have to cover it.
 
 ## References
 
-- [Architecture Overview](Architecture-Overview) — data ownership and flow
-- [Azure Component Research Record](Azure-Component-Research-Record) — SQL and Cosmos DB section
-- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) — the ratified retention and erasure contract
+- [Architecture Overview](Architecture-Overview.md) — data ownership and flow
+- [Azure Component Research Record](Azure-Component-Research-Record.md) — SQL and Cosmos DB section
+- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md) — the ratified retention and erasure contract
 - `infra/modules/data.bicep`, `src/core-api/CatalogProjectionWriter.cs`

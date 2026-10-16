@@ -562,9 +562,9 @@ Examples:
 
 If an engineer can resolve it without human input, it does not belong in REVIEW.md.
 
-### TODO.md
+### Project boards (formerly TODO.md)
 
-All actionable engineering work.
+All actionable engineering work, tracked on the private LaPluma project boards.
 
 Examples:
 
@@ -1214,9 +1214,9 @@ Completed work only.
 
 Human-resolvable blockers only.
 
-**TODO.md**
+**Project boards (formerly TODO.md)**
 
-All actionable engineering work.
+All actionable engineering work, tracked on the private LaPluma project boards.
 
 **CHECKLIST.md**
 
@@ -1348,7 +1348,7 @@ Provide:
 README.md updates: X
 CHANGELOG.md entries: X
 REVIEW.md blockers: X
-TODO.md actions: X
+Project-board items: X
 CHECKLIST.md entries: X
 ```
 

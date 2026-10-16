@@ -2,7 +2,7 @@
 
 **Status:** Approved Standard Operating Procedure  
 **Task Reference:** [INT-13](../../README.md)  
-**ADR Reference:** [ADR-019](../../docs/adr/ADR-019-lean-gcp-document-library.md) (Lean Managed GCP Platform & Document Library Architecture)  
+**ADR Reference:** [ADR-019](https://hybridcloudworks.github.io/PEN-lapluma_app/adr/ADR-019-lean-gcp-document-library.html) (Lean Managed GCP Platform & Document Library Architecture)  
 **Security Classification:** Confidential / Internal Operations  
 **Last Updated:** 2026-09-14  
 
