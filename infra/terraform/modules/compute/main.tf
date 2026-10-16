@@ -1,3 +1,15 @@
+locals {
+  # The session-token issuer doubles as the public base URL clients reach the API on, so the SAML
+  # service provider's entity ID and assertion consumer URLs are derived from it and cannot drift.
+  public_base_url        = var.session_token_issuer
+  session_token_jwks_uri = var.session_token_jwks_uri != "" ? var.session_token_jwks_uri : "${local.public_base_url}/.well-known/jwks.json"
+
+  # Created and populated outside Terraform (see docs/runbooks/session-tokens-and-saml-identity-providers.md)
+  # so key material never enters Terraform state. Apply fails while either secret is missing.
+  session_signing_key_secret_id     = "lp-session-signing-key-${var.environment}"
+  saml_identity_providers_secret_id = "lp-saml-idps-${var.environment}"
+}
+
 # Artifact Registry Repository for Service Images
 resource "google_artifact_registry_repository" "services" {
   repository_id = "lapluma-services-${var.environment}"
@@ -15,6 +27,12 @@ resource "google_cloud_run_v2_service" "core_api" {
   name     = "lp-core-api-${var.environment}"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
+
+  # The revision cannot read its secrets until the accessor bindings exist.
+  depends_on = [
+    google_secret_manager_secret_iam_member.core_api_session_signing_key,
+    google_secret_manager_secret_iam_member.core_api_saml_identity_providers,
+  ]
 
   template {
     service_account = var.core_api_sa_email
@@ -41,11 +59,37 @@ resource "google_cloud_run_v2_service" "core_api" {
       }
       env {
         name  = "Authentication__Audience"
-        value = var.oidc_audience
+        value = var.session_token_audience
       }
       env {
         name  = "Authentication__Issuer"
-        value = var.oidc_issuer
+        value = var.session_token_issuer
+      }
+      env {
+        name = "SessionTokens__SigningKeyPem"
+        value_source {
+          secret_key_ref {
+            secret  = local.session_signing_key_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "Saml__SpEntityId"
+        value = "${local.public_base_url}/auth/saml/metadata"
+      }
+      env {
+        name  = "Saml__SpAcsBaseUrl"
+        value = "${local.public_base_url}/auth/saml/acs"
+      }
+      env {
+        name = "Saml__IdentityProvidersJson"
+        value_source {
+          secret_key_ref {
+            secret  = local.saml_identity_providers_secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "Catalog__Source"
@@ -112,11 +156,15 @@ resource "google_cloud_run_v2_service" "workflow_api" {
       }
       env {
         name  = "Authentication__Audience"
-        value = var.oidc_audience
+        value = var.session_token_audience
       }
       env {
         name  = "Authentication__Issuer"
-        value = var.oidc_issuer
+        value = var.session_token_issuer
+      }
+      env {
+        name  = "Authentication__JwksUri"
+        value = local.session_token_jwks_uri
       }
       env {
         name  = "Workflow__Source"
@@ -222,6 +270,25 @@ resource "google_cloud_run_v2_service_iam_member" "workflow_api_gateway_invoker"
   name     = google_cloud_run_v2_service.workflow_api.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.gateway_sa_email}"
+}
+
+# ------------------------------------------------------------------------------
+# Session-token signing key and SAML identity providers (INF-21, INF-22)
+# Only the core API reads them. The workflow API validates tokens against the public
+# key set and never holds the private key.
+# ------------------------------------------------------------------------------
+resource "google_secret_manager_secret_iam_member" "core_api_session_signing_key" {
+  project   = var.project_id
+  secret_id = local.session_signing_key_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.core_api_sa_email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "core_api_saml_identity_providers" {
+  project   = var.project_id
+  secret_id = local.saml_identity_providers_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.core_api_sa_email}"
 }
 
 resource "google_cloud_run_v2_service_iam_member" "processing_worker_pubsub_invoker" {

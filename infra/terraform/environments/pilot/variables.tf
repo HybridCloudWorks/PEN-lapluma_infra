@@ -21,14 +21,19 @@ variable "github_repository" {
   default     = "HybridCloudWorks/PEN-lapluma_infra"
 }
 
-variable "oidc_issuer" {
-  description = "Application OIDC issuer URL"
+variable "session_token_issuer" {
+  description = "Issuer of LaPluma session tokens and this environment's public API base URL: https://<API Gateway hostname> (terraform output gateway_url) or the custom domain in front of it, no trailing slash"
   type        = string
-  default     = "https://login.microsoftonline.com/common/v2.0"
 }
 
-variable "oidc_audience" {
-  description = "Application OIDC audience client ID"
+variable "session_token_audience" {
+  description = "Audience of LaPluma session tokens, shared by both APIs and API Gateway"
   type        = string
-  default     = "api://lapluma-workforce-pilot"
+  default     = "lapluma-api-pilot"
+}
+
+variable "session_token_jwks_uri" {
+  description = "Optional override for the session-token JWK Set. Empty means <session_token_issuer>/.well-known/jwks.json"
+  type        = string
+  default     = ""
 }

@@ -19,22 +19,35 @@ variable "workflow_api_url" {
   type = string
 }
 
-variable "oidc_issuer" {
+variable "session_token_issuer" {
   type        = string
-  description = "Application OIDC issuer URL for gateway edge authentication"
-  default     = "https://login.microsoftonline.com/common/v2.0"
+  description = "Issuer (iss) of LaPluma session tokens, exactly as the core API's Authentication__Issuer: this environment's public API base URL, with no trailing slash"
+
+  validation {
+    condition     = can(regex("^https://", var.session_token_issuer)) && !endswith(var.session_token_issuer, "/")
+    error_message = "session_token_issuer must be an https URL with no trailing slash."
+  }
 }
 
-variable "oidc_jwks_uri" {
+variable "session_token_audience" {
   type        = string
-  description = "JWKS URI for JWT signature verification"
-  default     = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+  description = "Audience (aud) of LaPluma session tokens, exactly as Authentication__Audience on both APIs"
+
+  validation {
+    condition     = length(trimspace(var.session_token_audience)) > 0
+    error_message = "session_token_audience must not be empty."
+  }
 }
 
-variable "oidc_audience" {
+variable "session_token_jwks_uri" {
   type        = string
-  description = "Application OIDC audience client ID for gateway edge authentication"
-  default     = "api://lapluma-workforce-pilot"
+  description = "JWK Set the gateway validates session tokens against. Empty means <session_token_issuer>/.well-known/jwks.json, which this gateway routes anonymously to the core API"
+  default     = ""
+
+  validation {
+    condition     = var.session_token_jwks_uri == "" || can(regex("^https://", var.session_token_jwks_uri))
+    error_message = "session_token_jwks_uri must be empty or an https URL."
+  }
 }
 
 variable "gateway_sa_email" {

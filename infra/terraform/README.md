@@ -10,7 +10,10 @@ This directory contains the modular, production-grade, and cost-optimized Terraf
    - `core-api` & `workflow-api`: Authorized for Cloud SQL and private storage buckets.
    - `processing-worker`: Strictly isolated from the database. Denied Cloud SQL roles, credentials, and database network routes. Operates purely through signed storage objects and Pub/Sub messages.
    - `acquisition-runner`: Authorized to stage official forms in `lp-artifacts` and trigger Pub/Sub notifications.
-3. **Cost Optimization (<$100/mo Total Pilot Footprint)**:
+3. **Authenticated Edge and Second Lock**:
+   - API Gateway requires a LaPluma session JWT (`securityDefinitions.lapluma_session`, built from `session_token_issuer` and `session_token_audience`) on every route except health, readiness, `/.well-known/jwks.json`, and the SAML endpoints. Both APIs validate the same token again.
+   - The signing key and SAML IdP certificates live in Secret Manager (`lp-session-signing-key-<env>`, `lp-saml-idps-<env>`). They are created outside Terraform so key material never enters state, and `terraform apply` fails until both exist. See [`docs/runbooks/session-tokens-and-saml-identity-providers.md`](../../docs/runbooks/session-tokens-and-saml-identity-providers.md).
+4. **Cost Optimization (<$100/mo Total Pilot Footprint)**:
    - **Cloud SQL PostgreSQL 16**: Defaults to `db-g1-small` (1 shared vCPU, 1.7 GB RAM) for Pilot at ~$25–$35/month (vs. legacy $100–$130/month) with SSD storage auto-grow and automated backups.
    - **Scale-to-Zero Compute**: Cloud Run v2 services (`core-api`, `workflow-api`, `processing-worker`) are configured with `min_instance_count = 0` and `cpu_idle = true`, keeping low-traffic pilot compute within GCP's 2M monthly free requests tier.
    - **Zero Cloud NAT Costs**: Direct IAM Unix sockets and Direct VPC Egress eliminate the ~$32.40/month idle Cloud NAT gateway charge.

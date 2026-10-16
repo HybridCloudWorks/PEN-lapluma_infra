@@ -1,3 +1,9 @@
+locals {
+  # The core API serves its public signing keys here; the path is anonymous below so the gateway
+  # can fetch them through itself.
+  session_token_jwks_uri = var.session_token_jwks_uri != "" ? var.session_token_jwks_uri : "${var.session_token_issuer}/.well-known/jwks.json"
+}
+
 resource "google_api_gateway_api" "api" {
   provider = google-beta
   api_id   = "lp-gateway-api-${var.environment}"
@@ -27,11 +33,37 @@ schemes:
   - "https"
 produces:
   - "application/json"
+# Every operation requires a LaPluma session token (an RS256 JWT minted by the core API after a
+# verified SAML sign-in) unless it opts out with `security: []`. Only health, readiness, the
+# public signing keys, and the SAML endpoints a caller uses before holding a token opt out.
+securityDefinitions:
+  lapluma_session:
+    authorizationUrl: ""
+    flow: "implicit"
+    type: "oauth2"
+    x-google-issuer: "${var.session_token_issuer}"
+    x-google-jwks_uri: "${local.session_token_jwks_uri}"
+    x-google-audiences: "${var.session_token_audience}"
+security:
+  - lapluma_session: []
 paths:
+  /.well-known/jwks.json:
+    get:
+      summary: "Session Token Signing Keys"
+      operationId: "sessionTokenJwks"
+      security: []
+      x-google-backend:
+        address: "${var.core_api_url}/.well-known/jwks.json"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "JWK Set"
   /catalog/health:
     get:
       summary: "Catalog Health"
       operationId: "catalogHealthLegacy"
+      security: []
       x-google-backend:
         address: "${var.core_api_url}/health"
         jwt_audience: "${var.core_api_url}"
@@ -43,6 +75,7 @@ paths:
     get:
       summary: "Catalog Health Probe"
       operationId: "catalogHealth"
+      security: []
       x-google-backend:
         address: "${var.core_api_url}/health"
         jwt_audience: "${var.core_api_url}"
@@ -54,6 +87,7 @@ paths:
     get:
       summary: "Catalog Readiness Probe"
       operationId: "catalogReady"
+      security: []
       x-google-backend:
         address: "${var.core_api_url}/ready"
         jwt_audience: "${var.core_api_url}"
@@ -65,6 +99,7 @@ paths:
     get:
       summary: "Workflow Health"
       operationId: "workflowHealthLegacy"
+      security: []
       x-google-backend:
         address: "${var.workflow_api_url}/health"
         jwt_audience: "${var.workflow_api_url}"
@@ -76,6 +111,7 @@ paths:
     get:
       summary: "Workflow Health Probe"
       operationId: "workflowHealth"
+      security: []
       x-google-backend:
         address: "${var.workflow_api_url}/health"
         jwt_audience: "${var.workflow_api_url}"
@@ -87,6 +123,7 @@ paths:
     get:
       summary: "SAML Metadata"
       operationId: "samlMetadata"
+      security: []
       produces:
         - "application/samlmetadata+xml"
       x-google-backend:
@@ -100,6 +137,7 @@ paths:
     get:
       summary: "SAML Login"
       operationId: "samlLogin"
+      security: []
       parameters:
         - name: "domain"
           in: "query"
@@ -120,6 +158,7 @@ paths:
     post:
       summary: "SAML Assertion Consumer Service"
       operationId: "samlAcs"
+      security: []
       parameters:
         - name: "tenantId"
           in: "path"

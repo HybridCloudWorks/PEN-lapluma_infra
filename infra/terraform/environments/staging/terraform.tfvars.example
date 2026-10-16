@@ -2,3 +2,11 @@ project_id        = "lapluma-staging-gcp"
 region            = "us-central1"
 environment       = "staging"
 github_repository = "HybridCloudWorks/PEN-lapluma_infra"
+
+# LaPluma session tokens. The issuer is this environment's public API base URL (the API Gateway
+# hostname from `terraform output gateway_url`, or a custom domain in front of it). Both APIs and
+# the gateway must agree on issuer and audience. The signing key and SAML identity providers are
+# not Terraform inputs: they live in Secret Manager as lp-session-signing-key-staging and
+# lp-saml-idps-staging. See docs/runbooks/session-tokens-and-saml-identity-providers.md.
+session_token_issuer   = "https://lp-gateway-staging-am9yq93d.uc.gateway.dev"
+session_token_audience = "lapluma-api-staging"
