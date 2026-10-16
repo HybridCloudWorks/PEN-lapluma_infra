@@ -138,7 +138,7 @@ class TestMigrationRunner(unittest.TestCase):
         try:
             self.assertEqual(main(["plan", "-o", str(plan_path)]), 0)
             data = json.loads(plan_path.read_text(encoding="utf-8"))
-            self.assertEqual(data["totalMigrations"], 6)
+            self.assertEqual(data["totalMigrations"], 7)
         finally:
             plan_path.unlink(missing_ok=True)
 
