@@ -6,12 +6,17 @@ public enum SamlIdpType
     EntraIdSaml
 }
 
+/// <summary>
+/// One institution's identity provider. <paramref name="SigningCertificates"/> holds the IdP's
+/// X.509 signing certificates (PEM, or the bare Base64 DER found in IdP metadata); more than one is
+/// allowed so a certificate can be rolled over without an outage.
+/// </summary>
 public sealed record InstitutionIdpConfiguration(
     string TenantId,
     SamlIdpType IdpType,
     string EntityId,
     string SsoServiceUrl,
-    string IdpX509Certificate,
+    IReadOnlyList<string> SigningCertificates,
     IReadOnlyList<string> AllowedDomains,
     IReadOnlyDictionary<string, string> AttributeMappings,
     bool AdminConsentVerified,

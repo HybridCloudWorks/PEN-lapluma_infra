@@ -81,17 +81,21 @@ module "compute" {
   gateway_sa_email           = module.iam.gateway_sa_email
   pubsub_invoker_sa_email    = module.iam.pubsub_invoker_sa_email
   db_connection_name         = module.database.instance_connection_name
+  session_token_issuer       = var.session_token_issuer
+  session_token_audience     = var.session_token_audience
+  session_token_jwks_uri     = var.session_token_jwks_uri
 }
 
 module "gateway" {
-  source           = "../../modules/gateway"
-  project_id       = var.project_id
-  environment      = var.environment
-  region           = var.region
-  core_api_url     = module.compute.core_api_url
-  workflow_api_url = module.compute.workflow_api_url
-  gateway_sa_email = module.iam.gateway_sa_email
-  oidc_issuer      = var.oidc_issuer
-  oidc_audience    = var.oidc_audience
+  source                 = "../../modules/gateway"
+  project_id             = var.project_id
+  environment            = var.environment
+  region                 = var.region
+  core_api_url           = module.compute.core_api_url
+  workflow_api_url       = module.compute.workflow_api_url
+  gateway_sa_email       = module.iam.gateway_sa_email
+  session_token_issuer   = var.session_token_issuer
+  session_token_audience = var.session_token_audience
+  session_token_jwks_uri = var.session_token_jwks_uri
 }
 

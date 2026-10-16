@@ -1043,6 +1043,11 @@ scopes Entra app registrations and audiences). The new `src/workflow-api` theref
 **Entra JWTs**, fail-closed, exactly as the Core API does — a deliberate, recorded divergence from
 the contract's declared scheme, not an implementation of it.
 
+*Update, 2026-10-16:* both services now validate a LaPluma session JWT that the core API mints after
+a verified SAML sign-in (INF-21 to INF-24) instead of an Entra JWT; to the client it is still an
+opaque bearer. The passkey-first applicant session, App Attest, and server-side revocation this
+item describes remain undecided.
+
 Relatedly, no owner has picked the canonical host for problem-type URIs and the API base: the app's
 stub emits `https://api.aperture.app/problems/*`, the app ledger names `lapluma.ai` as the product
 domain, and this repository mints `urn:lapluma:problem:*` (host-free by design). **R-07** owns

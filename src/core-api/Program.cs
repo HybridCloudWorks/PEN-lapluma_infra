@@ -18,10 +18,8 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing", LogLevel.Warning);
 
 builder.Services.AddCatalogSource(builder.Configuration);
 builder.Services.AddCatalogAuthentication(builder.Configuration);
-builder.Services.AddSingleton<ISamlServiceProvider>(sp =>
-    new SamlServiceProvider(
-        builder.Configuration["Saml:SpEntityId"] ?? "https://api.lapluma.app/auth/saml/metadata",
-        builder.Configuration["Saml:SpAcsBaseUrl"] ?? "https://api.lapluma.app/auth/saml/acs"));
+// Built here, not on first use, so an unusable identity-provider secret stops the host at startup.
+builder.Services.AddSingleton<ISamlServiceProvider>(SamlServiceProvider.FromConfiguration(builder.Configuration));
 
 var app = builder.Build();
 
@@ -78,6 +76,14 @@ app.MapGet("/ready", async (
     }
 
     return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+});
+
+// The public half of the session-token signing key, for API Gateway and the workflow API. Public
+// by design: it carries no private parameter and validates tokens rather than minting them.
+app.MapGet("/.well-known/jwks.json", (HttpContext context, SessionTokenKeys keys) =>
+{
+    context.Response.Headers.CacheControl = "public, max-age=300";
+    return Results.Json(keys.PublicKeySet);
 });
 
 // Applied to the group, so a route added later inherits it rather than having to remember it.
@@ -399,7 +405,7 @@ var auth = app.MapGroup("/auth/saml");
 
 auth.MapGet("/metadata", (ISamlServiceProvider saml) =>
 {
-    var xml = saml.GenerateSpMetadataXml("https://api.lapluma.app/auth/saml/metadata", "https://api.lapluma.app/auth/saml/acs");
+    var xml = saml.GenerateSpMetadataXml(saml.SpEntityId, saml.SpAcsBaseUrl);
     return Results.Content(xml, "application/samlmetadata+xml");
 });
 
@@ -432,8 +438,15 @@ auth.MapPost("/acs/{tenantId}", async Task<IResult> (
     HttpContext context,
     string tenantId,
     ISamlServiceProvider saml,
+    SessionTokenIssuer sessionTokens,
     CancellationToken ct) =>
 {
+    // Checked first: an assertion this instance cannot turn into a session token is not consumed.
+    if (!sessionTokens.CanIssue)
+    {
+        return CatalogProblem.Result(context, "session-signing-unavailable", "Session token signing is not configured.", 503);
+    }
+
     string? samlResponse = null;
     if (context.Request.HasFormContentType)
     {
@@ -442,10 +455,19 @@ auth.MapPost("/acs/{tenantId}", async Task<IResult> (
     }
     else if (context.Request.ContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true)
     {
-        var body = await context.Request.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
-        if (body.TryGetProperty("samlResponse", out var prop))
+        try
         {
-            samlResponse = prop.GetString();
+            var body = await context.Request.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
+            if (body.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                body.TryGetProperty("samlResponse", out var prop) &&
+                prop.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                samlResponse = prop.GetString();
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return CatalogProblem.Result(context, "missing-saml-response", "SAMLResponse is missing.", 400);
         }
     }
 
@@ -454,14 +476,13 @@ auth.MapPost("/acs/{tenantId}", async Task<IResult> (
         return CatalogProblem.Result(context, "missing-saml-response", "SAMLResponse is missing.", 400);
     }
 
-    var result = await saml.ValidateAssertionResponseAsync(tenantId, samlResponse, "https://api.lapluma.app/auth/saml/metadata", ct);
+    var result = await saml.ValidateAssertionResponseAsync(tenantId, samlResponse, saml.SpEntityId, ct);
     if (!result.IsValid || result.Assertion == null)
     {
         return CatalogProblem.Result(context, result.ErrorCode ?? "saml-validation-failed", result.ErrorMessage ?? "SAML Assertion validation failed.", 403);
     }
 
-    var tokenResponse = await saml.ExchangeAssertionForTokenAsync(result.Assertion, ct);
-    return Results.Ok(tokenResponse);
+    return Results.Ok(sessionTokens.Issue(result.Assertion));
 });
 
 app.Run();

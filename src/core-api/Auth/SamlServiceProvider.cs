@@ -1,73 +1,149 @@
+using System.Collections.Concurrent;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography.Xml;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Xml;
-using System.Xml.Linq;
 
 namespace LaPluma.CoreApi.Auth;
 
+/// <summary>
+/// SAML 2.0 service provider for institutional Google Workspace and Microsoft Entra ID sign-in.
+///
+/// An assertion is accepted only when all of these hold:
+/// <list type="bullet">
+/// <item>the response holds exactly one Assertion, a direct child of the Response, whose ID is
+/// unique in the document;</item>
+/// <item>that Assertion carries an enveloped XML signature whose single Reference points at that
+/// same element, using RSA with SHA-256 or stronger (SHA-1 is refused), and the signature verifies
+/// against a certificate pinned in configuration for the tenant's identity provider — never
+/// against a key the document supplies;</item>
+/// <item>its Conditions are current (NotBefore and NotOnOrAfter, with two minutes of skew), its
+/// Audience is this service provider, and a bearer SubjectConfirmation names the tenant's
+/// assertion consumer URL as Recipient;</item>
+/// <item>it has not been presented before to this instance.</item>
+/// </list>
+/// Everything is read from the verified Assertion element itself, so nothing outside the signed
+/// bytes influences the identity that results.
+///
+/// Identity providers come from <see cref="IdentityProvidersSetting"/> (a JSON array; Secret
+/// Manager in a deployment). With none configured, every sign-in fails closed.
+/// </summary>
 public sealed class SamlServiceProvider : ISamlServiceProvider
 {
+    public const string SpEntityIdSetting = "Saml:SpEntityId";
+    public const string SpAcsBaseUrlSetting = "Saml:SpAcsBaseUrl";
+    public const string IdentityProvidersSetting = "Saml:IdentityProvidersJson";
+
+    public const string DefaultSpEntityId = "https://api.lapluma.app/auth/saml/metadata";
+    public const string DefaultSpAcsBaseUrl = "https://api.lapluma.app/auth/saml/acs";
+
+    private const string ProtocolNamespace = "urn:oasis:names:tc:SAML:2.0:protocol";
+    private const string AssertionNamespace = "urn:oasis:names:tc:SAML:2.0:assertion";
+    private const string SuccessStatus = "urn:oasis:names:tc:SAML:2.0:status:Success";
+    private const string BearerMethod = "urn:oasis:names:tc:SAML:2.0:cm:bearer";
+
+    // Base64 inflates by a third; a real Google or Entra response is a few kilobytes.
+    private const int MaxResponseCharacters = 256 * 1024;
+    private const int MaxEncodedCharacters = MaxResponseCharacters * 4 / 3 + 4;
+    private const int ReplayCachePruneThreshold = 1024;
+
+    private static readonly TimeSpan ClockSkew = TimeSpan.FromMinutes(2);
+
     private static readonly HashSet<string> DisallowedConsumerDomains = new(StringComparer.OrdinalIgnoreCase)
     {
         "gmail.com", "googlemail.com", "outlook.com", "hotmail.com",
         "live.com", "msn.com", "yahoo.com", "icloud.com", "aol.com"
     };
 
-    private readonly string _spEntityId;
-    private readonly string _spAcsBaseUrl;
-    private readonly List<InstitutionIdpConfiguration> _idpConfigs = new();
-
-    public SamlServiceProvider(string spEntityId, string spAcsBaseUrl, IEnumerable<InstitutionIdpConfiguration>? initialConfigs = null)
+    private static readonly HashSet<string> AllowedSignatureMethods = new(StringComparer.Ordinal)
     {
-        _spEntityId = string.IsNullOrWhiteSpace(spEntityId) ? "https://api.lapluma.app/auth/saml/metadata" : spEntityId;
-        _spAcsBaseUrl = string.IsNullOrWhiteSpace(spAcsBaseUrl) ? "https://api.lapluma.app/auth/saml/acs" : spAcsBaseUrl;
+        SignedXml.XmlDsigRSASHA256Url, SignedXml.XmlDsigRSASHA384Url, SignedXml.XmlDsigRSASHA512Url,
+    };
 
-        if (initialConfigs != null)
-        {
-            _idpConfigs.AddRange(initialConfigs);
-        }
-        else
-        {
-            // Default configured enterprise tenant for HybridCloudWorks
-            _idpConfigs.Add(new InstitutionIdpConfiguration(
-                TenantId: "tenant_hybridcloudworks",
-                IdpType: SamlIdpType.GoogleWorkspace,
-                EntityId: "https://accounts.google.com/o/saml2?idpid=C03hcwks",
-                SsoServiceUrl: "https://accounts.google.com/o/saml2/idp?idpid=C03hcwks",
-                IdpX509Certificate: "MOCK_GOOGLE_WORKSPACE_CERT",
-                AllowedDomains: new[] { "hybridcloudworks.com" },
-                AttributeMappings: new Dictionary<string, string>
-                {
-                    ["email"] = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-                    ["role"] = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-                },
-                AdminConsentVerified: true,
-                IsActive: true
-            ));
+    private static readonly HashSet<string> AllowedDigestMethods = new(StringComparer.Ordinal)
+    {
+        SignedXml.XmlDsigSHA256Url, SignedXml.XmlDsigSHA384Url, SignedXml.XmlDsigSHA512Url,
+    };
 
-            _idpConfigs.Add(new InstitutionIdpConfiguration(
-                TenantId: "tenant_hybridcloudworks",
-                IdpType: SamlIdpType.EntraIdSaml,
-                EntityId: "https://sts.windows.net/4a2b9a76-2e4b-47e1-872f-5b1234567890/",
-                SsoServiceUrl: "https://login.microsoftonline.com/4a2b9a76-2e4b-47e1-872f-5b1234567890/saml2",
-                IdpX509Certificate: "MOCK_MICROSOFT_ENTRA_ID_CERT",
-                AllowedDomains: new[] { "hybridcloudworks.com" },
-                AttributeMappings: new Dictionary<string, string>
-                {
-                    ["email"] = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-                    ["role"] = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-                },
-                AdminConsentVerified: true,
-                IsActive: true
-            ));
+    private static readonly HashSet<string> AllowedCanonicalizationMethods = new(StringComparer.Ordinal)
+    {
+        SignedXml.XmlDsigExcC14NTransformUrl, SignedXml.XmlDsigC14NTransformUrl,
+    };
+
+    private static readonly HashSet<string> AllowedTransforms = new(StringComparer.Ordinal)
+    {
+        SignedXml.XmlDsigEnvelopedSignatureTransformUrl,
+        SignedXml.XmlDsigExcC14NTransformUrl,
+        SignedXml.XmlDsigC14NTransformUrl,
+    };
+
+    private static readonly JsonSerializerOptions ConfigurationJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    private readonly List<RegisteredIdentityProvider> _identityProviders = new();
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _consumedAssertions = new(StringComparer.Ordinal);
+    private readonly TimeProvider _clock;
+
+    public SamlServiceProvider(
+        string spEntityId,
+        string spAcsBaseUrl,
+        IEnumerable<InstitutionIdpConfiguration> identityProviders,
+        TimeProvider? clock = null)
+    {
+        SpEntityId = string.IsNullOrWhiteSpace(spEntityId) ? DefaultSpEntityId : spEntityId;
+        SpAcsBaseUrl = (string.IsNullOrWhiteSpace(spAcsBaseUrl) ? DefaultSpAcsBaseUrl : spAcsBaseUrl).TrimEnd('/');
+        _clock = clock ?? TimeProvider.System;
+
+        var index = 0;
+        foreach (var configuration in identityProviders)
+        {
+            _identityProviders.Add(Register(configuration, index++));
         }
+    }
+
+    public string SpEntityId { get; }
+
+    public string SpAcsBaseUrl { get; }
+
+    /// <summary>
+    /// Builds the provider from configuration. Throws when an identity provider entry is unusable —
+    /// a certificate that does not parse, a consumer domain, a non-HTTPS SSO URL — so a bad secret
+    /// stops the host at startup rather than surfacing as failed sign-ins.
+    /// </summary>
+    public static SamlServiceProvider FromConfiguration(IConfiguration configuration, TimeProvider? clock = null)
+    {
+        var json = configuration[IdentityProvidersSetting];
+        IReadOnlyList<InstitutionIdpConfiguration> identityProviders = [];
+        if (!string.IsNullOrWhiteSpace(json))
+        {
+            try
+            {
+                identityProviders = JsonSerializer.Deserialize<List<InstitutionIdpConfiguration>>(json, ConfigurationJson)
+                    ?? throw new InvalidOperationException($"{IdentityProvidersSetting} must be a JSON array.");
+            }
+            catch (JsonException error)
+            {
+                throw new InvalidOperationException($"{IdentityProvidersSetting} is not a valid JSON array of identity providers.", error);
+            }
+        }
+
+        return new SamlServiceProvider(
+            configuration[SpEntityIdSetting] ?? DefaultSpEntityId,
+            configuration[SpAcsBaseUrlSetting] ?? DefaultSpAcsBaseUrl,
+            identityProviders,
+            clock);
     }
 
     public string GenerateSpMetadataXml(string spEntityId, string acsUrl)
     {
-        var entity = string.IsNullOrWhiteSpace(spEntityId) ? _spEntityId : spEntityId;
-        var acs = string.IsNullOrWhiteSpace(acsUrl) ? _spAcsBaseUrl : acsUrl;
+        var entity = string.IsNullOrWhiteSpace(spEntityId) ? SpEntityId : spEntityId;
+        var acs = string.IsNullOrWhiteSpace(acsUrl) ? SpAcsBaseUrl : acsUrl;
 
         return $"""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -96,7 +172,7 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
             throw new InvalidOperationException($"Personal domain '@{normalizedDomain}' is not permitted. Only verified institutional Google Workspace or Microsoft Entra ID accounts are allowed.");
         }
 
-        var config = _idpConfigs.FirstOrDefault(c =>
+        var config = _identityProviders.Select(p => p.Configuration).FirstOrDefault(c =>
             c.IsActive &&
             c.AllowedDomains.Any(d => d.Equals(normalizedDomain, StringComparison.OrdinalIgnoreCase)) &&
             (!preferredIdp.HasValue || c.IdpType == preferredIdp.Value));
@@ -107,8 +183,8 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         }
 
         var id = "_" + Guid.NewGuid().ToString("N");
-        var issueInstant = DateTimeOffset.UtcNow;
-        var acsUrl = $"{_spAcsBaseUrl}/{config.TenantId}";
+        var issueInstant = _clock.GetUtcNow();
+        var acsUrl = AssertionConsumerUrl(config.TenantId);
 
         var requestXml = $"""
         <samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
@@ -119,7 +195,7 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
             Destination="{config.SsoServiceUrl}"
             AssertionConsumerServiceURL="{acsUrl}"
             ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST">
-            <saml:Issuer>{_spEntityId}</saml:Issuer>
+            <saml:Issuer>{SpEntityId}</saml:Issuer>
             <samlp:NameIDPolicy Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" AllowCreate="true"/>
         </samlp:AuthnRequest>
         """;
@@ -131,7 +207,7 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
             Id: id,
             IssueInstant: issueInstant,
             Destination: config.SsoServiceUrl,
-            Issuer: _spEntityId,
+            Issuer: SpEntityId,
             AssertionConsumerServiceUrl: acsUrl,
             RedirectUrl: redirectUrl
         ));
@@ -141,129 +217,232 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         string tenantId,
         string samlResponseXmlOrBase64,
         string expectedAudience,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        Task.FromResult(Validate(
+            tenantId,
+            samlResponseXmlOrBase64,
+            string.IsNullOrWhiteSpace(expectedAudience) ? SpEntityId : expectedAudience));
+
+    public Task<InstitutionIdpConfiguration?> GetIdpConfigurationByDomainAsync(string domain, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(samlResponseXmlOrBase64))
+        var norm = domain.Trim().ToLowerInvariant();
+        var config = _identityProviders.Select(p => p.Configuration)
+            .FirstOrDefault(c => c.IsActive && c.AllowedDomains.Any(d => d.Equals(norm, StringComparison.OrdinalIgnoreCase)));
+        return Task.FromResult(config);
+    }
+
+    public Task<InstitutionIdpConfiguration?> GetIdpConfigurationByTenantAsync(string tenantId, SamlIdpType idpType, CancellationToken ct = default)
+    {
+        var config = _identityProviders.Select(p => p.Configuration)
+            .FirstOrDefault(c => c.TenantId.Equals(tenantId, StringComparison.OrdinalIgnoreCase) && c.IdpType == idpType && c.IsActive);
+        return Task.FromResult(config);
+    }
+
+    private string AssertionConsumerUrl(string tenantId) => $"{SpAcsBaseUrl}/{tenantId}";
+
+    private SamlValidationResult Validate(string tenantId, string input, string expectedAudience)
+    {
+        if (string.IsNullOrWhiteSpace(input))
         {
-            return Task.FromResult(SamlValidationResult.Failure("empty-response", "SAML response is missing or empty."));
+            return SamlValidationResult.Failure("empty-response", "SAML response is missing or empty.");
+        }
+
+        if (input.Length > MaxEncodedCharacters)
+        {
+            return SamlValidationResult.Failure("response-too-large", "SAML response exceeds the accepted size.");
         }
 
         string xml;
-        try
+        var trimmed = input.Trim();
+        if (trimmed.StartsWith('<'))
         {
-            if (samlResponseXmlOrBase64.TrimStart().StartsWith('<'))
-            {
-                xml = samlResponseXmlOrBase64;
-            }
-            else
-            {
-                var bytes = Convert.FromBase64String(samlResponseXmlOrBase64.Trim());
-                xml = Encoding.UTF8.GetString(bytes);
-            }
+            xml = trimmed;
         }
-        catch (Exception ex)
+        else
         {
-            return Task.FromResult(SamlValidationResult.Failure("invalid-encoding", $"Unable to decode SAML response: {ex.Message}"));
+            try
+            {
+                xml = Encoding.UTF8.GetString(Convert.FromBase64String(trimmed));
+            }
+            catch (FormatException)
+            {
+                return SamlValidationResult.Failure("invalid-encoding", "SAML response is not valid Base64.");
+            }
         }
 
-        XDocument doc;
+        XmlDocument document;
         try
         {
             var settings = new XmlReaderSettings
             {
                 DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null
+                XmlResolver = null,
+                MaxCharactersInDocument = MaxResponseCharacters,
             };
             using var reader = XmlReader.Create(new StringReader(xml), settings);
-            doc = XDocument.Load(reader);
+            // PreserveWhitespace: the signature covers the bytes as sent, whitespace included.
+            document = new XmlDocument { PreserveWhitespace = true, XmlResolver = null };
+            document.Load(reader);
         }
-        catch (Exception ex)
+        catch (XmlException)
         {
-            return Task.FromResult(SamlValidationResult.Failure("invalid-xml", $"Malformed XML SAML response: {ex.Message}"));
+            return SamlValidationResult.Failure("invalid-xml", "SAML response is not well-formed XML.");
         }
 
-        XNamespace samlp = "urn:oasis:names:tc:SAML:2.0:protocol";
-        XNamespace saml = "urn:oasis:names:tc:SAML:2.0:assertion";
-        XNamespace ds = "http://www.w3.org/2000/09/xmldsig#";
+        var ns = new XmlNamespaceManager(document.NameTable);
+        ns.AddNamespace("samlp", ProtocolNamespace);
+        ns.AddNamespace("saml", AssertionNamespace);
+        ns.AddNamespace("ds", SignedXml.XmlDsigNamespaceUrl);
 
-        // Check Status
-        var statusCodeElem = doc.Descendants(samlp + "StatusCode").FirstOrDefault();
-        var statusCode = statusCodeElem?.Attribute("Value")?.Value;
-        if (statusCode != "urn:oasis:names:tc:SAML:2.0:status:Success")
+        var response = document.DocumentElement;
+        if (response is null || response.LocalName != "Response" || response.NamespaceURI != ProtocolNamespace)
         {
-            var statusMessage = doc.Descendants(samlp + "StatusMessage").FirstOrDefault()?.Value ?? "Authentication failed at Identity Provider";
-            return Task.FromResult(SamlValidationResult.Failure("idp-error", $"IdP returned error status: {statusCode}. Message: {statusMessage}"));
+            return SamlValidationResult.Failure("invalid-response", "Document is not a SAML 2.0 Response.");
         }
 
-        // Find Assertion
-        var assertionElem = doc.Descendants(saml + "Assertion").FirstOrDefault();
-        if (assertionElem == null)
+        var statusCode = (response.SelectSingleNode("samlp:Status/samlp:StatusCode", ns) as XmlElement)?.GetAttribute("Value");
+        if (statusCode != SuccessStatus)
         {
-            return Task.FromResult(SamlValidationResult.Failure("missing-assertion", "SAML Response contains no Assertion element."));
+            return SamlValidationResult.Failure("idp-error", $"IdP returned error status: {statusCode}.");
         }
 
-        // Check Issuer
-        var issuer = assertionElem.Element(saml + "Issuer")?.Value ?? doc.Root?.Element(saml + "Issuer")?.Value;
-        if (string.IsNullOrWhiteSpace(issuer))
+        if (document.GetElementsByTagName("EncryptedAssertion", AssertionNamespace).Count > 0)
         {
-            return Task.FromResult(SamlValidationResult.Failure("missing-issuer", "SAML Assertion contains no Issuer."));
+            return SamlValidationResult.Failure("encrypted-assertion-unsupported", "Encrypted assertions are not supported.");
         }
 
-        // Match IdP configuration for tenant
-        var idpConfig = _idpConfigs.FirstOrDefault(c =>
-            c.TenantId.Equals(tenantId, StringComparison.OrdinalIgnoreCase) &&
-            c.EntityId.Equals(issuer, StringComparison.OrdinalIgnoreCase) &&
-            c.IsActive);
-
-        if (idpConfig == null)
+        // Exactly one Assertion anywhere in the document, sitting directly under the Response.
+        // Counting every descendant, not just children, is what defeats signature wrapping: there
+        // is no second Assertion to hide the signed one behind.
+        var assertions = document.GetElementsByTagName("Assertion", AssertionNamespace);
+        if (assertions.Count == 0)
         {
-            return Task.FromResult(SamlValidationResult.Failure("idp-not-approved", $"Issuer '{issuer}' is not an approved Identity Provider for tenant '{tenantId}'."));
+            return SamlValidationResult.Failure("missing-assertion", "SAML Response contains no Assertion element.");
         }
 
-        // Check Signature presence
-        var signatureElem = assertionElem.Element(ds + "Signature") ?? doc.Root?.Element(ds + "Signature");
-        if (signatureElem == null)
+        if (assertions.Count > 1)
         {
-            return Task.FromResult(SamlValidationResult.Failure("unsigned-assertion", "SAML Assertion or Response is not cryptographically signed."));
+            return SamlValidationResult.Failure("multiple-assertions", "SAML Response must contain exactly one Assertion.");
         }
 
-        // Check Subject NameID (User identifier / Email)
-        var subjectElem = assertionElem.Element(saml + "Subject");
-        var nameId = subjectElem?.Element(saml + "NameID")?.Value;
+        var assertion = (XmlElement)assertions[0]!;
+        if (!ReferenceEquals(assertion.ParentNode, response))
+        {
+            return SamlValidationResult.Failure("assertion-misplaced", "The Assertion must be a direct child of the Response.");
+        }
+
+        var assertionId = assertion.GetAttribute("ID");
+        if (string.IsNullOrEmpty(assertionId))
+        {
+            return SamlValidationResult.Failure("missing-assertion-id", "SAML Assertion has no ID.");
+        }
+
+        if (CountElementsWithId(document, assertionId) != 1)
+        {
+            return SamlValidationResult.Failure("duplicate-id", "The Assertion ID is not unique in the response.");
+        }
+
+        var issuer = assertion.SelectSingleNode("saml:Issuer", ns)?.InnerText.Trim();
+        if (string.IsNullOrEmpty(issuer))
+        {
+            return SamlValidationResult.Failure("missing-issuer", "SAML Assertion contains no Issuer.");
+        }
+
+        // The Issuer is read before the signature is checked only to choose which pinned
+        // certificate to check it against. It sits inside the Assertion, so a forged Issuer fails
+        // verification below.
+        var identityProvider = _identityProviders.FirstOrDefault(p =>
+            p.Configuration.IsActive &&
+            p.Configuration.TenantId.Equals(tenantId, StringComparison.OrdinalIgnoreCase) &&
+            p.Configuration.EntityId.Equals(issuer, StringComparison.Ordinal));
+
+        if (identityProvider is null)
+        {
+            return SamlValidationResult.Failure("idp-not-approved", $"Issuer is not an approved Identity Provider for tenant '{tenantId}'.");
+        }
+
+        var signatureFailure = VerifySignature(document, assertion, assertionId, identityProvider.Certificates, ns);
+        if (signatureFailure is not null)
+        {
+            return signatureFailure;
+        }
+
+        // From here on, every value comes from the verified Assertion element.
+        var config = identityProvider.Configuration;
+        var nameId = assertion.SelectSingleNode("saml:Subject/saml:NameID", ns)?.InnerText.Trim();
         if (string.IsNullOrWhiteSpace(nameId))
         {
-            return Task.FromResult(SamlValidationResult.Failure("missing-nameid", "Assertion Subject has no NameID."));
+            return SamlValidationResult.Failure("missing-nameid", "Assertion Subject has no NameID.");
         }
 
-        // Check Conditions
-        var conditionsElem = assertionElem.Element(saml + "Conditions");
-        var now = DateTimeOffset.UtcNow;
-        var skew = TimeSpan.FromMinutes(5);
-
-        if (conditionsElem != null)
+        var now = _clock.GetUtcNow();
+        if (assertion.SelectSingleNode("saml:Conditions", ns) is not XmlElement conditions ||
+            !TryReadInstant(conditions, "NotBefore", out var notBefore) ||
+            !TryReadInstant(conditions, "NotOnOrAfter", out var notOnOrAfter))
         {
-            var notBeforeStr = conditionsElem.Attribute("NotBefore")?.Value;
-            if (DateTimeOffset.TryParse(notBeforeStr, out var notBefore) && now + skew < notBefore)
+            return SamlValidationResult.Failure("invalid-conditions", "Assertion Conditions must state NotBefore and NotOnOrAfter.");
+        }
+
+        if (now + ClockSkew < notBefore)
+        {
+            return SamlValidationResult.Failure("assertion-not-yet-valid", $"Assertion is not valid before {notBefore:O}.");
+        }
+
+        if (now - ClockSkew >= notOnOrAfter)
+        {
+            return SamlValidationResult.Failure("assertion-expired", $"Assertion expired at {notOnOrAfter:O}.");
+        }
+
+        // Every AudienceRestriction must name this service provider, and there must be one.
+        var restrictions = conditions.SelectNodes("saml:AudienceRestriction", ns);
+        if (restrictions is null || restrictions.Count == 0)
+        {
+            return SamlValidationResult.Failure("audience-mismatch", "Assertion carries no AudienceRestriction.");
+        }
+
+        foreach (XmlElement restriction in restrictions)
+        {
+            var audiences = restriction.SelectNodes("saml:Audience", ns)?.Cast<XmlNode>().Select(a => a.InnerText.Trim()) ?? [];
+            if (!audiences.Contains(expectedAudience, StringComparer.Ordinal))
             {
-                return Task.FromResult(SamlValidationResult.Failure("assertion-not-yet-valid", $"Assertion is not valid before {notBefore:O}."));
+                return SamlValidationResult.Failure("audience-mismatch", $"Assertion audience does not match expected '{expectedAudience}'.");
+            }
+        }
+
+        // A bearer confirmation must be addressed to this tenant's consumer URL and still be current.
+        var expectedRecipient = AssertionConsumerUrl(config.TenantId);
+        var confirmations = assertion.SelectNodes(
+            $"saml:Subject/saml:SubjectConfirmation[@Method='{BearerMethod}']/saml:SubjectConfirmationData", ns);
+        if (confirmations is null || confirmations.Count == 0)
+        {
+            return SamlValidationResult.Failure("missing-subject-confirmation", "Assertion has no bearer SubjectConfirmation.");
+        }
+
+        var recipientMatched = false;
+        var confirmationCurrent = false;
+        foreach (XmlElement data in confirmations)
+        {
+            if (!string.Equals(data.GetAttribute("Recipient"), expectedRecipient, StringComparison.Ordinal))
+            {
+                continue;
             }
 
-            var notOnOrAfterStr = conditionsElem.Attribute("NotOnOrAfter")?.Value;
-            if (DateTimeOffset.TryParse(notOnOrAfterStr, out var notOnOrAfter) && now - skew >= notOnOrAfter)
+            recipientMatched = true;
+            if (TryReadInstant(data, "NotOnOrAfter", out var confirmationExpiry) && now - ClockSkew < confirmationExpiry)
             {
-                return Task.FromResult(SamlValidationResult.Failure("assertion-expired", $"Assertion expired at {notOnOrAfter:O}."));
+                confirmationCurrent = true;
+                break;
             }
+        }
 
-            var audienceRestriction = conditionsElem.Element(saml + "AudienceRestriction");
-            if (audienceRestriction != null)
-            {
-                var audience = audienceRestriction.Element(saml + "Audience")?.Value;
-                var targetAudience = string.IsNullOrWhiteSpace(expectedAudience) ? _spEntityId : expectedAudience;
-                if (!string.IsNullOrWhiteSpace(audience) && !audience.Equals(targetAudience, StringComparison.OrdinalIgnoreCase))
-                {
-                    return Task.FromResult(SamlValidationResult.Failure("audience-mismatch", $"Assertion audience '{audience}' does not match expected '{targetAudience}'."));
-                }
-            }
+        if (!recipientMatched)
+        {
+            return SamlValidationResult.Failure("recipient-mismatch", $"Assertion is not addressed to '{expectedRecipient}'.");
+        }
+
+        if (!confirmationCurrent)
+        {
+            return SamlValidationResult.Failure("assertion-expired", "Assertion subject confirmation has expired.");
         }
 
         // Extract Attributes
@@ -272,32 +451,31 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         string? surname = null;
         var roles = new List<string>();
 
-        var attributeStatement = assertionElem.Element(saml + "AttributeStatement");
-        if (attributeStatement != null)
+        if (assertion.SelectSingleNode("saml:AttributeStatement", ns) is XmlElement attributeStatement)
         {
-            foreach (var attr in attributeStatement.Elements(saml + "Attribute"))
+            foreach (XmlElement attr in attributeStatement.SelectNodes("saml:Attribute", ns)!)
             {
-                var attrName = attr.Attribute("Name")?.Value;
-                var attrValues = attr.Elements(saml + "AttributeValue").Select(v => v.Value).ToList();
+                var attrName = attr.GetAttribute("Name");
+                var attrValues = attr.SelectNodes("saml:AttributeValue", ns)!.Cast<XmlNode>().Select(v => v.InnerText).ToList();
 
-                if (attrName == idpConfig.AttributeMappings.GetValueOrDefault("email", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress") ||
-                    attrName?.EndsWith("emailaddress", StringComparison.OrdinalIgnoreCase) == true)
+                if (attrName == config.AttributeMappings.GetValueOrDefault("email", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress") ||
+                    attrName.EndsWith("emailaddress", StringComparison.OrdinalIgnoreCase))
                 {
                     if (attrValues.Count > 0) email = attrValues[0];
                 }
-                else if (attrName == idpConfig.AttributeMappings.GetValueOrDefault("given_name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname") ||
-                         attrName?.EndsWith("givenname", StringComparison.OrdinalIgnoreCase) == true)
+                else if (attrName == config.AttributeMappings.GetValueOrDefault("given_name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname") ||
+                         attrName.EndsWith("givenname", StringComparison.OrdinalIgnoreCase))
                 {
                     if (attrValues.Count > 0) givenName = attrValues[0];
                 }
-                else if (attrName == idpConfig.AttributeMappings.GetValueOrDefault("surname", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname") ||
-                         attrName?.EndsWith("surname", StringComparison.OrdinalIgnoreCase) == true)
+                else if (attrName == config.AttributeMappings.GetValueOrDefault("surname", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname") ||
+                         attrName.EndsWith("surname", StringComparison.OrdinalIgnoreCase))
                 {
                     if (attrValues.Count > 0) surname = attrValues[0];
                 }
-                else if (attrName == idpConfig.AttributeMappings.GetValueOrDefault("role", "http://schemas.microsoft.com/ws/2008/06/identity/claims/role") ||
-                         attrName?.EndsWith("role", StringComparison.OrdinalIgnoreCase) == true ||
-                         attrName?.EndsWith("groups", StringComparison.OrdinalIgnoreCase) == true)
+                else if (attrName == config.AttributeMappings.GetValueOrDefault("role", "http://schemas.microsoft.com/ws/2008/06/identity/claims/role") ||
+                         attrName.EndsWith("role", StringComparison.OrdinalIgnoreCase) ||
+                         attrName.EndsWith("groups", StringComparison.OrdinalIgnoreCase))
                 {
                     roles.AddRange(attrValues);
                 }
@@ -308,18 +486,18 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         var emailParts = email.Split('@');
         if (emailParts.Length != 2)
         {
-            return Task.FromResult(SamlValidationResult.Failure("invalid-email", $"Subject '{email}' is not a valid email address."));
+            return SamlValidationResult.Failure("invalid-email", "Subject is not a valid email address.");
         }
 
         var domain = emailParts[1].ToLowerInvariant();
         if (DisallowedConsumerDomains.Contains(domain))
         {
-            return Task.FromResult(SamlValidationResult.Failure("consumer-domain-prohibited", $"Personal email domains like '@{domain}' are forbidden. Authentication must use institutional Google Workspace or Microsoft Entra ID accounts."));
+            return SamlValidationResult.Failure("consumer-domain-prohibited", $"Personal email domains like '@{domain}' are forbidden. Authentication must use institutional Google Workspace or Microsoft Entra ID accounts.");
         }
 
-        if (!idpConfig.AllowedDomains.Any(d => d.Equals(domain, StringComparison.OrdinalIgnoreCase)))
+        if (!config.AllowedDomains.Any(d => d.Equals(domain, StringComparison.OrdinalIgnoreCase)))
         {
-            return Task.FromResult(SamlValidationResult.Failure("domain-not-authorized", $"Domain '{domain}' is not authorized for tenant '{tenantId}'."));
+            return SamlValidationResult.Failure("domain-not-authorized", $"Domain '{domain}' is not authorized for tenant '{config.TenantId}'.");
         }
 
         if (roles.Count == 0)
@@ -327,50 +505,232 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
             roles.Add("preparer");
         }
 
-        var assertion = new SamlAssertion(
+        // Last, so a rejected assertion never consumes its ID.
+        if (!TryConsume($"{issuer}|{assertionId}", notOnOrAfter, now))
+        {
+            return SamlValidationResult.Failure("assertion-replayed", "This assertion has already been used.");
+        }
+
+        var issueInstant = TryReadInstant(assertion, "IssueInstant", out var issued) ? issued : now;
+        return SamlValidationResult.Success(new SamlAssertion(
             Issuer: issuer,
             SubjectNameId: nameId,
-            TenantId: tenantId,
+            TenantId: config.TenantId,
             Email: email,
             GivenName: givenName,
             Surname: surname,
             Roles: roles,
-            IssueInstant: DateTimeOffset.UtcNow,
-            NotBefore: now - skew,
-            NotOnOrAfter: now + TimeSpan.FromHours(1),
+            IssueInstant: issueInstant,
+            NotBefore: notBefore,
+            NotOnOrAfter: notOnOrAfter,
             Audience: expectedAudience
-        );
-
-        return Task.FromResult(SamlValidationResult.Success(assertion));
-    }
-
-    public Task<SamlTokenExchangeResponse> ExchangeAssertionForTokenAsync(
-        SamlAssertion assertion,
-        CancellationToken ct = default)
-    {
-        var token = "lp_saml_" + Convert.ToBase64String(Encoding.UTF8.GetBytes(
-            $"{assertion.TenantId}:{assertion.Email}:{string.Join(",", assertion.Roles)}:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
-
-        return Task.FromResult(new SamlTokenExchangeResponse(
-            AccessToken: token,
-            TokenType: "Bearer",
-            ExpiresIn: 3600,
-            TenantId: assertion.TenantId,
-            UserId: assertion.SubjectNameId,
-            Roles: assertion.Roles
         ));
     }
 
-    public Task<InstitutionIdpConfiguration?> GetIdpConfigurationByDomainAsync(string domain, CancellationToken ct = default)
+    private static SamlValidationResult? VerifySignature(
+        XmlDocument document,
+        XmlElement assertion,
+        string assertionId,
+        IReadOnlyList<X509Certificate2> certificates,
+        XmlNamespaceManager ns)
     {
-        var norm = domain.Trim().ToLowerInvariant();
-        var config = _idpConfigs.FirstOrDefault(c => c.IsActive && c.AllowedDomains.Any(d => d.Equals(norm, StringComparison.OrdinalIgnoreCase)));
-        return Task.FromResult<InstitutionIdpConfiguration?>(config);
+        var signatures = assertion.SelectNodes("ds:Signature", ns);
+        if (signatures is null || signatures.Count == 0)
+        {
+            return SamlValidationResult.Failure("unsigned-assertion", "SAML Assertion is not signed.");
+        }
+
+        if (signatures.Count > 1)
+        {
+            return SamlValidationResult.Failure("invalid-signature", "SAML Assertion carries more than one signature.");
+        }
+
+        var signedXml = new SignedXml(document);
+        try
+        {
+            signedXml.LoadXml((XmlElement)signatures[0]!);
+        }
+        catch (CryptographicException)
+        {
+            return SamlValidationResult.Failure("invalid-signature", "SAML Assertion signature is malformed.");
+        }
+
+        // The signature must cover this Assertion and nothing else: one Reference, to its ID.
+        if (signedXml.SignedInfo is not { } signedInfo || signedInfo.References.Count != 1 ||
+            signedInfo.References[0] is not Reference reference)
+        {
+            return SamlValidationResult.Failure("invalid-signature", "The signature must contain exactly one reference.");
+        }
+
+        if (!string.Equals(reference.Uri, "#" + assertionId, StringComparison.Ordinal))
+        {
+            return SamlValidationResult.Failure("signature-reference-mismatch", "The signature does not reference the Assertion.");
+        }
+
+        if (!AllowedCanonicalizationMethods.Contains(signedInfo.CanonicalizationMethod) ||
+            !AllowedSignatureMethods.Contains(signedInfo.SignatureMethod ?? string.Empty) ||
+            !AllowedDigestMethods.Contains(reference.DigestMethod ?? string.Empty))
+        {
+            return SamlValidationResult.Failure("unsupported-signature-algorithm", "The signature must use RSA with SHA-256 or stronger and exclusive or inclusive canonicalisation.");
+        }
+
+        foreach (Transform transform in reference.TransformChain)
+        {
+            if (!AllowedTransforms.Contains(transform.Algorithm ?? string.Empty))
+            {
+                return SamlValidationResult.Failure("unsupported-signature-algorithm", "The signature uses a transform that is not accepted.");
+            }
+        }
+
+        try
+        {
+            // SignedXml resolves the reference by ID itself; confirm it lands on the element this
+            // method was asked about, not on some other element sharing the ID.
+            if (!ReferenceEquals(signedXml.GetIdElement(document, assertionId), assertion))
+            {
+                return SamlValidationResult.Failure("signature-reference-mismatch", "The signature does not reference the Assertion.");
+            }
+
+            foreach (var certificate in certificates)
+            {
+                using var key = certificate.GetRSAPublicKey();
+                // The pinned certificate's key, never the KeyInfo the document carries.
+                if (key is not null && signedXml.CheckSignature(key))
+                {
+                    return null;
+                }
+            }
+        }
+        catch (CryptographicException)
+        {
+            return SamlValidationResult.Failure("invalid-signature", "SAML Assertion signature could not be verified.");
+        }
+
+        return SamlValidationResult.Failure("invalid-signature", "SAML Assertion signature does not verify against the identity provider's certificate.");
     }
 
-    public Task<InstitutionIdpConfiguration?> GetIdpConfigurationByTenantAsync(string tenantId, SamlIdpType idpType, CancellationToken ct = default)
+    private bool TryConsume(string key, DateTimeOffset expiresAt, DateTimeOffset now)
     {
-        var config = _idpConfigs.FirstOrDefault(c => c.TenantId.Equals(tenantId, StringComparison.OrdinalIgnoreCase) && c.IdpType == idpType && c.IsActive);
-        return Task.FromResult<InstitutionIdpConfiguration?>(config);
+        if (_consumedAssertions.Count >= ReplayCachePruneThreshold)
+        {
+            foreach (var entry in _consumedAssertions)
+            {
+                if (entry.Value + ClockSkew < now)
+                {
+                    _consumedAssertions.TryRemove(entry.Key, out _);
+                }
+            }
+        }
+
+        return _consumedAssertions.TryAdd(key, expiresAt);
     }
+
+    private static int CountElementsWithId(XmlDocument document, string id)
+    {
+        var count = 0;
+        foreach (XmlElement element in document.GetElementsByTagName("*"))
+        {
+            if (element.GetAttribute("ID") == id || element.GetAttribute("Id") == id || element.GetAttribute("id") == id)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool TryReadInstant(XmlElement element, string attribute, out DateTimeOffset value) =>
+        DateTimeOffset.TryParse(
+            element.GetAttribute(attribute),
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out value);
+
+    private static RegisteredIdentityProvider Register(InstitutionIdpConfiguration configuration, int index)
+    {
+        string Problem(string message) =>
+            $"{IdentityProvidersSetting}[{index}] ({configuration?.TenantId ?? "no tenant"}): {message}";
+
+        if (configuration is null)
+        {
+            throw new InvalidOperationException($"{IdentityProvidersSetting}[{index}] is empty.");
+        }
+
+        if (string.IsNullOrWhiteSpace(configuration.TenantId) || !TenantResolution.TenantIdRegex().IsMatch(configuration.TenantId))
+        {
+            throw new InvalidOperationException(Problem("tenantId is missing or malformed."));
+        }
+
+        if (string.IsNullOrWhiteSpace(configuration.EntityId))
+        {
+            throw new InvalidOperationException(Problem("entityId is required."));
+        }
+
+        if (!Uri.TryCreate(configuration.SsoServiceUrl, UriKind.Absolute, out var sso) || sso.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new InvalidOperationException(Problem("ssoServiceUrl must be an absolute https URL."));
+        }
+
+        if (configuration.AllowedDomains is not { Count: > 0 } ||
+            configuration.AllowedDomains.Any(d => string.IsNullOrWhiteSpace(d) || DisallowedConsumerDomains.Contains(d.Trim())))
+        {
+            throw new InvalidOperationException(Problem("allowedDomains must list institutional domains only."));
+        }
+
+        if (configuration.SigningCertificates is not { Count: > 0 })
+        {
+            throw new InvalidOperationException(Problem("at least one signing certificate is required."));
+        }
+
+        var certificates = new List<X509Certificate2>();
+        foreach (var encoded in configuration.SigningCertificates)
+        {
+            var certificate = LoadCertificate(encoded)
+                ?? throw new InvalidOperationException(Problem("a signing certificate is not a valid X.509 certificate."));
+            using var key = certificate.GetRSAPublicKey();
+            if (key is null || key.KeySize < SessionTokenKeys.MinimumKeySizeBits)
+            {
+                certificate.Dispose();
+                throw new InvalidOperationException(Problem($"a signing certificate must carry an RSA key of at least {SessionTokenKeys.MinimumKeySizeBits} bits."));
+            }
+
+            certificates.Add(certificate);
+        }
+
+        var normalized = configuration with
+        {
+            AllowedDomains = configuration.AllowedDomains.Select(d => d.Trim().ToLowerInvariant()).ToArray(),
+            AttributeMappings = configuration.AttributeMappings ?? new Dictionary<string, string>(),
+        };
+
+        return new RegisteredIdentityProvider(normalized, certificates);
+    }
+
+    private static X509Certificate2? LoadCertificate(string? encoded)
+    {
+        if (string.IsNullOrWhiteSpace(encoded))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (encoded.Contains("-----BEGIN", StringComparison.Ordinal))
+            {
+                return X509Certificate2.CreateFromPem(encoded);
+            }
+
+            // Bare Base64 DER, as it appears in IdP metadata and Entra's "Certificate (Base64)".
+            var der = Convert.FromBase64String(string.Concat(encoded.Where(c => !char.IsWhiteSpace(c))));
+            return X509CertificateLoader.LoadCertificate(der);
+        }
+        catch (Exception error) when (error is CryptographicException or FormatException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private sealed record RegisteredIdentityProvider(
+        InstitutionIdpConfiguration Configuration,
+        IReadOnlyList<X509Certificate2> Certificates);
 }

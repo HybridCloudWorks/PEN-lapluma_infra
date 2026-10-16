@@ -41,6 +41,7 @@ internal static class TestHost
     // than reaching something.
     public const string Audience = "api://lapluma-tests";
     public const string Issuer = "https://login.example.invalid/tenant/v2.0";
+    public const string JwksUri = "https://login.example.invalid/.well-known/jwks.json";
 
     /// <summary>
     /// Select the fixture store explicitly. There is no default source at all — the registration
@@ -53,11 +54,15 @@ internal static class TestHost
         return builder;
     }
 
-    /// <summary>Supply an audience and issuer, so the policy is configured rather than failing closed.</summary>
+    /// <summary>
+    /// Supply an audience, issuer, and key-set address, so the policy is configured rather than
+    /// failing closed. Nothing here fetches the key set unless a test sends a bearer token.
+    /// </summary>
     public static IWebHostBuilder WithAuthenticationConfigured(this IWebHostBuilder builder)
     {
         builder.UseSetting(WorkflowAuthentication.AudienceSetting, Audience);
         builder.UseSetting(WorkflowAuthentication.IssuerSetting, Issuer);
+        builder.UseSetting(WorkflowAuthentication.JwksUriSetting, JwksUri);
         return builder;
     }
 

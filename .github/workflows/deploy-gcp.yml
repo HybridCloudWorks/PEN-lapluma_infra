@@ -116,11 +116,14 @@ jobs:
         run: |
           REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/lapluma-services-${ENV}"
           
+          # --update-env-vars, not --set-env-vars: "set" deletes every variable it does not name,
+          # which would strip the Terraform-managed Authentication__* and Saml__* variables and
+          # leave both APIs failing closed.
           echo "Deploying Core API to Cloud Run..."
           gcloud run deploy "lp-core-api-${ENV}" \
             --image "${REPO}/core-api:${TAG}" \
             --region "${REGION}" \
-            --set-env-vars "ASPNETCORE_ENVIRONMENT=Development,Catalog__Source=fixture" \
+            --update-env-vars "ASPNETCORE_ENVIRONMENT=Development,Catalog__Source=fixture" \
             --memory 512Mi \
             --cpu 1 \
             --no-allow-unauthenticated \
@@ -130,7 +133,7 @@ jobs:
           gcloud run deploy "lp-wf-api-${ENV}" \
             --image "${REPO}/workflow-api:${TAG}" \
             --region "${REGION}" \
-            --set-env-vars "ASPNETCORE_ENVIRONMENT=Development,Workflow__Source=fixture" \
+            --update-env-vars "ASPNETCORE_ENVIRONMENT=Development,Workflow__Source=fixture" \
             --memory 512Mi \
             --cpu 1 \
             --no-allow-unauthenticated \

@@ -2,6 +2,11 @@
 
 This runbook establishes operational procedures and automated governance for the **LaPluma Staging Environment** on Google Cloud Platform (`project-27d49bcd-4a1d-4d7a-8a7`).
 
+> **Staging is offline pending the authentication fix (INF-21 to INF-24).** Do not `resume` it or
+> change Cloud Run ingress until the steps in
+> [Session Tokens and SAML Identity Providers](session-tokens-and-saml-identity-providers.md#4-bringing-staging-and-dev-back-online)
+> are complete.
+
 ---
 
 ## 1. Cost Governance Overview

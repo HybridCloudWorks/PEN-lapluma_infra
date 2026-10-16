@@ -60,14 +60,33 @@ variable "migration_image" {
   default     = "postgres:16-alpine"
 }
 
-variable "oidc_issuer" {
+variable "session_token_issuer" {
   type        = string
-  description = "Application OIDC issuer URL for backend second-lock authentication"
-  default     = "https://login.microsoftonline.com/common/v2.0"
+  description = "Issuer (iss) of LaPluma session tokens and the public base URL clients reach the API on (the API Gateway hostname or its custom domain), with no trailing slash"
+
+  validation {
+    condition     = can(regex("^https://", var.session_token_issuer)) && !endswith(var.session_token_issuer, "/")
+    error_message = "session_token_issuer must be an https URL with no trailing slash."
+  }
 }
 
-variable "oidc_audience" {
+variable "session_token_audience" {
   type        = string
-  description = "Application OIDC audience client ID for backend second-lock authentication"
-  default     = "api://lapluma-workforce-staging"
+  description = "Audience (aud) of LaPluma session tokens, shared by both APIs and API Gateway"
+
+  validation {
+    condition     = length(trimspace(var.session_token_audience)) > 0
+    error_message = "session_token_audience must not be empty."
+  }
+}
+
+variable "session_token_jwks_uri" {
+  type        = string
+  description = "JWK Set the workflow API validates session tokens against. Empty means <session_token_issuer>/.well-known/jwks.json, served by the core API through API Gateway"
+  default     = ""
+
+  validation {
+    condition     = var.session_token_jwks_uri == "" || can(regex("^https://", var.session_token_jwks_uri))
+    error_message = "session_token_jwks_uri must be empty or an https URL."
+  }
 }

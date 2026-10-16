@@ -88,6 +88,30 @@ tracked, so it carries names and comments only — never a value. Each configura
 expected format, owning role, and consuming component is documented on the
 [Configuration Contract](https://hybridcloudworks.github.io/PEN-lapluma_infra/Configuration-Contract.html) page.
 
+### Authentication
+
+> **Staging and dev are offline** (Cloud SQL stopped, Cloud Run ingress internal) until the
+> authentication fix below is deployed. Bring an environment back only by following
+> [the session-token runbook](docs/runbooks/session-tokens-and-saml-identity-providers.md#4-bringing-staging-and-dev-back-online),
+> in order.
+
+Clinic users sign in through SAML with their institution's Google Workspace or Microsoft Entra ID.
+The core API verifies the Assertion's XML signature against the IdP certificate pinned in
+configuration and returns a one-hour RS256 session JWT (`tenant_id`, `email`, `role`). API Gateway
+requires that token on every route except health and readiness, `/.well-known/jwks.json`, and the
+SAML endpoints, and both APIs validate it again with the standard JWT bearer handler. No test token
+or unsigned credential is accepted in any environment.
+
+| Setting | Service | Source |
+|---------|---------|--------|
+| `Authentication__Issuer`, `Authentication__Audience` | both | Terraform `session_token_issuer`, `session_token_audience` |
+| `Authentication__JwksUri` | workflow | Terraform, defaults to `<issuer>/.well-known/jwks.json` |
+| `SessionTokens__SigningKeyPem` | core | Secret Manager `lp-session-signing-key-<env>` |
+| `Saml__IdentityProvidersJson` | core | Secret Manager `lp-saml-idps-<env>` |
+
+Missing values fail closed; malformed ones stop the service at startup. The runbook covers
+generating the signing key, the IdP JSON format, registering LaPluma with an IdP, and rotation.
+
 ## Repository conventions
 
 - **Never** commit credentials, private keys, connection strings, passkey material, tokens, document

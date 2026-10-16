@@ -2,3 +2,11 @@ project_id        = "lapluma-pilot-gcp"
 region            = "us-central1"
 environment       = "pilot"
 github_repository = "HybridCloudWorks/PEN-lapluma_infra"
+
+# LaPluma session tokens. The issuer is this environment's public API base URL (the API Gateway
+# hostname from `terraform output gateway_url`, or a custom domain in front of it). Both APIs and
+# the gateway must agree on issuer and audience. The signing key and SAML identity providers are
+# not Terraform inputs: they live in Secret Manager as lp-session-signing-key-pilot and
+# lp-saml-idps-pilot. See docs/runbooks/session-tokens-and-saml-identity-providers.md.
+session_token_issuer   = "https://api.lapluma.app"
+session_token_audience = "lapluma-api-pilot"

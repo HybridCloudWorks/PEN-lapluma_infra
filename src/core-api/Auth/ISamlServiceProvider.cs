@@ -2,6 +2,12 @@ namespace LaPluma.CoreApi.Auth;
 
 public interface ISamlServiceProvider
 {
+    /// <summary>This service provider's entity ID, which every accepted assertion's Audience must equal.</summary>
+    string SpEntityId { get; }
+
+    /// <summary>Base of the per-tenant assertion consumer URLs, which every accepted assertion's Recipient must equal.</summary>
+    string SpAcsBaseUrl { get; }
+
     string GenerateSpMetadataXml(string spEntityId, string acsUrl);
 
     Task<SamlAuthnRequest> CreateAuthnRequestAsync(
@@ -13,10 +19,6 @@ public interface ISamlServiceProvider
         string tenantId,
         string samlResponseXmlOrBase64,
         string expectedAudience,
-        CancellationToken ct = default);
-
-    Task<SamlTokenExchangeResponse> ExchangeAssertionForTokenAsync(
-        SamlAssertion assertion,
         CancellationToken ct = default);
 
     Task<InstitutionIdpConfiguration?> GetIdpConfigurationByDomainAsync(
