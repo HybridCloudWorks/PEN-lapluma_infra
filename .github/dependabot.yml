@@ -4,29 +4,31 @@ version: 2
 # pinned by digest and every action by commit SHA, so nothing bumps them on its own — without these
 # two ecosystems the pins go stale silently and a published advisory is never proposed.
 updates:
+  # One entry for the four .NET projects so a package they share moves in one pull request instead
+  # of one per project. Minor and patch bumps arrive together; a major bump arrives as one pull
+  # request per package across every project that uses it (Npgsql 9 → 10 touched two at once).
   - package-ecosystem: nuget
-    directory: /src/core-api
+    directories:
+      - /src/core-api
+      - /src/core-api.tests
+      - /src/workflow-api
+      - /src/workflow-api.tests
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-
-  - package-ecosystem: nuget
-    directory: /src/core-api.tests
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-
-  - package-ecosystem: nuget
-    directory: /src/workflow-api
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-
-  - package-ecosystem: nuget
-    directory: /src/workflow-api.tests
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+    groups:
+      nuget-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      nuget-major:
+        patterns:
+          - "*"
+        update-types:
+          - major
+        group-by: dependency-name
 
   # The processing worker is deliberately stdlib-only, so it declares no dependency file and has
   # nothing for pip to watch. That is an architectural guarantee, not an omission — if a
@@ -73,3 +75,20 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # The github/codeql-action sub-actions are one product released as a set, and
+      # tools/validate_foundation.py fails when init, analyze and upload-sarif sit on different SHAs
+      # — which is exactly what one pull request per sub-action proposes. Listed first, because a
+      # dependency joins the first group it matches.
+      codeql-action:
+        patterns:
+          - "github/codeql-action"
+          - "github/codeql-action/*"
+      # Remaining action bumps land together; majors (for example setup-gcloud 2 → 3) stay separate
+      # so each can be checked against the workflows that use it.
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch

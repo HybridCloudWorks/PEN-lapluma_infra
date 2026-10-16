@@ -25,7 +25,7 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent
 SQL_DIR = ROOT / "infra" / "sql"
 CONTRACTS_DIR = ROOT / "contracts"
-DOCS_DIR = ROOT / "wiki"
+DOCS_DIR = ROOT / "docs" / "wiki"
 
 
 class RolloutAndRollbackCoordinationTests(unittest.TestCase):

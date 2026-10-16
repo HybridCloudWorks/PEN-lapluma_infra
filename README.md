@@ -1,14 +1,18 @@
-# LaPluma Azure infrastructure and backend
+# LaPluma GCP infrastructure and backend
 
-Planning navigation: [approved GCP target and Document Library](wiki/GCP-Document-Library-Decision.md), [cost model](wiki/GCP-Cost-Model.md), and [three project boards](wiki/GCP-Board-Handoff.md).
+**Documentation:** [hybridcloudworks.github.io/PEN-lapluma_infra](https://hybridcloudworks.github.io/PEN-lapluma_infra/)
 
+Planning navigation: [approved GCP target and Document Library](https://hybridcloudworks.github.io/PEN-lapluma_infra/GCP-Document-Library-Decision.html), [cost model](https://hybridcloudworks.github.io/PEN-lapluma_infra/GCP-Cost-Model.html), and [board delivery record](https://hybridcloudworks.github.io/PEN-lapluma_infra/GCP-Board-Handoff.html). The boards themselves are private.
 
-Backend contracts, Azure infrastructure as code, and backend services for the LaPluma
-`lapluma-app-0.2` supervised pilot.
+Backend contracts, Google Cloud infrastructure as code (Terraform), and backend services for the
+LaPluma supervised pilot.
 
-This repository is a placeholder-only planning and scaffold foundation. Nothing here has been
-deployed: no AZD environment exists, no Azure subscription has been contacted, and the Bicep
-entrypoint structurally accepts only `enableProvisioning: false`.
+The platform runs on Google Cloud: Cloud Run services behind API Gateway, Cloud SQL PostgreSQL,
+Cloud Storage and Pub/Sub, defined in `infra/terraform/`. `deploy-gcp.yml` deployed the Cloud Run
+services to the `dev` environment on 2026-09-16, and the iOS app's beta build targets a `staging`
+API Gateway. The pilot environment has not been deployed. The original Azure Bicep scaffold under
+`infra/` is superseded and kept for reference; its entrypoint accepts only
+`enableProvisioning: false`.
 
 The native iOS client lives in its own repository. Two contracts are shared with it: the versioned
 package identity and composition handshake,
@@ -23,7 +27,9 @@ fails the build.
 | Path | Contents |
 |------|----------|
 | `contracts/` | OpenAPI 3.1 catalog contract, the workflow and upload contracts under `openapi/`, and the iOS package-compatibility handshake |
-| `infra/` | Subscription-scope Bicep entrypoint, modules, and the AZD parameter file |
+| `blueprints/` | Document Blueprint definitions (`official/`, `institutional/`, `external/`) for the Document Library |
+| `infra/terraform/` | GCP Terraform: `bootstrap/`, reusable `modules/`, and `environments/` for `dev`, `staging`, and `pilot` |
+| `infra/` | Also holds the superseded Azure scaffold (subscription-scope Bicep entrypoint, modules, and the AZD parameter file), PostgreSQL migrations in `sql/`, and `scripts/` |
 | `src/core-api/` | .NET 10 catalog and health API |
 | `src/core-api.tests/` | xUnit tests for the catalog API, over the real request pipeline |
 | `src/workflow-api/` | .NET 10 workflow API: session, client directory, case workspace, document upload sessions |
@@ -32,13 +38,15 @@ fails the build.
 | `src/functions/` | Durable Functions catalog-acquisition skeleton |
 | `tools/` | `validate_foundation.py`, the dependency-free contract and interlock validator |
 | `azure.yaml` | AZD service definitions |
-| `wiki/` | Wiki pages staged for publication — see [Documentation](#documentation) |
+| `docs/` | Runbooks, planning, the shared design specification, and architecture diagrams; `docs/wiki/` is the source of the [documentation site](#documentation) |
 
 ## Requirements
 
 - Python 3.13
 - .NET 10 SDK
-- Azure CLI with the Bicep extension
+- Terraform 1.5 or later
+- Google Cloud CLI (`gcloud`)
+- Azure CLI with the Bicep extension, for the superseded Azure scaffold
 - Docker, to build the service images
 
 ## Quick start
@@ -77,8 +85,8 @@ compiled and reviewed but cannot create a resource.
 
 `.env.example` is the checklist of those variables, ready to copy into an AZD environment. It is
 tracked, so it carries names and comments only — never a value. Each configuration input, its
-expected format, owning role, and consuming component is documented on the wiki's **Configuration
-Contract** page.
+expected format, owning role, and consuming component is documented on the
+[Configuration Contract](https://hybridcloudworks.github.io/PEN-lapluma_infra/Configuration-Contract.html) page.
 
 ## Repository conventions
 
@@ -87,7 +95,7 @@ Contract** page.
   scans for several of these classes on every CI run.
 - Managed identity is the default for workload access. If a dependency genuinely cannot use it,
   record the secret's purpose, owner, rotation interval, destination store, and consumer on the
-  Configuration Contract wiki page — never its value.
+  [Configuration Contract](https://hybridcloudworks.github.io/PEN-lapluma_infra/Configuration-Contract.html) page — never its value.
 - Documentation belongs in exactly one place. See [Documentation](#documentation).
 - Dot-prefixed folders hold configuration only, never documentation.
 
@@ -98,26 +106,23 @@ Contract** page.
 | `README.md` | This file: repository purpose, setup, and navigation |
 | [`CHANGELOG.md`](CHANGELOG.md) | Completed work |
 | [`REVIEW.md`](REVIEW.md) | Blockers only a human decision, approval, or access grant can clear |
-| [GitHub Work Board](https://github.com/orgs/HybridCloudWorks/projects/4) | The engineering work queue |
-| [GitHub Wiki](https://github.com/HybridCloudWorks/PEN-lapluma_infra/wiki) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record, decision records, operational runbooks |
+| Private LaPluma project boards | The engineering work queue (private; not visible to the public) |
+| [Documentation site](https://hybridcloudworks.github.io/PEN-lapluma_infra/) | Architecture, deployment plan, configuration contract, security policy, pilot gates, research record, decision records, operational runbooks |
 | [`docs/runbooks/`](docs/runbooks/) | Operational runbooks including Staging Environment Power & Cost Management |
 
-The `wiki/` directory holds those pages as files, ready to publish. They are staged rather than
-published because the wiki is a separate Git repository for access-control purposes: it is
-world-readable, but pushing to it needs a credential the automation that prepared the pages cannot
-be granted (tracked as `R-17` in `REVIEW.md`). A maintainer publishes them with a clone, a copy,
-and a push. Once the pages render, `wiki/` is deleted — see `TODO.md` item **6.1**.
+The documentation site is built from `docs/wiki/` by `.github/workflows/pages.yml` on every push to
+`main` that changes it. Edit the pages there through a pull request, not on the site.
 
-The classification rules that decide where a new document goes are on the wiki's **Documentation
-Standards** page.
+The classification rules that decide where a new document goes are on the
+[Documentation Standards](https://hybridcloudworks.github.io/PEN-lapluma_infra/Documentation-Standards.html) page.
 
 Repository metadata lives outside that model, because GitHub reads it from fixed locations:
 [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) (how to pick up work and what review looks
 for), [`.github/SECURITY.md`](.github/SECURITY.md) (how to report a vulnerability privately),
 `.github/pull_request_template.md`, and `.github/dependabot.yml`. They sit under `.github/` rather
-than the repository root so the root keeps the four markdown files the Documentation Standards
+than the repository root so the root keeps the three markdown files the Documentation Standards
 allow.
 
 ## Licence
 
-[Apache License 2.0](LICENSE). Copyright 2026 HybridCloudWorks; see [`NOTICE`](NOTICE).
+All rights reserved. See [LICENSE](LICENSE).

@@ -1,7 +1,8 @@
 # Changelog
 
-Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human decision live in
-`REVIEW.md`.
+Completed work only. Planned work lives on the private LaPluma project boards; blockers awaiting a
+human decision live in `REVIEW.md`. Older entries cite "backlog item" numbers from the former
+`TODO.md`.
 
 ## Unreleased
 
@@ -32,7 +33,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   relay endpoints are deliberately not mapped at all pending their own security review. The
   store is an explicitly named in-memory fixture — `Workflow:Source` has no default, so a
   deployment that fails to name one refuses to start. ADR 0007 records why this is a second
-  core-zone service rather than a Core API extension or a new zone; `TODO.md` 5.8 and 5.9 carry
+  core-zone service rather than a Core API extension or a new zone; backlog items 5.8 and 5.9 carry
   the durable store and the live-fire work.
 
 - **The workflow contracts are adopted into `contracts/openapi/`.** `workforce-workflow.yaml` is a
@@ -58,6 +59,17 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 ### Changed
 
+- **The wiki pages publish as a documentation site.** The staged `wiki/` pages moved to
+  `docs/wiki/`, with wiki-style links converted to relative `.md` links, and
+  `.github/workflows/pages.yml` publishes them to GitHub Pages. The tools that read those pages
+  follow the new path. Wiki write access (`REVIEW.md` **R-17**) is no longer needed.
+- **Licence: all rights reserved.** `LICENSE` replaces the Apache License 2.0, and `NOTICE`, which
+  carried no third-party attributions, is removed.
+- **Related Dependabot bumps arrive together.** The four .NET projects share one grouped
+  configuration, and the CodeQL sub-actions move as one pull request.
+- **The README describes the GCP platform.** It now names the dev deployment, the Terraform
+  layout and its requirements, and points to the private project boards in place of `TODO.md`.
+
 - **The progress-language invariant is enforced instead of assumed.** The app's architecture
   handoff prohibits percentages and completion scores on every surface, and the DevSecOps invariant
   gate lists "percentage key present" among the failures whose override authority is *none* — an
@@ -76,7 +88,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
   Each half carries a test that plants a percentage and proves the check fails — the lesson the
   image-scan gate taught this repository, where a gate that could never fire looked exactly like
-  protection. This is the slice of `TODO.md` **3.2** that needed neither a provisioned environment
+  protection. This is the slice of backlog item **3.2** that needed neither a provisioned environment
   nor **R-06**; the authorization-boundary invariants are recorded there as still gated.
 
 - **The navigational and architectural documentation caught up with the Workflow API, and the
@@ -88,7 +100,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   upload grant; the Configuration Contract documents the `Workflow__*` settings, and the `Catalog__*`
   settings it had always omitted, on a page that promises every non-secret configuration input.
 
-  The drifted counts: `REVIEW.md` **R-17** and `TODO.md` **6.1** described fifteen staged wiki pages
+  The drifted counts: `REVIEW.md` **R-17** and backlog item **6.1** described fifteen staged wiki pages
   and five architecture decision records when the directory holds twenty-two and seven.
   `infra/modules/compute.bicep`'s header still described the three-service `azure.yaml` it was
   written against and said nothing about why two apps now share the core environment.
@@ -136,7 +148,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   East US 2 on 2026-08-02 and has not been re-checked. There is currently no region evidence behind
   the templates at all — only an assumption carried over from a region the pilot is no longer
   deploying to. R-03's capability check also gained a row for availability zones, since the
-  resilience settings under `TODO.md` 3.1 assume they exist.
+  resilience settings under backlog item 3.1 assume they exist.
 
 - **Three deployment decisions recorded that do not depend on knowing the tenant or subscription.**
   All three environments share **one subscription**, separated by resource group, which is what
@@ -181,7 +193,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
   The address plan is `10.42.0.0/16` with the five existing subnets unchanged and a sixth,
   `snet-apim` at `10.42.8.0/24`, reserved for the API Management edge with its own NSG and a
-  `apimSubnetId` output. That is the half of `TODO.md` 1.1 the address decision was blocking; the
+  `apimSubnetId` output. That is the half of backlog item 1.1 the address decision was blocking; the
   resource itself still needs R-03, R-06 and R-07. The subnet's delegation is deliberately unset,
   because API Management's v2 tiers integrate through a delegated subnet and the classic tiers in
   internal mode do not — and unlike `snet-functions`, this subnet is empty, so the value can be set
@@ -197,7 +209,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   Firewall: with four subnets needing nothing and one needing four hosts, it would add a continuously
   billing resource and a second policy surface to express a list the NSGs already hold.
 
-  The functions row cannot be implemented as approved, and `TODO.md` 2.2 now records why rather than
+  The functions row cannot be implemented as approved, and backlog item 2.2 now records why rather than
   leaving it to be rediscovered: **NSG rules match IP prefixes and service tags, not hostnames.** The
   four authority publication hosts are CDN-backed, so their ranges change and cannot be pinned in a
   rule. Nothing needs that egress today — the acquisition adapter performs no upstream fetch — so the
@@ -303,7 +315,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   Dockerfile builds on `dotnet/sdk:10.0` and runs on `dotnet/aspnet:10.0`, and CI installs the
   10.0.x SDK. .NET 9 is a Standard Term Support release whose support window has closed; .NET 10 is
   the current Long Term Support release, which suits a pilot that must stay patchable. The README,
-  `TODO.md` item 5.1, and the Architecture Overview and Azure Deployment Plan wiki pages were
+  backlog item 5.1, and the Architecture Overview and Azure Deployment Plan wiki pages were
   updated to match, so the stated stack and the built stack agree.
 - Pinned all three container base images by digest: `mcr.microsoft.com/dotnet/sdk:10.0` and
   `mcr.microsoft.com/dotnet/aspnet:10.0` in `src/core-api/Dockerfile`, and `python:3.12-slim` in
@@ -312,7 +324,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - Removed the `main` and `codex/**` branch filter from the foundation validation workflow's `push`
   trigger, so every branch gets push validation rather than only two prefixes.
 - Consolidated repository documentation into a single model: `README.md` for repository purpose,
-  `CHANGELOG.md` for completed work, `REVIEW.md` for human-resolvable blockers, `TODO.md` for the
+  `CHANGELOG.md` for completed work, `REVIEW.md` for human-resolvable blockers, `TODO.md` (now the private LaPluma project boards) for the
   engineering work queue, and the GitHub Wiki for everything else.
 - Rewrote `README.md` so it covers only repository purpose, layout, requirements, quick start,
   configuration overview, conventions, and navigation.
@@ -439,7 +451,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   identifiers, content-free telemetry, no processing-zone database route, no automated activation,
   `enableProvisioning` still `false`, and new dependencies pinned. `.github/SECURITY.md` routes
   reports to GitHub's private advisory flow and names the guarantee classes worth reporting, while
-  scoping out the gaps `REVIEW.md` and `TODO.md` already track. `.github/CONTRIBUTING.md` covers
+  scoping out the gaps `REVIEW.md` and the backlog already track. `.github/CONTRIBUTING.md` covers
   where work is tracked, the commands CI runs, and the two conventions that are easy to miss —
   verify a fix by breaking it, and record a finding rather than absorbing it into the current
   change.
@@ -474,7 +486,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
   **None of the SQL or Cosmos code has ever executed a query.** No environment has been provisioned,
   so it compiles, it is reviewed, and that is the whole of the assurance behind it. The types say so
-  in their own documentation, and `TODO.md` 5.2 is now the integration test that will be its first
+  in their own documentation, and backlog item 5.2 is now the integration test that will be its first
   real exercise. What *is* tested is everything that does not need a database: which source a
   configuration selects, that SQL is the default, that a missing server fails at startup, that the
   connection string carries no password and authenticates with Entra, and the whole wire-name map.
@@ -675,7 +687,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   The four parameter groups are named for the decision that gates their values — retention, capacity,
   resilience, messaging — rather than for the module that consumes them, so what unblocks a change is
   visible from the parameter list. The values themselves remain pending `REVIEW.md` **R-03** and
-  **R-11** and `TODO.md` item 3.2, which is now a decision about numbers rather than a code change.
+  **R-11** and backlog item 3.2, which is now a decision about numbers rather than a code change.
 
   Five values deliberately stayed literals, recorded with reasons on the Configuration Contract wiki
   page: blob versioning, Key Vault and HSM purge protection, Cosmos `Session` consistency, the
@@ -888,7 +900,7 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
   Bicep compiles to, plus a weekly schedule so a newly published advisory surfaces without waiting
   for the next commit. Every action is pinned by commit SHA. Both Trivy jobs report to code scanning
   without failing the build until their baseline is triaged; that threshold, and the secret-scanning
-  and push-protection repository settings, remain open under `TODO.md` item **2.5**.
+  and push-protection repository settings, remain open under backlog item **2.5**.
 - `bicepconfig.json`, setting twenty security-relevant linter rules to `error`, including
   `no-hardcoded-location`, `secure-parameter-default`, and `no-unused-params`. The Bicep CI step now
   fails on any diagnostic, so a rule left at warning level cannot pass silently. CI pins the Bicep
@@ -902,7 +914,8 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 - `.env.example`, listing every environment variable `infra/main.parameters.json` substitutes, with
   no values and a short comment each. `tools/validate_foundation.py` now fails if the file drifts
   from the parameter file in either direction, or if any variable is committed carrying a value.
-- `CHANGELOG.md`, `REVIEW.md`, and `TODO.md`.
+- `CHANGELOG.md`, `REVIEW.md`, and `TODO.md` (since retired; open work is now on the private LaPluma
+  project boards).
 - Nine GitHub Wiki pages staged under `wiki/`: an index plus the architecture, deployment plan,
   environment and release path, configuration contract, security policy, pilot and compliance gates,
   Azure research record, and documentation standards migrated out of `.azure/plan.md` and
@@ -912,7 +925,8 @@ Completed work only. Planned work lives in `TODO.md`; blockers awaiting a human 
 
 - `.azure/plan.md`. Documentation does not belong in a dot-prefixed configuration folder, and
   `.azure/` is AZD's own environment directory. Its content was validated against the repository and
-  split across `CHANGELOG.md`, `REVIEW.md`, `TODO.md`, and the staged wiki pages.
+  split across `CHANGELOG.md`, `REVIEW.md`, `TODO.md` (now the private LaPluma project boards), and
+  the staged wiki pages.
 - `IMPLEMENTATION_LEDGER.md`. Its configuration contract moved to the Configuration Contract wiki
   page, its pilot policy values to the Pilot Policy and Compliance Gates wiki page, its
   secret-exclusion policy to the Security and Data Protection wiki page, and its missing decisions

@@ -689,8 +689,8 @@ PYTHON_VERSION_SOURCES = (
     ("infra/main.bicep", re.compile(r"param functionsPythonVersion string = '(\d+\.\d+)'")),
     ("src/document-processing/worker.py", re.compile(r"Python (\d+\.\d+)")),
     ("README.md", re.compile(r"Python (\d+\.\d+)")),
-    ("wiki/Architecture-Overview.md", re.compile(r"Python (\d+\.\d+)")),
-    ("wiki/Azure-Deployment-Plan.md", re.compile(r"Python (\d+\.\d+)")),
+    ("docs/wiki/Architecture-Overview.md", re.compile(r"Python (\d+\.\d+)")),
+    ("docs/wiki/Azure-Deployment-Plan.md", re.compile(r"Python (\d+\.\d+)")),
 )
 
 

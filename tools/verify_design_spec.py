@@ -15,7 +15,7 @@ import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SPEC_PATH = os.path.join(REPO_ROOT, "docs", "design", "shared-design-specification.md")
-ARCH_OVERVIEW_PATH = os.path.join(REPO_ROOT, "wiki", "Architecture-Overview.md")
+ARCH_OVERVIEW_PATH = os.path.join(REPO_ROOT, "docs", "wiki", "Architecture-Overview.md")
 
 
 def srgb_channel_to_linear(c: float) -> float:

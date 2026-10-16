@@ -1,9 +1,13 @@
+---
+title: "Runbook — deletion drill"
+---
+
 # Runbook — deletion drill
 
 > Operational Runbook for GCP Data Deletion and Retention Verification under ADR-019.
 > Its pass criteria are the ratified retention numbers on the
-> [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) page. See
-> [Operational Runbooks](Operational-Runbooks).
+> [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md) page. See
+> [Operational Runbooks](Operational-Runbooks.md).
 
 ## Why this is a drill
 

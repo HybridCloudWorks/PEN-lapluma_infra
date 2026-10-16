@@ -1,6 +1,10 @@
+---
+title: "Runbook — on-call procedure"
+---
+
 # Runbook — on-call procedure
 
-> Draft. Never operated. See [Operational Runbooks](Operational-Runbooks).
+> Draft. Never operated. See [Operational Runbooks](Operational-Runbooks.md).
 
 ## What on-call is for
 
@@ -92,6 +96,6 @@ security owner's approval, and the activation is itself an audit record.
 
 ## Related pages
 
-- [Incident Response](Runbook-Incident-Response)
-- [Restore Drill](Runbook-Restore-Drill)
-- [Deletion Drill](Runbook-Deletion-Drill)
+- [Incident Response](Runbook-Incident-Response.md)
+- [Restore Drill](Runbook-Restore-Drill.md)
+- [Deletion Drill](Runbook-Deletion-Drill.md)

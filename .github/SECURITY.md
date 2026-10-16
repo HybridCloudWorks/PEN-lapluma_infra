@@ -28,8 +28,8 @@ Particularly wanted, because these are the guarantees the design rests on rather
 - Any automated path that activates, approves, signs, or files rather than proposing.
 
 Out of scope: the unbuilt controls already recorded in [`REVIEW.md`](../REVIEW.md) and
-[`TODO.md`](../TODO.md). Those are known and tracked; a report restating one adds nothing. Findings
-about the *tracking* — a gap neither file records — are very much in scope.
+on the private LaPluma project boards. Those are known and tracked; a report restating one adds nothing. Findings
+about the *tracking* — a gap neither records — are very much in scope.
 
 ## Response
 

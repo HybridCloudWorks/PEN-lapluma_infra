@@ -1,3 +1,7 @@
+---
+title: "Environments and release path"
+---
+
 # Environments and release path
 
 ## Environments
@@ -10,7 +14,7 @@
 
 No environment exists today. Environment names, resource naming, tenant, and the specific
 subscription are finalized only after the hard context gate described in the
-[Azure Deployment Plan](Azure-Deployment-Plan) closes.
+[Azure Deployment Plan](Azure-Deployment-Plan.md) closes.
 
 ## Subscription and identity model
 
@@ -36,7 +40,7 @@ change to make.
 
 **Deployment authenticates by federated workload identity.** No client secret is stored in the
 repository, in Actions secrets, or anywhere else. See
-[ADR 0006](ADR-0006-Federated-deployment-identity).
+[ADR 0006](ADR-0006-Federated-deployment-identity.md).
 
 ## Data classification
 
@@ -84,7 +88,7 @@ be `false`, the `@allowed` list must reject a `true` override, and the parameter
 
 Unlocking provisioning is a reviewed code change, not a parameter change, and it may not be proposed
 until the missing private connectivity, workload hosts, RBAC, encryption bindings, diagnostics, and
-lifecycle controls are implemented. That work is tracked in `TODO.md`; the approvals that must
+lifecycle controls are implemented. That work is tracked on the private LaPluma project boards; the approvals that must
 precede it are tracked in `REVIEW.md`.
 
 ## Release path
@@ -101,7 +105,7 @@ precede it are tracked in `REVIEW.md`.
 7. Obtain separate explicit deployment approval, then run `azure-deploy` against `dev`, then
    `staging`.
 8. Create `pilot` only after every real-data gate in
-   [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates) has passed.
+   [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md) has passed.
 
 ## Resource tagging
 
@@ -123,6 +127,6 @@ Storage accounts additionally carry a `purpose` tag of `quarantine`, `documents`
 
 ## Related pages
 
-- [Azure Deployment Plan](Azure-Deployment-Plan)
-- [Configuration Contract](Configuration-Contract)
-- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates)
+- [Azure Deployment Plan](Azure-Deployment-Plan.md)
+- [Configuration Contract](Configuration-Contract.md)
+- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md)

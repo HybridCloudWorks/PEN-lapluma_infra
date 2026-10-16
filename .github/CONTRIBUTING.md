@@ -2,13 +2,14 @@
 
 ## Where work is tracked
 
-Pick up work from [`TODO.md`](../TODO.md) — the authoritative backlog, in dependency order. Anything
+Pick up work from the private LaPluma project boards — the authoritative backlog (formerly `TODO.md`). Anything
 needing a human decision, approval, credential, or access grant is in [`REVIEW.md`](../REVIEW.md)
 instead, referenced by ID (`R-nn`) where it gates an item. Completed work is recorded in
-[`CHANGELOG.md`](../CHANGELOG.md); a completed `TODO.md` item is deleted rather than marked done.
+[`CHANGELOG.md`](../CHANGELOG.md); a completed board item is closed rather than left open.
 
 Everything else — architecture, deployment plan, configuration contract, security policy, pilot
-gates — lives on the wiki. The rules deciding where a new document goes are on its **Documentation
+gates — lives on the [documentation site](https://hybridcloudworks.github.io/PEN-lapluma_infra/),
+built from `docs/wiki/`. The rules deciding where a new document goes are on its **Documentation
 Standards** page. Do not add markdown files to the repository root or to `.github/` beyond the ones
 already there.
 
@@ -48,5 +49,5 @@ mutation actually landed — two harnesses in this repository's history passed v
 string they patched was not in the file.
 
 **Record what you find, don't absorb it.** Noticing a second problem while fixing the first is
-normal. Add it to `TODO.md` with the evidence rather than widening the change, so the diff stays
+normal. Add it to the project boards with the evidence rather than widening the change, so the diff stays
 reviewable and the finding survives whether or not you fix it.

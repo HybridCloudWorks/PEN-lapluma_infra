@@ -2,7 +2,7 @@
 --
 -- The authoritative relational store behind ICatalogSource. Applied by a migration step that does
 -- not exist yet: nothing has provisioned a database, so this file has never been executed. It is
--- reviewed source, not proven source — see TODO.md.
+-- reviewed source, not proven source — tracked on the private LaPluma project boards.
 --
 -- Shape follows contracts/catalog.openapi.json, which is the contract both this and the iOS client
 -- are held to. Where the two could drift, the contract wins.

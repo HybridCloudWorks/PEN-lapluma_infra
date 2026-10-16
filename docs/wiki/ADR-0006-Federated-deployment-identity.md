@@ -1,3 +1,7 @@
+---
+title: "ADR 0006 — Federated deployment identity, no stored secret"
+---
+
 # ADR 0006 — Federated deployment identity, no stored secret
 
 ## Status
@@ -74,8 +78,8 @@ migrated later — migrations of this kind tend to leave the secret in place "te
 
 ## References
 
-- [Environments and Release Path](Environments-and-Release-Path) — subscription and identity model
-- [Security and Data Protection](Security-and-Data-Protection) — secret-handling policy
+- [Environments and Release Path](Environments-and-Release-Path.md) — subscription and identity model
+- [Security and Data Protection](Security-and-Data-Protection.md) — secret-handling policy
 - `REVIEW.md` R-01 and R-02 (tenant, subscription, authorization), R-04 (approval owners),
   R-18 (secret scanning and push protection)
 - `tools/validate_foundation.py` — the credential-shape scan this decision has to satisfy

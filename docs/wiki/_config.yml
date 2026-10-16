@@ -1,0 +1,12 @@
+title: LaPluma infrastructure
+description: "LaPluma backend: .NET 10 APIs, Python document worker, GCP Terraform (Cloud Run, Cloud SQL), and API contracts shared with the iOS app. Pre-release."
+remote_theme: just-the-docs/just-the-docs@v0.10.1
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+  collections: false
+search_enabled: true
+aux_links:
+  "View on GitHub": "https://github.com/HybridCloudWorks/PEN-lapluma_infra"

@@ -1,3 +1,7 @@
+---
+title: "Azure deployment plan"
+---
+
 # Azure deployment plan
 
 **Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
@@ -7,7 +11,7 @@ Planning source recorded 2026-08-02, migrated from the repository on 2026-08-07.
 
 This page describes the **plan and the process**. It deliberately carries no task checkboxes and no
 status columns: completed work is recorded in `CHANGELOG.md`, remaining engineering work in
-`TODO.md`, and decisions that require a human owner in `REVIEW.md`.
+the private LaPluma project boards, and decisions that require a human owner in `REVIEW.md`.
 
 ## Goal
 
@@ -44,7 +48,7 @@ shared with the iOS repository is `contracts/catalog-package-compatibility.json`
 | Application stack | .NET 10 core services; Python 3.13 document-processing workers; Azure Functions and Durable Functions for event and scheduled orchestration |
 
 The governing constraints that shape every one of these choices are documented in
-[Security and Data Protection](Security-and-Data-Protection).
+[Security and Data Protection](Security-and-Data-Protection.md).
 
 ## Hard context gate
 
@@ -150,11 +154,11 @@ The `lapluma-infra-0.0` foundation generated on 2026-08-02 consists of:
 What the foundation intentionally does **not** yet model — Container Apps environments and apps,
 Functions hosting, API Management, Container Registry, Document Intelligence, private endpoints and
 private DNS, RBAC assignments, customer-managed-key bindings, diagnostic settings, and protected
-deployment environments — is tracked as engineering work in `TODO.md`.
+deployment environments — is tracked as engineering work on the private LaPluma project boards.
 
 ## Related pages
 
-- [Architecture Overview](Architecture-Overview)
-- [Environments and Release Path](Environments-and-Release-Path)
-- [Configuration Contract](Configuration-Contract)
-- [Azure Component Research Record](Azure-Component-Research-Record)
+- [Architecture Overview](Architecture-Overview.md)
+- [Environments and Release Path](Environments-and-Release-Path.md)
+- [Configuration Contract](Configuration-Contract.md)
+- [Azure Component Research Record](Azure-Component-Research-Record.md)

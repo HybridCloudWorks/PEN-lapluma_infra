@@ -1,3 +1,7 @@
+---
+title: "Security and data protection"
+---
+
 # Security and data protection
 
 **Approved target update (2026-09-13):** [Lean GCP and Document Library](GCP-Document-Library-Decision.md) supersedes conflicting Azure service, HSM/CMEK, dual-database, premium-messaging and private-network-only transfer assumptions below. Historical scaffold details remain for migration traceability; unchanged trust and approval boundaries still apply.
@@ -46,7 +50,7 @@ not negotiable against cost or schedule.
 
 Controls that are specified but **not yet implemented** — private endpoints and private DNS, RBAC
 role assignments, customer-managed-key bindings, diagnostic settings, egress control beyond the NSG
-rule, and Azure Monitor Private Link Scope — are tracked in `TODO.md`.
+rule, and Azure Monitor Private Link Scope — are tracked on the private LaPluma project boards.
 
 ## Secret values deliberately excluded
 
@@ -61,7 +65,7 @@ environment file committed to Git, a build log, or a deployment output:
 
 When a required secret cannot be replaced by managed identity, document only its purpose, owner,
 rotation interval, destination secret store, and consuming workload — never its value. Record it in
-[Configuration Contract](Configuration-Contract).
+[Configuration Contract](Configuration-Contract.md).
 
 ## Ratified network plan
 
@@ -128,6 +132,6 @@ is documented in one place.
 
 ## Related pages
 
-- [Architecture Overview](Architecture-Overview)
-- [Configuration Contract](Configuration-Contract)
-- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates)
+- [Architecture Overview](Architecture-Overview.md)
+- [Configuration Contract](Configuration-Contract.md)
+- [Pilot Policy and Compliance Gates](Pilot-Policy-and-Compliance-Gates.md)

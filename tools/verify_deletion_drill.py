@@ -19,7 +19,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 STORAGE_TF = ROOT / "infra" / "terraform" / "modules" / "storage" / "main.tf"
 WORKFLOW_SQL = ROOT / "infra" / "sql" / "002_workflow_persistence_schema.sql"
-RUNBOOK_MD = ROOT / "wiki" / "Runbook-Deletion-Drill.md"
+RUNBOOK_MD = ROOT / "docs" / "wiki" / "Runbook-Deletion-Drill.md"
 WORKFLOW_API_CS = ROOT / "src" / "workflow-api" / "Program.cs"
 
 ERASURE_SLA_DAYS = 30

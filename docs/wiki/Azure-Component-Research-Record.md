@@ -1,3 +1,7 @@
+---
+title: "Azure component research record"
+---
+
 # Azure component research record
 
 Research completed on 2026-08-02, before the `lapluma-infra-0.0` foundation was generated. It is
@@ -78,6 +82,6 @@ gate before any live deployment, and the region change makes it more load-bearin
 
 ## Related pages
 
-- [Azure Deployment Plan](Azure-Deployment-Plan)
-- [Architecture Overview](Architecture-Overview)
-- [Configuration Contract](Configuration-Contract)
+- [Azure Deployment Plan](Azure-Deployment-Plan.md)
+- [Architecture Overview](Architecture-Overview.md)
+- [Configuration Contract](Configuration-Contract.md)

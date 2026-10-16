@@ -1,3 +1,7 @@
+---
+title: "ADR 0001 — AZD and Bicep over Terraform"
+---
+
 # ADR 0001 — AZD and Bicep over Terraform
 
 ## Status
@@ -71,6 +75,6 @@ is the point at which a second cloud or a significant third-party provider enter
 
 ## References
 
-- [Azure Component Research Record](Azure-Component-Research-Record) — AZD and Bicep section
-- [Environments and Release Path](Environments-and-Release-Path) — the provisioning interlock
+- [Azure Component Research Record](Azure-Component-Research-Record.md) — AZD and Bicep section
+- [Environments and Release Path](Environments-and-Release-Path.md) — the provisioning interlock
 - `infra/main.bicep`, `bicepconfig.json`, `tools/validate_foundation.py`

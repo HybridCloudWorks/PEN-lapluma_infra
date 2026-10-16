@@ -77,7 +77,8 @@ created without an image, and the registry is empty at provision time.
 
 This default is a public image, which the processing zone cannot pull: its NSG denies Internet
 egress, by design. That zone's first deployment therefore needs the registry seeded first, or the
-app created and then updated. The interlock keeps that theoretical for now — see TODO.md.
+app created and then updated. The interlock keeps that theoretical for now — tracked on the
+private LaPluma project boards.
 ''')
 @minLength(1)
 param placeholderImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
@@ -196,7 +197,7 @@ resource coreApi 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: coreEnvironment.id
     configuration: {
       // Internal only. Nothing publishes this to the internet; the edge is APIM's job and APIM is
-      // not modelled yet — see TODO.md.
+      // not modelled yet — tracked on the private LaPluma project boards.
       ingress: {
         external: false
         targetPort: 8080

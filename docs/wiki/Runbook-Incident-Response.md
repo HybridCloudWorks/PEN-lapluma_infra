@@ -1,7 +1,11 @@
+---
+title: "Runbook — incident response"
+---
+
 # Runbook — incident response
 
 > Draft. No step here has been executed against a live environment. See
-> [Operational Runbooks](Operational-Runbooks).
+> [Operational Runbooks](Operational-Runbooks.md).
 
 ## Scope
 
@@ -19,7 +23,7 @@ incident is best defined as a violation of one of them rather than as "something
 | No secret is held outside a managed identity | Any credential, key, or connection string in configuration, logs, or source |
 
 Service degradation that violates none of these is an operational issue, handled under
-[On-Call Procedure](Runbook-On-Call-Procedure). Treating every slow request as an incident is how
+[On-Call Procedure](Runbook-On-Call-Procedure.md). Treating every slow request as an incident is how
 incident response stops meaning anything.
 
 ## Severity
@@ -42,7 +46,7 @@ containment is cheapest.
 Signals to check, in order of how directly each maps to a guarantee:
 
 1. **Diagnostic settings.** Every resource routes `allLogs` to the Log Analytics workspace
-   (`TODO.md` 3.1). NSG flow denies from the processing subnet, SQL audit events, Key Vault and
+   (backlog item 3.1, private LaPluma project boards). NSG flow denies from the processing subnet, SQL audit events, Key Vault and
    Managed HSM access events, and Service Bus operational logs are the highest-signal sources.
 2. **Application Insights failures and dependency failures** on the Core API and the workers.
 3. **Dead-letter depth** on the `domain-events` subscriptions. A sudden rise means messages are
@@ -60,7 +64,7 @@ az monitor log-analytics query \
 ```
 
 If an investigation appears to need case content to proceed, stop. That is a finding about the
-telemetry design — record it in `TODO.md` and escalate to the privacy owner. Do not fetch the
+telemetry design — record it on the project boards and escalate to the privacy owner. Do not fetch the
 content to close the gap.
 
 ## Contain
@@ -112,7 +116,7 @@ Closure needs, for Sev 1 and Sev 2:
 - A written timeline: detection, containment, remediation, closure.
 - The guarantee that was violated, and whether real participant data was involved.
 - The control that should have prevented it, and why it did not.
-- A `TODO.md` item for the check that would have caught it, filed even if it is also fixed in the
+- A project-board item for the check that would have caught it, filed even if it is also fixed in the
   same change — the record is what makes the gap visible later.
 - Privacy owner sign-off where participant data was involved, including whether the participant
   notice obliges a disclosure.
@@ -131,6 +135,6 @@ this runbook cannot be executed — which is what makes R-04 a blocker rather th
 
 ## Related pages
 
-- [On-Call Procedure](Runbook-On-Call-Procedure)
-- [Security and Data Protection](Security-and-Data-Protection)
-- [ADR 0002](ADR-0002-Three-Container-Apps-environments) — the zone isolation being defended
+- [On-Call Procedure](Runbook-On-Call-Procedure.md)
+- [Security and Data Protection](Security-and-Data-Protection.md)
+- [ADR 0002](ADR-0002-Three-Container-Apps-environments.md) — the zone isolation being defended

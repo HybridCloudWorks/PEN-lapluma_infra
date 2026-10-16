@@ -1,3 +1,7 @@
+---
+title: "LaPluma lean GCP cost model — planning estimate"
+---
+
 # LaPluma lean GCP cost model — planning estimate
 
 Prepared 2026-09-13. USD/month. Public usage rates were checked against the linked Google pricing pages. Infrastructure amounts below are engineering budget allowances, not SKU-by-SKU quotes, billing observations or deployment validation. No trial credits, commitments or negotiated discounts are assumed.

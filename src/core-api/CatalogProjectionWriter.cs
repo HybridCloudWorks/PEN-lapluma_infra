@@ -14,7 +14,8 @@ namespace LaPluma.CoreApi;
 /// the design has drifted.
 ///
 /// **This code has never written a document.** No environment has been provisioned, so it compiles
-/// and is reviewed and that is all. `TODO.md` carries the integration test.
+/// and is reviewed and that is all. The private LaPluma project boards carry the integration
+/// test.
 /// </summary>
 public sealed class CatalogProjectionWriter(Container container, TimeProvider clock)
 {
