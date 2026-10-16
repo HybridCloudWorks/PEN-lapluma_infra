@@ -116,13 +116,14 @@ class TestMigrationRunner(unittest.TestCase):
         self.assertIn("Migration 001: document_library_schema", bundle)
         self.assertIn("Migration 005: database_roles_and_permissions", bundle)
         self.assertIn("Migration 006: saml_idp_configurations", bundle)
+        self.assertIn("Migration 007: drop_placeholder_saml_idp_configurations", bundle)
         self.assertIn("INSERT INTO public.schema_migrations", bundle)
 
     def test_plan_output(self) -> None:
         plan_data = self.runner.plan(applied_versions={"001", "002"})
-        self.assertEqual(plan_data["totalMigrations"], 6)
+        self.assertEqual(plan_data["totalMigrations"], 7)
         self.assertEqual(plan_data["appliedCount"], 2)
-        self.assertEqual(plan_data["pendingCount"], 4)
+        self.assertEqual(plan_data["pendingCount"], 5)
         self.assertEqual(plan_data["migrations"][0]["status"], "APPLIED")
         self.assertEqual(plan_data["migrations"][1]["status"], "APPLIED")
         self.assertEqual(plan_data["migrations"][2]["status"], "PENDING")
@@ -137,7 +138,7 @@ class TestMigrationRunner(unittest.TestCase):
         try:
             self.assertEqual(main(["plan", "-o", str(plan_path)]), 0)
             data = json.loads(plan_path.read_text(encoding="utf-8"))
-            self.assertEqual(data["totalMigrations"], 6)
+            self.assertEqual(data["totalMigrations"], 7)
         finally:
             plan_path.unlink(missing_ok=True)
 
