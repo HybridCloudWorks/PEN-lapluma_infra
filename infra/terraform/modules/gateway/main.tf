@@ -35,7 +35,8 @@ produces:
   - "application/json"
 # Every operation requires a LaPluma session token (an RS256 JWT minted by the core API after a
 # verified SAML sign-in) unless it opts out with `security: []`. Only health, readiness, the
-# public signing keys, and the SAML endpoints a caller uses before holding a token opt out.
+# public signing keys, and the sign-in endpoints a caller uses before holding a token opt out:
+# the three SAML endpoints and the code-for-token exchange at /auth/token.
 securityDefinitions:
   lapluma_session:
     authorizationUrl: ""
@@ -147,13 +148,33 @@ paths:
           in: "query"
           required: false
           type: "string"
+        - name: "redirect_uri"
+          in: "query"
+          required: true
+          type: "string"
+        - name: "code_challenge"
+          in: "query"
+          required: true
+          type: "string"
+        - name: "code_challenge_method"
+          in: "query"
+          required: true
+          type: "string"
+        - name: "state"
+          in: "query"
+          required: true
+          type: "string"
       x-google-backend:
         address: "${var.core_api_url}/auth/saml/login"
         jwt_audience: "${var.core_api_url}"
         path_translation: CONSTANT_ADDRESS
       responses:
         '302':
-          description: "Redirect"
+          description: "Redirect to the IdP with SAMLRequest and RelayState"
+        '400':
+          description: "Bad Request"
+        '503':
+          description: "Sign-in Not Configured"
   /auth/saml/acs/{tenantId}:
     post:
       summary: "SAML Assertion Consumer Service"
@@ -169,12 +190,28 @@ paths:
         jwt_audience: "${var.core_api_url}"
         path_translation: APPEND_PATH_TO_ADDRESS
       responses:
-        '200':
-          description: "Token Response"
+        '302':
+          description: "Redirect to the app with a one-time code, or with error=access_denied"
         '400':
           description: "Bad Request"
-        '403':
-          description: "Unauthorized"
+        '503':
+          description: "Sign-in Not Configured"
+  /auth/token:
+    post:
+      summary: "Sign-in Code Exchange"
+      operationId: "authToken"
+      security: []
+      x-google-backend:
+        address: "${var.core_api_url}/auth/token"
+        jwt_audience: "${var.core_api_url}"
+        path_translation: CONSTANT_ADDRESS
+      responses:
+        '200':
+          description: "Session Token"
+        '400':
+          description: "Bad Request"
+        '503':
+          description: "Sign-in Not Configured"
   /v1/catalog/categories:
     get:
       summary: "Catalog Categories"

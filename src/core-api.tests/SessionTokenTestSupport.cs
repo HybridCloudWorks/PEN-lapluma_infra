@@ -1,12 +1,19 @@
+using System.IO.Compression;
+using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Xml;
 using LaPluma.CoreApi.Auth;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using Xunit;
 
 namespace LaPluma.CoreApi.Tests;
 
@@ -17,28 +24,125 @@ namespace LaPluma.CoreApi.Tests;
 /// </summary>
 public sealed class SessionTokenFactory : WebApplicationFactory<global::Program>
 {
+    public const string RedirectUri = SignInFlow.DefaultRedirectUri;
+
     internal TestIdentityProvider IdentityProvider { get; } = new();
 
     internal RSA SigningKey { get; } = RSA.Create(2048);
+
+    /// <summary>The service's clock. Real time unless a test moves it forward.</summary>
+    internal MovableClock Clock { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder) =>
         builder.WithFixtureCatalog()
             .WithAuthenticationConfigured()
             .UseSetting(SessionTokenKeys.SigningKeySetting, SigningKey.ExportPkcs8PrivateKeyPem())
-            .UseSetting(SamlServiceProvider.IdentityProvidersSetting, IdentityProvider.IdentityProvidersJson());
+            .UseSetting(SamlServiceProvider.IdentityProvidersSetting, IdentityProvider.IdentityProvidersJson())
+            .ConfigureTestServices(services => services.AddSingleton<TimeProvider>(Clock));
 
-    /// <summary>Signs in through the assertion consumer service and returns the session token.</summary>
-    internal async Task<string> SignInAsync(HttpClient client, AssertionSpec? spec = null)
+    /// <summary>A client that reports redirects instead of following them, as the sign-in steps need.</summary>
+    internal HttpClient CreateSignInClient() =>
+        CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+    /// <summary>
+    /// The whole native-app sign-in: start at /auth/saml/login, answer the AuthnRequest with a
+    /// signed assertion, follow the 302 back with the code, and redeem it with the verifier.
+    /// </summary>
+    internal async Task<string> SignInAsync(AssertionSpec? spec = null)
     {
-        var response = await client.PostAsync(
-            $"/auth/saml/acs/{TestIdentityProvider.TenantId}",
-            new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["SAMLResponse"] = TestIdentityProvider.Base64(IdentityProvider.SignedResponse(spec ?? new AssertionSpec())),
-            }));
+        using var client = CreateSignInClient();
+        var started = await StartSignInAsync(client);
+        var callback = await CompleteSignInAsync(client, started, spec);
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        var code = QueryHelpers.ParseQuery(callback.Headers.Location!.Query)["code"].ToString();
+
+        var response = await RedeemAsync(client, code, started.Pkce.Verifier);
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         return body.GetProperty("accessToken").GetString()!;
+    }
+
+    /// <summary>Starts a sign-in and reads back what the IdP would receive.</summary>
+    internal static async Task<StartedSignIn> StartSignInAsync(
+        HttpClient client, PkcePair? pkce = null, string? state = null, string redirectUri = RedirectUri)
+    {
+        pkce ??= PkcePair.Create();
+        state ??= WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(24));
+        var response = await client.GetAsync(LoginUrl(redirectUri, pkce.Challenge, "S256", state));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        var query = QueryHelpers.ParseQuery(response.Headers.Location!.Query);
+        var request = new XmlDocument { XmlResolver = null };
+        request.LoadXml(RawInflate(Convert.FromBase64String(query["SAMLRequest"].ToString())));
+        return new StartedSignIn(
+            RequestId: request.DocumentElement!.GetAttribute("ID"),
+            RelayState: query["RelayState"].ToString(),
+            State: state,
+            Pkce: pkce,
+            RedirectUri: redirectUri);
+    }
+
+    internal static string LoginUrl(string? redirectUri, string? challenge, string? method, string? state)
+    {
+        var query = new Dictionary<string, string?> { ["domain"] = "hybridcloudworks.com" };
+        if (redirectUri is not null) query["redirect_uri"] = redirectUri;
+        if (challenge is not null) query["code_challenge"] = challenge;
+        if (method is not null) query["code_challenge_method"] = method;
+        if (state is not null) query["state"] = state;
+        return QueryHelpers.AddQueryString("/auth/saml/login", query);
+    }
+
+    /// <summary>
+    /// Posts a signed assertion that answers <paramref name="started"/>'s AuthnRequest unless
+    /// <paramref name="spec"/> says otherwise, with its RelayState unless one is given.
+    /// </summary>
+    internal Task<HttpResponseMessage> CompleteSignInAsync(
+        HttpClient client,
+        StartedSignIn started,
+        AssertionSpec? spec = null,
+        string? relayState = null,
+        string tenantId = TestIdentityProvider.TenantId,
+        bool signed = true)
+    {
+        spec ??= new AssertionSpec();
+        if (spec.InResponseTo is null)
+        {
+            spec = spec with { InResponseTo = started.RequestId };
+        }
+
+        var response = signed ? IdentityProvider.SignedResponse(spec) : TestIdentityProvider.UnsignedResponse(spec);
+        return PostAssertionAsync(client, response, relayState ?? started.RelayState, tenantId);
+    }
+
+    internal static Task<HttpResponseMessage> PostAssertionAsync(
+        HttpClient client, string responseXml, string? relayState, string tenantId = TestIdentityProvider.TenantId)
+    {
+        var fields = new Dictionary<string, string> { ["SAMLResponse"] = TestIdentityProvider.Base64(responseXml) };
+        if (relayState is not null)
+        {
+            fields["RelayState"] = relayState;
+        }
+
+        return client.PostAsync($"/auth/saml/acs/{tenantId}", new FormUrlEncodedContent(fields));
+    }
+
+    internal static Task<HttpResponseMessage> RedeemAsync(
+        HttpClient client, string? code, string? verifier, string? redirectUri = RedirectUri, string? grantType = "authorization_code")
+    {
+        var fields = new Dictionary<string, string>();
+        if (grantType is not null) fields["grant_type"] = grantType;
+        if (code is not null) fields["code"] = code;
+        if (verifier is not null) fields["code_verifier"] = verifier;
+        if (redirectUri is not null) fields["redirect_uri"] = redirectUri;
+        return client.PostAsync("/auth/token", new FormUrlEncodedContent(fields));
+    }
+
+    private static string RawInflate(byte[] compressed)
+    {
+        using var input = new MemoryStream(compressed);
+        using var deflate = new DeflateStream(input, CompressionMode.Decompress);
+        using var reader = new StreamReader(deflate, Encoding.UTF8);
+        return reader.ReadToEnd();
     }
 
     protected override void Dispose(bool disposing)
@@ -50,6 +154,29 @@ public sealed class SessionTokenFactory : WebApplicationFactory<global::Program>
             SigningKey.Dispose();
         }
     }
+}
+
+/// <summary>An RFC 7636 verifier and its S256 challenge.</summary>
+internal sealed record PkcePair(string Verifier, string Challenge)
+{
+    public static PkcePair Create()
+    {
+        var verifier = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        return new PkcePair(verifier, WebEncoders.Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier))));
+    }
+}
+
+/// <summary>What the app holds, and what the IdP was sent, after starting a sign-in.</summary>
+internal sealed record StartedSignIn(string RequestId, string RelayState, string State, PkcePair Pkce, string RedirectUri);
+
+/// <summary>Real time plus whatever a test has moved it forward by.</summary>
+internal sealed class MovableClock : TimeProvider
+{
+    private long _offsetTicks;
+
+    public void Advance(TimeSpan by) => Interlocked.Add(ref _offsetTicks, by.Ticks);
+
+    public override DateTimeOffset GetUtcNow() => base.GetUtcNow().AddTicks(Interlocked.Read(ref _offsetTicks));
 }
 
 /// <summary>Tokens an attacker could build, each of which must be refused.</summary>

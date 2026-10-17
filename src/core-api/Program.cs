@@ -20,8 +20,12 @@ builder.Services.AddCatalogSource(builder.Configuration);
 builder.Services.AddCatalogAuthentication(builder.Configuration);
 // Built here, not on first use, so an unusable identity-provider secret stops the host at startup.
 builder.Services.AddSingleton<ISamlServiceProvider>(SamlServiceProvider.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton<SignInFlow>();
 
 var app = builder.Build();
+
+// Resolved now for the same reason: an unusable redirect URI setting stops the host at startup.
+_ = app.Services.GetRequiredService<SignInFlow>();
 
 // Ordering matters and is not cosmetic. UseStatusCodePages inspects the response on the way out, so
 // it only sees what the middleware registered after it produced. Authentication and authorization
@@ -400,6 +404,14 @@ library.MapGet("/blueprints/{namespace}/{blueprintId}/audit", async Task<IResult
 // -----------------------------------------------------------------------------
 // Enterprise SAML 2.0 Identity Provider Endpoints (INF-20 / INT-16)
 // Strictly limited to Google Workspace and Microsoft Entra ID
+//
+// Native-app sign-in contract (INT-22), see SignInFlow:
+//   GET  /auth/saml/login?domain=&provider=&redirect_uri=&code_challenge=&code_challenge_method=S256&state=
+//        302 to the IdP; RelayState carries the signed sign-in state.
+//   POST /auth/saml/acs/{tenantId}   (SAMLResponse + RelayState from the IdP)
+//        302 to redirect_uri?code=&state=, or redirect_uri?error=access_denied&error_description=&state=.
+//   POST /auth/token                 (code, code_verifier, redirect_uri)
+//        200 with the session JWT. The JWT is never put in a URL.
 // -----------------------------------------------------------------------------
 var auth = app.MapGroup("/auth/saml");
 
@@ -414,8 +426,25 @@ auth.MapGet("/login", async Task<IResult> (
     string domain,
     string? provider,
     ISamlServiceProvider saml,
+    SignInFlow signIn,
     CancellationToken ct) =>
 {
+    if (!signIn.IsAvailable)
+    {
+        return CatalogProblem.Result(context, "sign-in-unavailable", "Sign-in is not configured.", 503);
+    }
+
+    var query = context.Request.Query;
+    var request = signIn.ValidateLoginRequest(
+        query["redirect_uri"].ToString(),
+        query["code_challenge"].ToString(),
+        query["code_challenge_method"].ToString(),
+        query["state"].ToString());
+    if (!request.IsValid)
+    {
+        return CatalogProblem.Result(context, request.ErrorCode!, request.ErrorMessage!, 400);
+    }
+
     try
     {
         SamlIdpType? preferred = provider?.ToLowerInvariant() switch
@@ -425,8 +454,10 @@ auth.MapGet("/login", async Task<IResult> (
             _ => null
         };
 
-        var request = await saml.CreateAuthnRequestAsync(domain, preferred, ct);
-        return Results.Redirect(request.RedirectUrl);
+        var authnRequest = await saml.CreateAuthnRequestAsync(
+            domain, preferred, tenantId => signIn.Begin(request.Value!, tenantId), ct);
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.Redirect(authnRequest.RedirectUrl);
     }
     catch (Exception ex)
     {
@@ -439,53 +470,125 @@ auth.MapPost("/acs/{tenantId}", async Task<IResult> (
     string tenantId,
     ISamlServiceProvider saml,
     SessionTokenIssuer sessionTokens,
+    SignInFlow signIn,
     CancellationToken ct) =>
 {
     // Checked first: an assertion this instance cannot turn into a session token is not consumed.
-    if (!sessionTokens.CanIssue)
+    if (!sessionTokens.CanIssue || !signIn.IsAvailable)
     {
         return CatalogProblem.Result(context, "session-signing-unavailable", "Session token signing is not configured.", 503);
     }
 
-    string? samlResponse = null;
-    if (context.Request.HasFormContentType)
+    var posted = await ReadFieldsAsync(context, ct);
+    if (posted is null)
     {
-        var form = await context.Request.ReadFormAsync(ct);
-        samlResponse = form["SAMLResponse"].ToString();
-    }
-    else if (context.Request.ContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true)
-    {
-        try
-        {
-            var body = await context.Request.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
-            if (body.ValueKind == System.Text.Json.JsonValueKind.Object &&
-                body.TryGetProperty("samlResponse", out var prop) &&
-                prop.ValueKind == System.Text.Json.JsonValueKind.String)
-            {
-                samlResponse = prop.GetString();
-            }
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return CatalogProblem.Result(context, "missing-saml-response", "SAMLResponse is missing.", 400);
-        }
+        return CatalogProblem.Result(context, "missing-saml-response", "SAMLResponse is missing.", 400);
     }
 
+    var samlResponse = posted.Get("SAMLResponse", "samlResponse");
     if (string.IsNullOrWhiteSpace(samlResponse))
     {
         return CatalogProblem.Result(context, "missing-saml-response", "SAMLResponse is missing.", 400);
     }
 
-    var result = await saml.ValidateAssertionResponseAsync(tenantId, samlResponse, saml.SpEntityId, ct);
-    if (!result.IsValid || result.Assertion == null)
+    // Before the assertion: a response that cannot finish a sign-in must not consume it. Only a
+    // verified RelayState names a redirect URI, so until it verifies, failures stay on this page.
+    var transaction = signIn.ReadRelayState(posted.Get("RelayState", "relayState"), tenantId);
+    if (!transaction.IsValid)
     {
-        return CatalogProblem.Result(context, result.ErrorCode ?? "saml-validation-failed", result.ErrorMessage ?? "SAML Assertion validation failed.", 403);
+        return CatalogProblem.Result(context, transaction.ErrorCode!, transaction.ErrorMessage!, 400);
     }
 
-    return Results.Ok(sessionTokens.Issue(result.Assertion));
+    var signInTransaction = transaction.Value!;
+    var result = await saml.ValidateAssertionResponseAsync(
+        tenantId, samlResponse, saml.SpEntityId, signInTransaction.AuthnRequestId, ct);
+
+    context.Response.Headers.CacheControl = "no-store";
+    if (!result.IsValid || result.Assertion == null)
+    {
+        // Logged like every other rejection (problem type and correlation only); the user goes back
+        // to the app with the problem code instead of a JSON page inside the sign-in sheet.
+        CatalogProblem.Create(context, result.ErrorCode ?? "saml-validation-failed", "SAML Assertion validation failed.", 403);
+        return Results.Redirect(SignInFlow.ErrorRedirect(signInTransaction, result.ErrorCode ?? "saml-validation-failed"));
+    }
+
+    return Results.Redirect(SignInFlow.CodeRedirect(signInTransaction, signIn.IssueCode(signInTransaction, result.Assertion)));
+});
+
+app.MapPost("/auth/token", async Task<IResult> (
+    HttpContext context,
+    SessionTokenIssuer sessionTokens,
+    SignInFlow signIn,
+    CancellationToken ct) =>
+{
+    // RFC 6749 section 5.1: token responses, errors included, must not be cached.
+    context.Response.Headers.CacheControl = "no-store";
+    context.Response.Headers.Pragma = "no-cache";
+
+    if (!sessionTokens.CanIssue || !signIn.IsAvailable)
+    {
+        return CatalogProblem.Result(context, "session-signing-unavailable", "Session token signing is not configured.", 503);
+    }
+
+    var posted = await ReadFieldsAsync(context, ct);
+    if (posted is null)
+    {
+        return CatalogProblem.Result(context, "token-request-invalid", "The token request must be a form or JSON body.", 400);
+    }
+
+    var grantType = posted.Get("grant_type", "grantType");
+    if (!string.IsNullOrEmpty(grantType) && grantType != "authorization_code")
+    {
+        return CatalogProblem.Result(context, "unsupported-grant-type", "grant_type must be authorization_code.", 400);
+    }
+
+    var redeemed = signIn.RedeemCode(
+        posted.Get("code", "code"),
+        posted.Get("code_verifier", "codeVerifier"),
+        posted.Get("redirect_uri", "redirectUri"));
+    if (!redeemed.IsValid)
+    {
+        return CatalogProblem.Result(context, redeemed.ErrorCode!, redeemed.ErrorMessage!, 400);
+    }
+
+    return Results.Ok(sessionTokens.Issue(redeemed.Value!));
 });
 
 app.Run();
+
+// The IdP posts the ACS as a form; tests and tools may send JSON. Null when the body is neither or
+// is malformed JSON. Field names are read as posted, never logged.
+static async Task<PostedFields?> ReadFieldsAsync(HttpContext context, CancellationToken ct)
+{
+    if (context.Request.HasFormContentType)
+    {
+        var form = await context.Request.ReadFormAsync(ct);
+        return new PostedFields(name => form[name].ToString());
+    }
+
+    if (context.Request.ContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        try
+        {
+            var body = await context.Request.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
+            if (body.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            return new PostedFields(name =>
+                body.TryGetProperty(name, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? value.GetString()
+                    : null);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    return null;
+}
 
 static bool TryParseActivationState(string? value, out FormActivationState? state)
 {
@@ -502,3 +605,18 @@ static bool TryParseActivationState(string? value, out FormActivationState? stat
 }
 
 public partial class Program { }
+
+/// <summary>Fields from a form or JSON body, looked up by the form name or the JSON name.</summary>
+internal sealed class PostedFields(Func<string, string?> read)
+{
+    public string? Get(string formName, string jsonName)
+    {
+        var value = read(formName);
+        if (string.IsNullOrEmpty(value) && jsonName != formName)
+        {
+            value = read(jsonName);
+        }
+
+        return string.IsNullOrEmpty(value) ? null : value;
+    }
+}

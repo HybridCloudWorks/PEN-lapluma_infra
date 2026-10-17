@@ -33,7 +33,7 @@ public sealed class SessionTokenAuthenticationTests : IClassFixture<SessionToken
     {
         var client = _factory.CreateClient();
 
-        var token = await _factory.SignInAsync(client);
+        var token = await _factory.SignInAsync();
 
         Assert.DoesNotContain("lp_saml_", token, StringComparison.Ordinal);
         var jwt = new JsonWebToken(token);
@@ -57,7 +57,7 @@ public sealed class SessionTokenAuthenticationTests : IClassFixture<SessionToken
         // Through the gateway, Authorization carries the gateway's own Google-signed ID token for
         // Cloud Run IAM and the caller's header arrives as X-Forwarded-Authorization.
         var client = _factory.CreateClient();
-        var token = await _factory.SignInAsync(client);
+        var token = await _factory.SignInAsync();
         var request = new HttpRequestMessage(HttpMethod.Get, ProtectedRoute);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "gateway-identity-token");
         request.Headers.Add(SessionTokenValidation.ForwardedAuthorizationHeader, $"Bearer {token}");
@@ -86,14 +86,15 @@ public sealed class SessionTokenAuthenticationTests : IClassFixture<SessionToken
     [Fact]
     public async Task A_rejected_assertion_yields_no_token()
     {
-        var response = await _factory.CreateClient().PostAsync(
-            $"/auth/saml/acs/{TestIdentityProvider.TenantId}",
-            new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["SAMLResponse"] = TestIdentityProvider.Base64(TestIdentityProvider.UnsignedResponse(new AssertionSpec())),
-            }));
+        using var client = _factory.CreateSignInClient();
+        var started = await SessionTokenFactory.StartSignInAsync(client);
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var response = await _factory.CompleteSignInAsync(client, started, signed: false);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.Contains("error=access_denied", location, StringComparison.Ordinal);
+        Assert.DoesNotContain("code=", location, StringComparison.Ordinal);
         Assert.DoesNotContain("accessToken", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
@@ -123,7 +124,7 @@ public sealed class SessionTokenAuthenticationTests : IClassFixture<SessionToken
     {
         // What API Gateway and the workflow API do: fetch the JWK Set, then validate offline.
         var client = _factory.CreateClient();
-        var token = await _factory.SignInAsync(client);
+        var token = await _factory.SignInAsync();
         var keySet = new JsonWebKeySet(await client.GetStringAsync("/.well-known/jwks.json"));
 
         var result = await new JsonWebTokenHandler().ValidateTokenAsync(token, new TokenValidationParameters
