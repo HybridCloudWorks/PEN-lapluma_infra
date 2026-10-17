@@ -66,9 +66,16 @@ class PostgresSchemaMigrationTests(unittest.TestCase):
 
         self.assertIn('resource "google_cloud_run_v2_job" "db_migration"', content)
         self.assertIn('lp-db-migration-${var.environment}', content)
-        self.assertIn('cloud_sql_instance', content)
         self.assertIn('POSTGRES_DB_CATALOG', content)
         self.assertIn('POSTGRES_DB_WORKFLOW', content)
+
+        # INF-27: the instance has no public address, so the job reaches its private IP over
+        # Direct VPC egress with TLS required, not through the /cloudsql socket.
+        job = content[content.index('resource "google_cloud_run_v2_job" "db_migration"'):]
+        self.assertIn('vpc_access', job)
+        self.assertIn('"PGHOST"', job)
+        self.assertRegex(job, r'name\s*=\s*"PGSSLMODE"\s*value\s*=\s*"require"')
+        self.assertNotIn('cloud_sql_instance', job)
 
 
 if __name__ == "__main__":

@@ -16,16 +16,33 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<UploadSessionStore>();
 builder.Services.AddSingleton<IStoredDocumentVerifier, PassThroughStoredDocumentVerifier>();
 
-// Wired when the deployment names a GCP quarantine bucket or Azure quarantine endpoint; fail-closed otherwise. Built now, not
-// lazily, for the same reason the catalog's SQL options are: a misconfigured endpoint should fail
-// the starting host, not the first upload.
+// Wired when the deployment names a GCP quarantine bucket or Azure quarantine endpoint; fail-closed otherwise. The
+// settings are checked now, not lazily, for the same reason the catalog's SQL options are: a
+// misconfigured endpoint should fail the starting host, not the first upload.
 var gcsQuarantineBucket = builder.Configuration[UploadConfiguration.GcsQuarantineBucketSetting];
 var quarantineEndpoint = builder.Configuration[UploadConfiguration.QuarantineBlobEndpointSetting];
 if (!string.IsNullOrWhiteSpace(gcsQuarantineBucket))
 {
-    builder.Services.AddSingleton<IUploadUrlIssuer>(new GoogleCloudStorageUploadUrlIssuer(
+    // The signer is named explicitly — Terraform sets it to the service's own runtime account —
+    // rather than discovered: a URL signed by the wrong identity fails at upload time, far from
+    // the cause.
+    var gcsSigner = builder.Configuration[UploadConfiguration.GcsSignerServiceAccountSetting];
+    if (string.IsNullOrWhiteSpace(gcsSigner))
+    {
+        throw new InvalidOperationException(
+            $"{UploadConfiguration.GcsSignerServiceAccountSetting} is required when {UploadConfiguration.GcsQuarantineBucketSetting} is set.");
+    }
+
+    var signerEmail = IamCredentialsBlobSigner.ValidateServiceAccountEmail(gcsSigner);
+    builder.Services.AddHttpClient(IamCredentialsBlobSigner.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
+    builder.Services.AddSingleton<IGoogleAccessTokenSource, ApplicationDefaultAccessTokenSource>();
+    builder.Services.AddSingleton<IUploadUrlIssuer>(services => new GoogleCloudStorageUploadUrlIssuer(
         gcsQuarantineBucket,
-        builder.Configuration[UploadConfiguration.GcsSignerServiceAccountSetting]));
+        new IamCredentialsBlobSigner(
+            signerEmail,
+            services.GetRequiredService<IHttpClientFactory>(),
+            services.GetRequiredService<IGoogleAccessTokenSource>()),
+        services.GetRequiredService<TimeProvider>()));
 }
 else if (!string.IsNullOrWhiteSpace(quarantineEndpoint))
 {
@@ -74,7 +91,7 @@ app.MapGet("/ready", async (
     try
     {
         var source = services.GetRequiredService<IWorkflowSource>();
-        _ = await source.ListClientsAsync(null, null, cancellationToken);
+        await source.CheckReadinessAsync(cancellationToken);
         return Results.Ok(
             new HealthResponse("ready", ServiceMetadata.Name, ServiceMetadata.Version));
     }
@@ -119,7 +136,8 @@ v1.MapGet("/clients", async Task<IResult> (
         return WorkflowProblem.Result(context, "clients-cursor-invalid", "cursor is invalid", 400);
     }
 
-    return Results.Ok(await source.ListClientsAsync(query, cursor, cancellationToken));
+    return Results.Ok(await source.ListClientsAsync(
+        WorkflowTenant.Resolve(context.User), query, cursor, cancellationToken));
 });
 
 v1.MapPost("/clients", async Task<IResult> (
@@ -140,7 +158,7 @@ v1.MapPost("/clients", async Task<IResult> (
     }
 
     var outcome = await source.CreateClientAsync(
-        IdempotencyKey(context), request, cancellationToken);
+        WorkflowTenant.Resolve(context.User), IdempotencyKey(context), request, cancellationToken);
     return outcome.Outcome switch
     {
         IdempotencyOutcome.Conflict => WorkflowProblem.Result(
@@ -159,7 +177,7 @@ v1.MapGet("/cases/{caseId}/workspace", async Task<IResult> (
     string caseId,
     IWorkflowSource source,
     CancellationToken cancellationToken) =>
-    await source.GetCaseWorkspaceAsync(caseId, cancellationToken) is { } workspace
+    await source.GetCaseWorkspaceAsync(WorkflowTenant.Resolve(context.User), caseId, cancellationToken) is { } workspace
         ? Results.Ok(workspace)
         // One problem type for missing and unauthorized. Distinguishing them would let a caller
         // probe for the existence of cases they cannot see.
@@ -213,6 +231,18 @@ v1.MapPost("/documents/upload-sessions", async Task<IResult> (
             context,
             "upload-not-configured",
             "Upload issuing is not configured in this environment",
+            503);
+    }
+    catch (UploadSigningFailedException error)
+    {
+        // Typically the signBlob grant is missing (403). The message carries the status only.
+        context.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(WorkflowProblem.LogCategory)
+            .LogError("Upload URL signing failed: {Reason}", error.Message);
+        return WorkflowProblem.Result(
+            context,
+            "upload-signing-unavailable",
+            "An upload URL could not be issued; try again later",
             503);
     }
 });
@@ -286,7 +316,7 @@ v1.MapGet("/review-queue", async (
     HttpContext context,
     IWorkflowSource source,
     CancellationToken cancellationToken) =>
-    Results.Ok(await source.GetReviewQueueAsync(cancellationToken)));
+    Results.Ok(await source.GetReviewQueueAsync(WorkflowTenant.Resolve(context.User), cancellationToken)));
 
 v1.MapPost("/cases/{caseId}/review-decisions", async (
     HttpContext context,
@@ -309,7 +339,7 @@ v1.MapPost("/cases/{caseId}/review-decisions", async (
 
     var reviewerId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "reviewer-unidentified";
     var outcome = await source.RecordReviewDecisionAsync(
-        caseId, reviewerId, request, IdempotencyKey(context), cancellationToken);
+        WorkflowTenant.Resolve(context.User), caseId, reviewerId, request, IdempotencyKey(context), cancellationToken);
 
     return outcome.Status switch
     {
@@ -331,7 +361,7 @@ v1.MapPost("/cases/{caseId}/draft-preview", async (
         return keyProblem;
     }
 
-    var outcome = await source.CreateDraftPreviewAsync(caseId, cancellationToken);
+    var outcome = await source.CreateDraftPreviewAsync(WorkflowTenant.Resolve(context.User), caseId, cancellationToken);
     return outcome.Status switch
     {
         DraftPreviewStatus.Success => Results.Created($"/v1/cases/{caseId}/draft-preview", outcome.Preview),
@@ -352,7 +382,7 @@ v1.MapPost("/cases/{caseId}/step-up-challenge", async (
     }
 
     var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "approver-unidentified";
-    var outcome = await source.CreateStepUpChallengeAsync(caseId, userId, cancellationToken);
+    var outcome = await source.CreateStepUpChallengeAsync(WorkflowTenant.Resolve(context.User), caseId, userId, cancellationToken);
 
     return outcome.Status switch
     {
@@ -380,7 +410,8 @@ v1.MapPost("/cases/{caseId}/approval", async (
     }
 
     var approverId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "user-fixture-approver";
-    var outcome = await source.ApproveCaseAsync(caseId, approverId, request, IdempotencyKey(context), cancellationToken);
+    var outcome = await source.ApproveCaseAsync(
+        WorkflowTenant.Resolve(context.User), caseId, approverId, request, IdempotencyKey(context), cancellationToken);
 
     return outcome.Status switch
     {
@@ -399,7 +430,7 @@ v1.MapGet("/cases/{caseId}/history", async (
     string caseId,
     IWorkflowSource source,
     CancellationToken cancellationToken) =>
-    Results.Ok(await source.GetCaseHistoryAsync(caseId, cancellationToken)));
+    Results.Ok(await source.GetCaseHistoryAsync(WorkflowTenant.Resolve(context.User), caseId, cancellationToken)));
 
 v1.MapPost("/cases/{caseId}/sections/{sectionId}/commit", async (
     HttpContext context,
@@ -423,7 +454,7 @@ v1.MapPost("/cases/{caseId}/sections/{sectionId}/commit", async (
 
     var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "caller-unidentified";
     var outcome = await source.CommitSectionAsync(
-        caseId, sectionId, baseRevision, request.Values ?? [], userId, IdempotencyKey(context), cancellationToken);
+        WorkflowTenant.Resolve(context.User), caseId, sectionId, baseRevision, request.Values ?? [], userId, IdempotencyKey(context), cancellationToken);
 
     return outcome.Status switch
     {
@@ -446,7 +477,8 @@ v1.MapPost("/cases/{caseId}/package-generation", async (
     }
 
     var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "caller-unidentified";
-    var outcome = await source.RequestPackageGenerationAsync(caseId, userId, IdempotencyKey(context), cancellationToken);
+    var outcome = await source.RequestPackageGenerationAsync(
+        WorkflowTenant.Resolve(context.User), caseId, userId, IdempotencyKey(context), cancellationToken);
 
     return outcome.Status switch
     {
@@ -468,7 +500,8 @@ v1.MapGet("/cases/{caseId}/packages/{packageId}/download", async (
     CancellationToken cancellationToken) =>
 {
     var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "caller-unidentified";
-    var outcome = await source.GetPackageDownloadAsync(caseId, packageId, userId, cancellationToken);
+    var outcome = await source.GetPackageDownloadAsync(
+        WorkflowTenant.Resolve(context.User), caseId, packageId, userId, cancellationToken);
 
     return outcome.Status switch
     {
@@ -491,7 +524,8 @@ v1.MapPost("/events/workflow", async (
         return keyProblem;
     }
 
-    var outcome = await source.ProcessWorkflowEventAsync(workflowEvent, IdempotencyKey(context), cancellationToken);
+    var outcome = await source.ProcessWorkflowEventAsync(
+        WorkflowTenant.Resolve(context.User), workflowEvent, IdempotencyKey(context), cancellationToken);
 
     return outcome.Status switch
     {

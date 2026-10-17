@@ -118,7 +118,7 @@ public sealed class IdempotencyConcurrencyTests
         Race(index =>
         {
             outcomes.Add(source
-                .CreateClientAsync(key, new CreateClientRequest($"Racer {index}"), CancellationToken.None)
+                .CreateClientAsync(TestAuthHandler.DefaultTenantId, key, new CreateClientRequest($"Racer {index}"), CancellationToken.None)
                 .GetAwaiter().GetResult().Outcome);
             return index;
         });
@@ -136,10 +136,10 @@ public sealed class IdempotencyConcurrencyTests
         var key = Guid.NewGuid().ToString();
 
         Race(_ =>
-            source.CreateClientAsync(key, new CreateClientRequest("Same Label"), CancellationToken.None)
+            source.CreateClientAsync(TestAuthHandler.DefaultTenantId, key, new CreateClientRequest("Same Label"), CancellationToken.None)
                 .GetAwaiter().GetResult());
 
-        var page = await source.ListClientsAsync(null, null, CancellationToken.None);
+        var page = await source.ListClientsAsync(TestAuthHandler.DefaultTenantId, null, null, CancellationToken.None);
         Assert.Equal(1, page.Items.Count(entry => entry.DisplayLabel == "Same Label"));
     }
 }

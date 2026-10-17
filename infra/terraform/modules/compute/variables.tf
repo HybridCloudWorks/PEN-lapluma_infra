@@ -42,6 +42,32 @@ variable "db_connection_name" {
   type = string
 }
 
+variable "db_private_ip" {
+  type        = string
+  description = "Private IP address of the Cloud SQL instance (modules/database instance_private_ip); the instance has no public address"
+
+  validation {
+    condition     = can(cidrhost("${var.db_private_ip}/32", 0))
+    error_message = "db_private_ip must be an IPv4 address."
+  }
+}
+
+variable "vpc_network" {
+  type        = string
+  description = "VPC network (name) the database-facing services and the migration job use for Direct VPC egress"
+}
+
+variable "vpc_subnetwork" {
+  type        = string
+  description = "Subnetwork (name) in var.region that Direct VPC egress allocates addresses from; /26 or larger"
+}
+
+variable "quarantine_bucket_name" {
+  type        = string
+  description = "Quarantine bucket the workflow API issues signed upload URLs for. Empty leaves upload issuing fail-closed"
+  default     = ""
+}
+
 variable "gateway_sa_email" {
   type        = string
   description = "Service account email of API Gateway authorized to invoke Cloud Run services"

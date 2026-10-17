@@ -39,46 +39,56 @@ public sealed record WorkflowEventOutcome(WorkflowEventProcessingStatus Status, 
 
 /// <summary>
 /// The workflow read and write surface behind the HTTP handlers.
+///
+/// Every operation on client or case data takes the caller's tenant, resolved from the session
+/// token by <see cref="WorkflowTenant"/>, and must neither return nor change another tenant's
+/// rows: a case that belongs to someone else is indistinguishable from one that does not exist.
 /// </summary>
 public interface IWorkflowSource
 {
     Task<AuthenticatedContext> GetSessionContextAsync(string userId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Proves the store is reachable and its schema is present, without reading any tenant's
+    /// data. Readiness calls this; it must not require rows to exist.
+    /// </summary>
+    Task CheckReadinessAsync(CancellationToken cancellationToken);
+
     Task<ClientDirectoryPage> ListClientsAsync(
-        string? query, string? cursor, CancellationToken cancellationToken);
+        string tenantId, string? query, string? cursor, CancellationToken cancellationToken);
 
     Task<CreateClientOutcome> CreateClientAsync(
-        string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken);
+        string tenantId, string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken);
 
     /// <summary>Null when the case is missing or the caller is not authorized to see it — one 404.</summary>
-    Task<CaseWorkspace?> GetCaseWorkspaceAsync(string caseId, CancellationToken cancellationToken);
+    Task<CaseWorkspace?> GetCaseWorkspaceAsync(string tenantId, string caseId, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(string tenantId, CancellationToken cancellationToken);
 
     Task<RecordReviewDecisionOutcome> RecordReviewDecisionAsync(
-        string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken);
+        string tenantId, string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken);
 
     Task<CreateDraftPreviewOutcome> CreateDraftPreviewAsync(
-        string caseId, CancellationToken cancellationToken);
+        string tenantId, string caseId, CancellationToken cancellationToken);
 
     Task<CreateStepUpChallengeOutcome> CreateStepUpChallengeAsync(
-        string caseId, string userId, CancellationToken cancellationToken);
+        string tenantId, string caseId, string userId, CancellationToken cancellationToken);
 
     Task<ApproveCaseOutcome> ApproveCaseAsync(
-        string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken);
+        string tenantId, string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<CaseHistoryEvent>> GetCaseHistoryAsync(
-        string caseId, CancellationToken cancellationToken);
+        string tenantId, string caseId, CancellationToken cancellationToken);
 
     Task<CommitSectionOutcome> CommitSectionAsync(
-        string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken);
+        string tenantId, string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken);
 
     Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
-        string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken);
+        string tenantId, string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken);
 
     Task<PackageDownloadOutcome> GetPackageDownloadAsync(
-        string caseId, string packageId, string userId, CancellationToken cancellationToken);
+        string tenantId, string caseId, string packageId, string userId, CancellationToken cancellationToken);
 
     Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
-        PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken);
+        string tenantId, PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken);
 }

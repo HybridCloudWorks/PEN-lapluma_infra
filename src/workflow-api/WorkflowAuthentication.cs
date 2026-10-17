@@ -64,6 +64,11 @@ public static class WorkflowAuthentication
             {
                 policy.RequireAuthenticatedUser();
 
+                // Every /v1 operation is tenant data. A token without exactly one well-formed
+                // tenant_id claim is refused here (403), so no handler ever runs without a
+                // tenant to scope its queries by (INF-26).
+                policy.RequireAssertion(context => WorkflowTenant.TryResolve(context.User, out _));
+
                 if (!configured)
                 {
                     // Fail closed, and loudly. With no audience, issuer, and key source there is

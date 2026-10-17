@@ -25,10 +25,27 @@ internal sealed class TestAuthHandler(
     public const string SchemeName = "Test";
     public const string CallerId = "test-caller";
 
+    /// <summary>The tenant every test caller holds unless a test names another.</summary>
+    public const string DefaultTenantId = "tenant_test_alpha";
+
+    /// <summary>
+    /// Lets a test act as a caller of another tenant, or (with <see cref="NoTenant"/>) as one whose
+    /// token carries no tenant. Read only by this test scheme; the service never reads it.
+    /// </summary>
+    public const string TenantHeader = "X-Test-Tenant-Id";
+
+    public const string NoTenant = "-";
+
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var identity = new ClaimsIdentity(
-            [new Claim(ClaimTypes.NameIdentifier, CallerId)], SchemeName);
+        var tenant = Request.Headers[TenantHeader].ToString();
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, CallerId) };
+        if (tenant != NoTenant)
+        {
+            claims.Add(new Claim(WorkflowTenant.ClaimType, tenant.Length > 0 ? tenant : DefaultTenantId));
+        }
+
+        var identity = new ClaimsIdentity(claims, SchemeName);
         var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName);
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }

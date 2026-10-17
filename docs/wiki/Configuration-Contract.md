@@ -77,6 +77,9 @@ parameters into the `network`, `observability`, `security`, `messaging`, and `da
 | `Catalog__CosmosEndpoint` | Generated account endpoint URI | Platform | Rebuildable projection writer |
 | `Workflow__Source` | `fixture` | Backend | Which workflow store the Workflow API serves. It has no default: unset refuses to start, so a deployment always states what it serves. The durable store is backlog item **5.8** |
 | `Workflow__QuarantineBlobEndpoint` | Generated blob endpoint URI, or empty | Platform | Account the Workflow API mints write-only upload SAS against. Empty leaves upload issuing fail-closed, answering 503 rather than a URL that cannot work |
+| `Workflow__GcsQuarantineBucket` | `lp-quarantine-<env>-<project>`, or empty | Platform | GCP: the bucket the Workflow API issues V4 signed `PUT` URLs for, set by `modules/compute`. Empty leaves upload issuing fail-closed (503) |
+| `Workflow__GcsSignerServiceAccount` | The Workflow API's runtime service account email | Platform | GCP: the account whose Google-managed key signs upload URLs through IAM `signBlob`. Required when the bucket is set; the service refuses to start without it. Terraform grants that account `roles/iam.serviceAccountTokenCreator` on itself only |
+| `Database__ConnectionString` | Npgsql connection string to the instance's private IP | Platform | Core API and Workflow API, when their source is `postgres`. `SslMode` defaults to `Require`; `Disable` and `Allow` stop the service at startup. Cloud SQL has no public address and accepts encrypted connections only |
 | `PORT` | Container default `8080` | Backend | Processing health listener, read by `src/document-processing/worker.py` |
 | `ACQUISITION_SCHEDULE` | Six-field NCRONTAB expression | Catalog operations | Timer trigger in `src/functions/function_app.py` |
 | `DURABLE_TASK_HUB_NAME` | Environment-unique safe name | Platform | Durable Functions task hub in `src/functions/host.json` |

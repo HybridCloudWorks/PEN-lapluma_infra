@@ -70,9 +70,14 @@ module "database" {
   availability_type      = "ZONAL"
 }
 
+# Push delivery to the worker with an OIDC token for the invoker account, and a notification on the
+# quarantine bucket that feeds it (INF-28).
 module "messaging" {
-  source      = "../../modules/messaging"
-  environment = var.environment
+  source                  = "../../modules/messaging"
+  environment             = var.environment
+  processing_worker_url   = module.compute.processing_worker_url
+  pubsub_invoker_sa_email = module.iam.pubsub_invoker_sa_email
+  quarantine_bucket_name  = module.storage.quarantine_bucket_name
 }
 
 module "compute" {
@@ -87,7 +92,12 @@ module "compute" {
   workflow_api_sa_email      = module.iam.workflow_api_sa_email
   processing_worker_sa_email = module.iam.processing_worker_sa_email
   gateway_sa_email           = module.iam.gateway_sa_email
+  pubsub_invoker_sa_email    = module.iam.pubsub_invoker_sa_email
   db_connection_name         = module.database.instance_connection_name
+  db_private_ip              = module.database.instance_private_ip
+  vpc_network                = module.network.vpc_name
+  vpc_subnetwork             = module.network.subnet_name
+  quarantine_bucket_name     = module.storage.quarantine_bucket_name
   session_token_issuer       = var.session_token_issuer
   session_token_audience     = var.session_token_audience
   session_token_jwks_uri     = var.session_token_jwks_uri
