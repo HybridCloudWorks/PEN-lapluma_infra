@@ -47,7 +47,7 @@ public static class CatalogSourceRegistration
                 throw new InvalidOperationException(
                     $"{PostgresConnectionStringSetting} is required when the catalog source is '{PostgresSource}'.");
             }
-            var dataSource = Npgsql.NpgsqlDataSource.Create(connStr);
+            var dataSource = Npgsql.NpgsqlDataSource.Create(PostgresConnectionSecurity.RequireEncryption(connStr));
             services.AddSingleton(dataSource);
             services.AddSingleton<ICatalogSource, PostgresCatalogSource>();
             services.AddSingleton<ILibraryAccessService, PostgresLibraryAccessService>();

@@ -60,11 +60,13 @@ public sealed record SamlValidationResult(
         new(false, null, errorCode, errorMessage);
 }
 
+/// <summary>The body of a successful <c>POST /auth/token</c>. Served with <c>Cache-Control: no-store</c>.</summary>
 public sealed record SamlTokenExchangeResponse(
     string AccessToken,
     string TokenType,
     int ExpiresIn,
     string TenantId,
     string UserId,
-    IReadOnlyList<string> Roles
+    IReadOnlyList<string> Roles,
+    string Email
 );

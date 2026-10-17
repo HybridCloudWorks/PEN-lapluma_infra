@@ -2,10 +2,11 @@
 
 This runbook establishes operational procedures and automated governance for the **LaPluma Staging Environment** on Google Cloud Platform (`project-27d49bcd-4a1d-4d7a-8a7`).
 
-> **Staging is offline pending the authentication fix (INF-21 to INF-24).** Do not `resume` it or
-> change Cloud Run ingress until the steps in
-> [Session Tokens and SAML Identity Providers](session-tokens-and-saml-identity-providers.md#4-bringing-staging-and-dev-back-online)
-> are complete.
+> **Cloud SQL stays paused until INF-27 is applied.** Do not `resume` it before the instance has
+> lost its public IPv4 address, in the order
+> [Private Cloud SQL, Signed Uploads, and Worker Push](private-database-signed-uploads-and-worker-push.md)
+> gives. The authentication fix (INF-21 to INF-24) is rolled out as described in
+> [Session Tokens and SAML Identity Providers](session-tokens-and-saml-identity-providers.md#4-bringing-staging-and-dev-back-online).
 
 ---
 

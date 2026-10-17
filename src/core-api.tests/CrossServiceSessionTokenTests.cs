@@ -26,7 +26,7 @@ public sealed class CrossServiceSessionTokenTests
     {
         using var core = new SessionTokenFactory();
         var coreClient = core.CreateClient();
-        var token = await core.SignInAsync(coreClient);
+        var token = await core.SignInAsync();
 
         using var workflow = new WebApplicationFactory<WorkflowProgram>().WithWebHostBuilder(builder =>
         {
@@ -59,7 +59,7 @@ public sealed class CrossServiceSessionTokenTests
         // trusts only the key set it is pointed at.
         using var trusted = new SessionTokenFactory();
         using var other = new SessionTokenFactory();
-        var token = await other.SignInAsync(other.CreateClient());
+        var token = await other.SignInAsync();
 
         using var workflow = new WebApplicationFactory<WorkflowProgram>().WithWebHostBuilder(builder =>
         {

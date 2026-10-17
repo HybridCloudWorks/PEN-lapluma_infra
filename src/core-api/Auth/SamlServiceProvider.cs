@@ -161,8 +161,16 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
     public Task<SamlAuthnRequest> CreateAuthnRequestAsync(
         string domain,
         SamlIdpType? preferredIdp = null,
+        CancellationToken ct = default) =>
+        CreateAuthnRequestAsync(domain, preferredIdp, _ => new SamlRequestBinding("_" + Guid.NewGuid().ToString("N"), null), ct);
+
+    public Task<SamlAuthnRequest> CreateAuthnRequestAsync(
+        string domain,
+        SamlIdpType? preferredIdp,
+        Func<string, SamlRequestBinding> bind,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(bind);
         if (string.IsNullOrWhiteSpace(domain))
         {
             throw new ArgumentException("Domain is required", nameof(domain));
@@ -184,12 +192,13 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
             throw new InvalidOperationException($"No active enterprise IdP configured for domain '{normalizedDomain}'.");
         }
 
-        var id = "_" + Guid.NewGuid().ToString("N");
+        var binding = bind(config.TenantId);
+        var id = binding.RequestId;
         var issueInstant = _clock.GetUtcNow();
         var acsUrl = AssertionConsumerUrl(config.TenantId);
 
         var requestXml = AuthnRequestXml(id, issueInstant, config.SsoServiceUrl, acsUrl);
-        var redirectUrl = RedirectBindingUrl(config.SsoServiceUrl, requestXml);
+        var redirectUrl = RedirectBindingUrl(config.SsoServiceUrl, requestXml, binding.RelayState);
 
         return Task.FromResult(new SamlAuthnRequest(
             Id: id,
@@ -205,11 +214,13 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         string tenantId,
         string samlResponseXmlOrBase64,
         string expectedAudience,
+        string? expectedInResponseTo = null,
         CancellationToken ct = default) =>
         Task.FromResult(Validate(
             tenantId,
             samlResponseXmlOrBase64,
-            string.IsNullOrWhiteSpace(expectedAudience) ? SpEntityId : expectedAudience));
+            string.IsNullOrWhiteSpace(expectedAudience) ? SpEntityId : expectedAudience,
+            expectedInResponseTo));
 
     public Task<InstitutionIdpConfiguration?> GetIdpConfigurationByDomainAsync(string domain, CancellationToken ct = default)
     {
@@ -263,10 +274,11 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
     /// as raw RFC 1951 data with no zlib header (<see cref="DeflateStream"/>, not
     /// <see cref="ZLibStream"/>), then Base64-encoded, then URL-encoded as the SAMLRequest
     /// parameter. The parameter is added to whatever query the SSO URL already carries; a Google
-    /// Workspace URL already holds <c>?idpid=</c>, so it must be joined with <c>&amp;</c>. No
-    /// RelayState is sent; if one is added it goes in its own parameter, after SAMLRequest.
+    /// Workspace URL already holds <c>?idpid=</c>, so it must be joined with <c>&amp;</c>.
+    /// RelayState, when there is one, goes in its own parameter after SAMLRequest; the IdP posts it
+    /// back unchanged with the response.
     /// </summary>
-    private static string RedirectBindingUrl(string ssoServiceUrl, string requestXml)
+    private static string RedirectBindingUrl(string ssoServiceUrl, string requestXml, string? relayState)
     {
         using var compressed = new MemoryStream();
         using (var deflate = new DeflateStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
@@ -275,10 +287,11 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         }
 
         var samlRequest = Convert.ToBase64String(compressed.ToArray());
-        return QueryHelpers.AddQueryString(ssoServiceUrl, "SAMLRequest", samlRequest);
+        var url = QueryHelpers.AddQueryString(ssoServiceUrl, "SAMLRequest", samlRequest);
+        return string.IsNullOrEmpty(relayState) ? url : QueryHelpers.AddQueryString(url, "RelayState", relayState);
     }
 
-    private SamlValidationResult Validate(string tenantId, string input, string expectedAudience)
+    private SamlValidationResult Validate(string tenantId, string input, string expectedAudience, string? expectedInResponseTo)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
@@ -456,8 +469,11 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
             return SamlValidationResult.Failure("missing-subject-confirmation", "Assertion has no bearer SubjectConfirmation.");
         }
 
+        // SAML profiles section 4.1.4.2: an answer to an AuthnRequest names its ID as InResponseTo
+        // on the bearer confirmation, which sits inside the signed Assertion.
         var recipientMatched = false;
         var confirmationCurrent = false;
+        var requestMatched = false;
         foreach (XmlElement data in confirmations)
         {
             if (!string.Equals(data.GetAttribute("Recipient"), expectedRecipient, StringComparison.Ordinal))
@@ -466,9 +482,16 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
             }
 
             recipientMatched = true;
-            if (TryReadInstant(data, "NotOnOrAfter", out var confirmationExpiry) && now - ClockSkew < confirmationExpiry)
+            if (!TryReadInstant(data, "NotOnOrAfter", out var confirmationExpiry) || now - ClockSkew >= confirmationExpiry)
             {
-                confirmationCurrent = true;
+                continue;
+            }
+
+            confirmationCurrent = true;
+            if (expectedInResponseTo is null ||
+                string.Equals(data.GetAttribute("InResponseTo"), expectedInResponseTo, StringComparison.Ordinal))
+            {
+                requestMatched = true;
                 break;
             }
         }
@@ -481,6 +504,11 @@ public sealed class SamlServiceProvider : ISamlServiceProvider
         if (!confirmationCurrent)
         {
             return SamlValidationResult.Failure("assertion-expired", "Assertion subject confirmation has expired.");
+        }
+
+        if (!requestMatched)
+        {
+            return SamlValidationResult.Failure("unsolicited-response", "Assertion does not answer this sign-in request.");
         }
 
         // Extract Attributes

@@ -187,55 +187,57 @@ public sealed class WorkflowApiTests : IClassFixture<AuthenticatedFactory>
             string userId, CancellationToken cancellationToken) =>
             Task.FromResult(new AuthenticatedContext(userId, "EMPTY", [], [], [], true));
 
+        public Task CheckReadinessAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<ClientDirectoryPage> ListClientsAsync(
-            string? query, string? cursor, CancellationToken cancellationToken) =>
+            string tenantId, string? query, string? cursor, CancellationToken cancellationToken) =>
             Task.FromResult(new ClientDirectoryPage([], null));
 
         public Task<CreateClientOutcome> CreateClientAsync(
-            string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken) =>
+            string tenantId, string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<CaseWorkspace?> GetCaseWorkspaceAsync(
-            string caseId, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, CancellationToken cancellationToken) =>
             Task.FromResult<CaseWorkspace?>(null);
 
-        public Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(string tenantId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ReviewQueueItem>>([]);
 
         public Task<RecordReviewDecisionOutcome> RecordReviewDecisionAsync(
-            string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
             Task.FromResult(new RecordReviewDecisionOutcome(ReviewDecisionStatus.NotFound));
 
         public Task<CreateDraftPreviewOutcome> CreateDraftPreviewAsync(
-            string caseId, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, CancellationToken cancellationToken) =>
             Task.FromResult(new CreateDraftPreviewOutcome(DraftPreviewStatus.NotFound));
 
         public Task<CreateStepUpChallengeOutcome> CreateStepUpChallengeAsync(
-            string caseId, string userId, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, string userId, CancellationToken cancellationToken) =>
             Task.FromResult(new CreateStepUpChallengeOutcome(StepUpChallengeStatus.NotFound));
 
         public Task<ApproveCaseOutcome> ApproveCaseAsync(
-            string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken) =>
             Task.FromResult(new ApproveCaseOutcome(ApproveCaseStatus.NotFound));
 
         public Task<IReadOnlyList<CaseHistoryEvent>> GetCaseHistoryAsync(
-            string caseId, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<CaseHistoryEvent>>([]);
 
         public Task<CommitSectionOutcome> CommitSectionAsync(
-            string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken) =>
             Task.FromResult(new CommitSectionOutcome(CommitSectionStatus.NotFound));
 
         public Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
-            string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken) =>
             Task.FromResult(new PackageGenerationOutcome(PackageGenerationStatus.NotFound));
 
         public Task<PackageDownloadOutcome> GetPackageDownloadAsync(
-            string caseId, string packageId, string userId, CancellationToken cancellationToken) =>
+            string tenantId, string caseId, string packageId, string userId, CancellationToken cancellationToken) =>
             Task.FromResult(new PackageDownloadOutcome(PackageDownloadStatus.NotFound));
 
         public Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
-            PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken) =>
+            string tenantId, PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken) =>
             Task.FromResult(new WorkflowEventOutcome(WorkflowEventProcessingStatus.Processed, new WorkflowEventReceipt(workflowEvent.EventId, "PROCESSED", DateTimeOffset.UtcNow)));
     }
 

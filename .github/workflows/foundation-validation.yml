@@ -30,6 +30,21 @@ jobs:
     if: needs.guard.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # A throwaway PostgreSQL 16 for the workflow API's tenant-isolation tests (INF-26), which run
+    # the real queries against the repository's own migrations. Pinned by digest like every other
+    # image here; it holds no data outside the job.
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        env:
+          POSTGRES_PASSWORD: lapluma-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -87,6 +102,11 @@ jobs:
         # `dotnet test` exits 0 on a project that contains no tests, so the exit code alone cannot
         # tell a passing suite from a vanished one. Require a passing count instead; if the
         # runner's summary format ever changes, this fails loudly rather than quietly stopping.
+        # The PostgreSQL tests are required here, so losing the database fails them instead of
+        # skipping them.
+        env:
+          LAPLUMA_TEST_POSTGRES: Host=localhost;Port=5432;Username=postgres;Password=lapluma-ci-only;Database=postgres
+          LAPLUMA_REQUIRE_POSTGRES_TESTS: 'true'
         run: |
           set -o pipefail
           log="$RUNNER_TEMP/workflow-api-tests.log"

@@ -41,7 +41,7 @@ public static class WorkflowSourceRegistration
                     $"{PostgresConnectionStringSetting} is required when workflow source is '{PostgresSource}'.");
             }
 
-            var dataSource = Npgsql.NpgsqlDataSource.Create(connStr);
+            var dataSource = Npgsql.NpgsqlDataSource.Create(PostgresConnectionSecurity.RequireEncryption(connStr));
             services.AddSingleton(dataSource);
             services.AddSingleton<IWorkflowSource, PostgresWorkflowSource>();
             return services;

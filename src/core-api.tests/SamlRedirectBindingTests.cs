@@ -84,6 +84,43 @@ public sealed class SamlRedirectBindingTests : IDisposable
         Assert.Equal(request.AssertionConsumerServiceUrl, root.GetAttribute("AssertionConsumerServiceURL"));
     }
 
+    [Fact]
+    public async Task A_bound_request_uses_the_bound_ID_and_sends_RelayState_after_SAMLRequest()
+    {
+        var provider = new SamlServiceProvider(
+            TestIdentityProvider.SpEntityId,
+            TestIdentityProvider.AcsBaseUrl,
+            [_idp.Configuration() with { SsoServiceUrl = GoogleStyleSsoUrl }]);
+        string? boundTenant = null;
+
+        var request = await provider.CreateAuthnRequestAsync(
+            "hybridcloudworks.com",
+            SamlIdpType.GoogleWorkspace,
+            tenantId =>
+            {
+                boundTenant = tenantId;
+                return new SamlRequestBinding("_bound0123456789", "payload.tag");
+            });
+
+        Assert.Equal(TestIdentityProvider.TenantId, boundTenant);
+        Assert.Equal("_bound0123456789", request.Id);
+        var query = QueryHelpers.ParseQuery(new Uri(request.RedirectUrl).Query);
+        Assert.Equal("payload.tag", query["RelayState"].ToString());
+        Assert.True(
+            request.RedirectUrl.IndexOf("SAMLRequest=", StringComparison.Ordinal) <
+            request.RedirectUrl.IndexOf("RelayState=", StringComparison.Ordinal));
+        var document = Load(RawInflate(Convert.FromBase64String(query["SAMLRequest"].ToString())));
+        Assert.Equal("_bound0123456789", document.DocumentElement!.GetAttribute("ID"));
+    }
+
+    [Fact]
+    public async Task An_unbound_request_sends_no_RelayState()
+    {
+        var request = await SignInThrough(GoogleStyleSsoUrl);
+
+        Assert.False(QueryHelpers.ParseQuery(new Uri(request.RedirectUrl).Query).ContainsKey("RelayState"));
+    }
+
     /// <summary>RFC 1951 inflate with no zlib or gzip framing: what the binding prescribes and what an IdP runs.</summary>
     private static string RawInflate(byte[] compressed)
     {

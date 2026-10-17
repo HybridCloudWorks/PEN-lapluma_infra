@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Xunit;
 
 namespace LaPluma.CoreApi.Tests;
@@ -77,5 +78,64 @@ public sealed class PostgresCatalogContractTests
         Assert.True(workflowSql.Contains("CREATE TABLE workflow.case_approval") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.case_approval"));
         Assert.True(workflowSql.Contains("CREATE TABLE workflow.upload_session") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.upload_session"));
         Assert.True(workflowSql.Contains("CREATE TABLE workflow.outbox_event") || workflowSql.Contains("CREATE TABLE IF NOT EXISTS workflow.outbox_event"));
+    }
+}
+
+/// <summary>
+/// INF-27, client half: the service never opens an unencrypted PostgreSQL connection, whatever
+/// the connection string says. Cloud SQL refuses plaintext from its side too (ENCRYPTED_ONLY).
+/// </summary>
+public sealed class PostgresConnectionSecurityTests
+{
+    private const string PrivateIpConnection = "Host=10.247.80.3;Port=5432;Database=lapluma;Username=lapluma_app;Password=not-a-real-password";
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(";SslMode=Prefer")]
+    [InlineData(";SslMode=Require")]
+    public void An_unset_or_opportunistic_mode_becomes_require(string suffix)
+    {
+        var secured = new NpgsqlConnectionStringBuilder(
+            PostgresConnectionSecurity.RequireEncryption(PrivateIpConnection + suffix));
+
+        Assert.Equal(SslMode.Require, secured.SslMode);
+        Assert.Equal("10.247.80.3", secured.Host);
+    }
+
+    [Theory]
+    [InlineData("VerifyCA", SslMode.VerifyCA)]
+    [InlineData("VerifyFull", SslMode.VerifyFull)]
+    public void A_stricter_mode_is_kept(string mode, SslMode expected)
+    {
+        var secured = new NpgsqlConnectionStringBuilder(
+            PostgresConnectionSecurity.RequireEncryption($"{PrivateIpConnection};SslMode={mode}"));
+
+        Assert.Equal(expected, secured.SslMode);
+    }
+
+    [Theory]
+    [InlineData("Disable")]
+    [InlineData("Allow")]
+    public void A_plaintext_mode_is_refused_without_echoing_the_password(string mode)
+    {
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            PostgresConnectionSecurity.RequireEncryption($"{PrivateIpConnection};SslMode={mode}"));
+
+        Assert.Contains("SslMode", error.Message);
+        Assert.DoesNotContain("not-a-real-password", error.ToString());
+    }
+
+    [Fact]
+    public void Registration_refuses_a_plaintext_connection_string()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { CatalogSourceRegistration.SourceSetting, CatalogSourceRegistration.PostgresSource },
+                { CatalogSourceRegistration.PostgresConnectionStringSetting, PrivateIpConnection + ";SslMode=Disable" },
+            })
+            .Build();
+
+        Assert.Throws<InvalidOperationException>(() => new ServiceCollection().AddCatalogSource(config));
     }
 }

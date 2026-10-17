@@ -8,6 +8,40 @@ human decision live in `REVIEW.md`. Older entries cite "backlog item" numbers fr
 
 ### Security
 
+- **Native-app sign-in no longer depends on a token in a URL (INT-22).** The app waited for a
+  `lapluma://…?token=` redirect while the SAML consumer answered with JSON, so no sign-in could
+  finish. The contract is now PKCE: `GET /auth/saml/login` takes a registered `redirect_uri`
+  (default `lapluma://auth/callback`, overridable with `SignIn__RedirectUris__<n>`), an S256
+  `code_challenge`, and the app's `state`, sealed into an HMAC-signed `RelayState` with a 10-minute
+  expiry; the AuthnRequest ID is derived from it, and the consumer requires the assertion's
+  `InResponseTo` to match, so IdP-initiated and spliced responses are refused. The consumer checks
+  `RelayState` before the assertion and answers `302` to `redirect_uri?code=…&state=…` (or
+  `error=access_denied`), where the code is AES-256-GCM ciphertext valid for 60 seconds and
+  single-use per instance. The new anonymous `POST /auth/token` exchanges code and `code_verifier`
+  for the one-hour session JWT and is added to the gateway with `security: []`. Both keys are
+  derived from the session signing key with HKDF, so nothing new is provisioned and any instance can
+  finish any sign-in. The runbook documents the contract, the replay window, a manual token
+  procedure, and the App Review reviewer account.
+
+- **Upload URLs are signed, workflow data is tenant-scoped, Cloud SQL is private, and the worker
+  receives its events (INF-25 to INF-28).** Upload sessions had returned URLs whose
+  `X-Goog-Signature` was a bare SHA-256 of a hand-built string, which Cloud Storage rejects; they
+  are now real V4 signed `PUT` URLs, built by `Google.Cloud.Storage.V1`'s `UrlSigner` and signed
+  with the workflow API's own service account through the IAM Credentials `signBlob` API
+  (`roles/iam.serviceAccountTokenCreator` on that account only). `Workflow__GcsSignerServiceAccount`
+  is now required with `Workflow__GcsQuarantineBucket`, and Terraform sets both. Every workflow
+  query is filtered by the caller's tenant, taken from the session token's `tenant_id` claim; a
+  token without exactly one valid `tenant_id` gets 403, client creation no longer hardcodes
+  `tenant_clinic_alpha`, idempotency keys and replay caches are tenant-scoped, and CI runs the
+  isolation tests against PostgreSQL 16 built from `infra/sql`. Cloud SQL loses its public IPv4
+  address and accepts encrypted connections only (`ENCRYPTED_ONLY`); the core API, the workflow
+  API and the migration job reach its private address over Direct VPC egress, and both APIs force
+  `SslMode=Require` on PostgreSQL connection strings. Staging's push subscription now delivers to
+  the processing worker with an OIDC token for `lp-ps-invoker-<env>`, its only invoker, and the
+  quarantine bucket publishes upload events; the worker keeps internal ingress, which same-project
+  Pub/Sub push reaches. Apply order and checks:
+  `docs/runbooks/private-database-signed-uploads-and-worker-push.md`.
+
 - **Authentication now rests on verified signatures alone (INF-21 to INF-24).** Both APIs accepted
   development-only credentials in every environment, did not check the signature of the JWTs they
   read, and issued an unsigned session token; the SAML consumer checked only that a signature

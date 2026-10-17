@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -12,9 +13,17 @@ namespace LaPluma.WorkflowApi;
 /// Replaces in-memory/fixture-only storage with durable Cloud SQL PostgreSQL persistence.
 /// Enforces transaction boundaries, idempotency key checks, relational constraints,
 /// and per-person trust boundaries.
+///
+/// Tenant isolation (INF-26): every statement that reads or changes client or case data is
+/// filtered by the caller's tenant (<c>tenant_id = $n</c>, bound from <see cref="WorkflowTenant"/>),
+/// including the idempotency lookup and the in-process replay caches. A row that belongs to
+/// another tenant is never returned and never changed; to the caller it does not exist.
 /// </summary>
 public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkflowSource
 {
+    /// <summary>The unique constraint PostgreSQL names for <c>client_folder.idempotency_key</c>.</summary>
+    private const string FolderIdempotencyConstraint = "client_folder_idempotency_key_key";
+
     private readonly ConcurrentDictionary<string, (string PayloadHash, SectionCommit Result)> pgCommittedSections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, int>> pgSectionRevisions = new(StringComparer.OrdinalIgnoreCase);
 
@@ -30,8 +39,18 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
             false));
     }
 
+    public async Task CheckReadinessAsync(CancellationToken cancellationToken)
+    {
+        // Touches the schema, not a tenant's rows: LIMIT 0 returns nothing, but fails if the
+        // connection, the database, or the table is not there.
+        const string sql = "SELECT 1 FROM workflow.client_folder LIMIT 0;";
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+    }
+
     public async Task<ClientDirectoryPage> ListClientsAsync(
-        string? query, string? cursor, CancellationToken cancellationToken)
+        string tenantId, string? query, string? cursor, CancellationToken cancellationToken)
     {
         if (cursor is not null)
         {
@@ -45,15 +64,17 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
                     c.id AS case_id, c.collection_id, c.state AS case_state
             FROM    workflow.client_folder f
             LEFT JOIN workflow.folder_person p ON p.folder_id = f.id
-            LEFT JOIN workflow.upload_session u ON u.folder_id = f.id
-            LEFT JOIN workflow.case_workspace c ON c.folder_id = f.id
-            WHERE   ($1::text IS NULL OR f.display_label ILIKE '%' || $1 || '%')
+            LEFT JOIN workflow.upload_session u ON u.folder_id = f.id AND u.tenant_id = f.tenant_id
+            LEFT JOIN workflow.case_workspace c ON c.folder_id = f.id AND c.tenant_id = f.tenant_id
+            WHERE   f.tenant_id = $1
+              AND   ($2::text IS NULL OR f.display_label ILIKE '%' || $2 || '%')
             GROUP BY f.id, f.display_label, f.created_at, c.id, c.collection_id, c.state
             ORDER BY f.created_at DESC, f.id;
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         command.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)query ?? DBNull.Value);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -96,42 +117,70 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<CreateClientOutcome> CreateClientAsync(
-        string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken)
+        string tenantId, string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken)
     {
         var displayLabel = request.DisplayLabel!;
         var payloadHash = Convert.ToHexStringLower(
             SHA256.HashData(Encoding.UTF8.GetBytes(displayLabel)));
 
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        // 1. Check idempotency registration — in the caller's tenant only, so a key another
+        // tenant used never replays that tenant's folder.
+        if (await FindIdempotentFolderAsync(tenantId, idempotencyKey, payloadHash, cancellationToken) is { } prior)
+        {
+            return prior;
+        }
 
-        // 1. Check idempotency registration
+        try
+        {
+            return await InsertClientFolderAsync(tenantId, idempotencyKey, displayLabel, payloadHash, cancellationToken);
+        }
+        catch (PostgresException error) when (
+            error.SqlState == PostgresErrorCodes.UniqueViolation
+            && error.ConstraintName == FolderIdempotencyConstraint)
+        {
+            // The key is unique across all tenants. Either a concurrent request in this tenant
+            // inserted it first (replay or conflict, decided by the payload), or another tenant
+            // holds it — a conflict that reveals nothing about that tenant's folder.
+            return await FindIdempotentFolderAsync(tenantId, idempotencyKey, payloadHash, cancellationToken)
+                ?? new CreateClientOutcome(
+                    IdempotencyOutcome.Conflict, new ClientDirectoryEntry(string.Empty, string.Empty, 0, 0, null, 0));
+        }
+    }
+
+    private async Task<CreateClientOutcome?> FindIdempotentFolderAsync(
+        string tenantId, string idempotencyKey, string payloadHash, CancellationToken cancellationToken)
+    {
         const string checkSql = """
             SELECT id, display_label, payload_hash
             FROM   workflow.client_folder
-            WHERE  idempotency_key = $1;
+            WHERE  idempotency_key = $1
+              AND  tenant_id = $2;
             """;
 
-        await using (var checkCmd = new NpgsqlCommand(checkSql, connection, tx))
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var checkCmd = new NpgsqlCommand(checkSql, connection);
+        checkCmd.Parameters.AddWithValue(NpgsqlDbType.Text, idempotencyKey);
+        checkCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
+        await using var reader = await checkCmd.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
         {
-            checkCmd.Parameters.AddWithValue(NpgsqlDbType.Text, idempotencyKey);
-            await using var reader = await checkCmd.ExecuteReaderAsync(cancellationToken);
-            if (await reader.ReadAsync(cancellationToken))
-            {
-                var existingId = reader.GetString(0);
-                var existingLabel = reader.GetString(1);
-                var existingHash = reader.IsDBNull(2) ? "" : reader.GetString(2).Trim();
-                await reader.CloseAsync();
-
-                var existingEntry = new ClientDirectoryEntry(existingId, existingLabel, 1, 0, null, 0);
-                if (!string.Equals(existingHash, payloadHash, StringComparison.Ordinal))
-                {
-                    return new CreateClientOutcome(IdempotencyOutcome.Conflict, existingEntry);
-                }
-
-                return new CreateClientOutcome(IdempotencyOutcome.Replayed, existingEntry);
-            }
+            return null;
         }
+
+        var existingEntry = new ClientDirectoryEntry(reader.GetString(0), reader.GetString(1), 1, 0, null, 0);
+        var existingHash = reader.IsDBNull(2) ? "" : reader.GetString(2).Trim();
+        return new CreateClientOutcome(
+            string.Equals(existingHash, payloadHash, StringComparison.Ordinal)
+                ? IdempotencyOutcome.Replayed
+                : IdempotencyOutcome.Conflict,
+            existingEntry);
+    }
+
+    private async Task<CreateClientOutcome> InsertClientFolderAsync(
+        string tenantId, string idempotencyKey, string displayLabel, string payloadHash, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
         // 2. Insert new client folder
         var folderId = $"folder-{Guid.NewGuid():N}"[..24];
@@ -145,7 +194,7 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         await using (var insertCmd = new NpgsqlCommand(insertFolderSql, connection, tx))
         {
             insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, folderId);
-            insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, "tenant_clinic_alpha"); // default active tenant anchor
+            insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
             insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, displayLabel);
             insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, idempotencyKey);
             insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, payloadHash);
@@ -179,7 +228,8 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         await using (var outboxCmd = new NpgsqlCommand(outboxSql, connection, tx))
         {
             outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, folderId);
-            outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, $"{{\"folderId\": \"{folderId}\", \"displayLabel\": \"{displayLabel}\"}}");
+            outboxCmd.Parameters.AddWithValue(
+                NpgsqlDbType.Text, JsonSerializer.Serialize(new { folderId, tenantId, displayLabel }));
             await outboxCmd.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -189,20 +239,22 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         return new CreateClientOutcome(IdempotencyOutcome.Created, createdEntry);
     }
 
-    public async Task<CaseWorkspace?> GetCaseWorkspaceAsync(string caseId, CancellationToken cancellationToken)
+    public async Task<CaseWorkspace?> GetCaseWorkspaceAsync(string tenantId, string caseId, CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT  c.id, c.folder_id, c.collection_id, c.state,
                     c.preparer_user_id, c.reviewer_user_id, c.approver_user_id,
                     f.display_label
             FROM    workflow.case_workspace c
-            JOIN    workflow.client_folder f ON f.id = c.folder_id
-            WHERE   c.id = $1;
+            JOIN    workflow.client_folder f ON f.id = c.folder_id AND f.tenant_id = c.tenant_id
+            WHERE   c.id = $1
+              AND   c.tenant_id = $2;
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        command.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -255,17 +307,19 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         return new CaseWorkspace(clientEntry, summary, assignments, [], []);
     }
 
-    public async Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(string tenantId, CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT  c.id, c.folder_id, c.collection_id, c.state, f.display_label
             FROM    workflow.case_workspace c
-            JOIN    workflow.client_folder f ON f.id = c.folder_id
-            WHERE   c.state IN ('IN_REVIEW', 'READY_FOR_APPROVAL', 'CHANGES_REQUESTED', 'VALIDATING');
+            JOIN    workflow.client_folder f ON f.id = c.folder_id AND f.tenant_id = c.tenant_id
+            WHERE   c.tenant_id = $1
+              AND   c.state IN ('IN_REVIEW', 'READY_FOR_APPROVAL', 'CHANGES_REQUESTED', 'VALIDATING');
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         var queue = new List<ReviewQueueItem>();
@@ -287,7 +341,7 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<RecordReviewDecisionOutcome> RecordReviewDecisionAsync(
-        string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken)
     {
         var outcome = request.Outcome?.ToUpperInvariant();
         if (outcome is not ("CHANGES_REQUESTED" or "READY_FOR_APPROVAL"))
@@ -298,9 +352,10 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
-        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 FOR UPDATE;";
+        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 AND tenant_id = $2 FOR UPDATE;";
         await using var selectCmd = new NpgsqlCommand(selectSql, connection, tx);
         selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         var currentStateObj = await selectCmd.ExecuteScalarAsync(cancellationToken);
 
         if (currentStateObj is null)
@@ -316,10 +371,11 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         }
 
         var newState = outcome == "READY_FOR_APPROVAL" ? "READY_FOR_APPROVAL" : "CHANGES_REQUESTED";
-        const string updateSql = "UPDATE workflow.case_workspace SET state = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;";
+        const string updateSql = "UPDATE workflow.case_workspace SET state = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND tenant_id = $3;";
         await using var updateCmd = new NpgsqlCommand(updateSql, connection, tx);
         updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, newState);
         updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         await updateCmd.ExecuteNonQueryAsync(cancellationToken);
 
         const string outboxSql = """
@@ -328,7 +384,7 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
             """;
         await using var outboxCmd = new NpgsqlCommand(outboxSql, connection, tx);
         outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
-        outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, $"{{\"reviewerId\": \"{reviewerId}\", \"outcome\": \"{outcome}\"}}");
+        outboxCmd.Parameters.AddWithValue(NpgsqlDbType.Text, JsonSerializer.Serialize(new { reviewerId, outcome }));
         await outboxCmd.ExecuteNonQueryAsync(cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
@@ -338,12 +394,13 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<CreateDraftPreviewOutcome> CreateDraftPreviewAsync(
-        string caseId, CancellationToken cancellationToken)
+        string tenantId, string caseId, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1;";
+        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 AND tenant_id = $2;";
         await using var selectCmd = new NpgsqlCommand(selectSql, connection);
         selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         var stateObj = await selectCmd.ExecuteScalarAsync(cancellationToken);
 
         if (stateObj is null)
@@ -370,12 +427,13 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<CreateStepUpChallengeOutcome> CreateStepUpChallengeAsync(
-        string caseId, string userId, CancellationToken cancellationToken)
+        string tenantId, string caseId, string userId, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        const string selectSql = "SELECT 1 FROM workflow.case_workspace WHERE id = $1;";
+        const string selectSql = "SELECT 1 FROM workflow.case_workspace WHERE id = $1 AND tenant_id = $2;";
         await using var selectCmd = new NpgsqlCommand(selectSql, connection);
         selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         var exists = await selectCmd.ExecuteScalarAsync(cancellationToken);
 
         if (exists is null)
@@ -389,7 +447,7 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<ApproveCaseOutcome> ApproveCaseAsync(
-        string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (!request.Attested || string.IsNullOrWhiteSpace(request.StepUpChallenge))
         {
@@ -399,9 +457,10 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
-        const string caseSql = "SELECT state, preparer_user_id, reviewer_user_id FROM workflow.case_workspace WHERE id = $1 FOR UPDATE;";
+        const string caseSql = "SELECT state, preparer_user_id, reviewer_user_id FROM workflow.case_workspace WHERE id = $1 AND tenant_id = $2 FOR UPDATE;";
         await using var caseCmd = new NpgsqlCommand(caseSql, connection, tx);
         caseCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        caseCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         await using var reader = await caseCmd.ExecuteReaderAsync(cancellationToken);
 
         if (!await reader.ReadAsync(cancellationToken))
@@ -443,10 +502,11 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         insertCmd.Parameters.AddWithValue(NpgsqlDbType.Text, approverId);
         await insertCmd.ExecuteNonQueryAsync(cancellationToken);
 
-        const string updateCaseSql = "UPDATE workflow.case_workspace SET state = 'APPROVED', approver_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;";
+        const string updateCaseSql = "UPDATE workflow.case_workspace SET state = 'APPROVED', approver_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND tenant_id = $3;";
         await using var updateCmd = new NpgsqlCommand(updateCaseSql, connection, tx);
         updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, approverId);
         updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         await updateCmd.ExecuteNonQueryAsync(cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
@@ -456,18 +516,22 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<IReadOnlyList<CaseHistoryEvent>> GetCaseHistoryAsync(
-        string caseId, CancellationToken cancellationToken)
+        string tenantId, string caseId, CancellationToken cancellationToken)
     {
+        // The outbox has no tenant column; its case events are reached through the case, which
+        // must belong to the caller's tenant.
         const string sql = """
-            SELECT event_type, created_at, payload
-            FROM workflow.outbox_event
-            WHERE aggregate_type = 'case' AND aggregate_id = $1
-            ORDER BY created_at DESC;
+            SELECT e.event_type, e.created_at, e.payload::text
+            FROM workflow.outbox_event e
+            JOIN workflow.case_workspace c ON c.id = e.aggregate_id
+            WHERE e.aggregate_type = 'case' AND e.aggregate_id = $1 AND c.tenant_id = $2
+            ORDER BY e.created_at DESC;
             """;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        command.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         var events = new List<CaseHistoryEvent>();
@@ -483,12 +547,15 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<CommitSectionOutcome> CommitSectionAsync(
-        string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken)
     {
         var payloadString = $"{caseId}:{sectionId}:{baseRevision}:{string.Join(";", values.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}"))}";
         var payloadHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payloadString)));
 
-        if (!string.IsNullOrWhiteSpace(idempotencyKey) && pgCommittedSections.TryGetValue(idempotencyKey, out var existingCommit))
+        // The replay caches are keyed by tenant too: the same key or case ID from another tenant
+        // must never replay this tenant's result.
+        var commitKey = TenantKey(tenantId, idempotencyKey);
+        if (!string.IsNullOrWhiteSpace(idempotencyKey) && pgCommittedSections.TryGetValue(commitKey, out var existingCommit))
         {
             if (!string.Equals(existingCommit.PayloadHash, payloadHash, StringComparison.Ordinal))
             {
@@ -497,7 +564,7 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
             return new CommitSectionOutcome(CommitSectionStatus.Success, existingCommit.Result);
         }
 
-        var revMap = pgSectionRevisions.GetOrAdd(caseId, _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+        var revMap = pgSectionRevisions.GetOrAdd(TenantKey(tenantId, caseId), _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
         var currentRev = revMap.GetValueOrDefault(sectionId, 1);
 
         if (baseRevision != currentRev)
@@ -508,9 +575,10 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var tx = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
-        const string caseSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 FOR UPDATE;";
+        const string caseSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 AND tenant_id = $2 FOR UPDATE;";
         await using var caseCmd = new NpgsqlCommand(caseSql, connection, tx);
         caseCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        caseCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         var stateObj = await caseCmd.ExecuteScalarAsync(cancellationToken);
 
         if (stateObj is null)
@@ -563,9 +631,10 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
 
         if (reopen || invalidate)
         {
-            const string updateStateSql = "UPDATE workflow.case_workspace SET state = 'IN_PROGRESS', updated_at = CURRENT_TIMESTAMP WHERE id = $1;";
+            const string updateStateSql = "UPDATE workflow.case_workspace SET state = 'IN_PROGRESS', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND tenant_id = $2;";
             await using var stateCmd = new NpgsqlCommand(updateStateSql, connection, tx);
             stateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+            stateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
             await stateCmd.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -600,14 +669,14 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
 
         if (!string.IsNullOrWhiteSpace(idempotencyKey))
         {
-            pgCommittedSections[idempotencyKey] = (payloadHash, result);
+            pgCommittedSections[commitKey] = (payloadHash, result);
         }
 
         return new CommitSectionOutcome(CommitSectionStatus.Success, result);
     }
 
     public async Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
-        string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         const string sql = """
@@ -615,11 +684,12 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
                    EXISTS(SELECT 1 FROM workflow.case_approval a WHERE a.case_id = c.id AND a.is_invalidated = FALSE) AS has_valid_approval,
                    EXISTS(SELECT 1 FROM workflow.case_pinned_blueprint p WHERE p.case_id = c.id AND p.drift_detected = TRUE) AS has_drift
             FROM workflow.case_workspace c
-            WHERE c.id = $1;
+            WHERE c.id = $1 AND c.tenant_id = $2;
             """;
 
         await using var cmd = new NpgsqlCommand(sql, connection);
         cmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        cmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
         if (!await reader.ReadAsync(cancellationToken))
@@ -672,17 +742,18 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     }
 
     public async Task<PackageDownloadOutcome> GetPackageDownloadAsync(
-        string caseId, string packageId, string userId, CancellationToken cancellationToken)
+        string tenantId, string caseId, string packageId, string userId, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         const string sql = """
             SELECT c.state,
                    EXISTS(SELECT 1 FROM workflow.case_approval a WHERE a.case_id = c.id AND a.is_invalidated = FALSE) AS has_valid_approval
             FROM workflow.case_workspace c
-            WHERE c.id = $1;
+            WHERE c.id = $1 AND c.tenant_id = $2;
             """;
         await using var cmd = new NpgsqlCommand(sql, connection);
         cmd.Parameters.AddWithValue(NpgsqlDbType.Text, caseId);
+        cmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
         if (!await reader.ReadAsync(cancellationToken))
@@ -722,14 +793,15 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
     private readonly ConcurrentDictionary<string, WorkflowEventReceipt> pgProcessedEvents = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
-        PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(workflowEvent.EventId) || string.IsNullOrWhiteSpace(workflowEvent.CaseId))
         {
             return new WorkflowEventOutcome(WorkflowEventProcessingStatus.BadPayload);
         }
 
-        if (pgProcessedEvents.TryGetValue(workflowEvent.EventId, out var existingReceipt))
+        var eventKey = TenantKey(tenantId, workflowEvent.EventId);
+        if (pgProcessedEvents.TryGetValue(eventKey, out var existingReceipt))
         {
             return new WorkflowEventOutcome(
                 WorkflowEventProcessingStatus.DuplicateIgnored,
@@ -737,9 +809,10 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
         }
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1;";
+        const string selectSql = "SELECT state FROM workflow.case_workspace WHERE id = $1 AND tenant_id = $2;";
         await using var selectCmd = new NpgsqlCommand(selectSql, connection);
         selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, workflowEvent.CaseId);
+        selectCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
         var stateObj = await selectCmd.ExecuteScalarAsync(cancellationToken);
 
         var currentState = stateObj as string ?? "COLLECTING";
@@ -751,15 +824,16 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
                 "REGRESSION_PREVENTED",
                 DateTimeOffset.UtcNow,
                 workflowEvent.CorrelationId);
-            pgProcessedEvents[workflowEvent.EventId] = regReceipt;
+            pgProcessedEvents[eventKey] = regReceipt;
             return new WorkflowEventOutcome(WorkflowEventProcessingStatus.RegressionPrevented, regReceipt);
         }
 
         if (workflowEvent.EventType == "PACKAGE_COMPILED")
         {
-            const string updateSql = "UPDATE workflow.case_workspace SET state = 'GENERATED' WHERE id = $1;";
+            const string updateSql = "UPDATE workflow.case_workspace SET state = 'GENERATED' WHERE id = $1 AND tenant_id = $2;";
             await using var updateCmd = new NpgsqlCommand(updateSql, connection);
             updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, workflowEvent.CaseId);
+            updateCmd.Parameters.AddWithValue(NpgsqlDbType.Text, tenantId);
             await updateCmd.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -768,8 +842,12 @@ public sealed class PostgresWorkflowSource(NpgsqlDataSource dataSource) : IWorkf
             "PROCESSED",
             DateTimeOffset.UtcNow,
             workflowEvent.CorrelationId);
-        pgProcessedEvents[workflowEvent.EventId] = receipt;
+        pgProcessedEvents[eventKey] = receipt;
 
         return new WorkflowEventOutcome(WorkflowEventProcessingStatus.Processed, receipt);
     }
+
+    // A unit separator cannot appear in a tenant ID (see WorkflowTenant), so no two
+    // (tenant, key) pairs collide.
+    private static string TenantKey(string tenantId, string key) => $"{tenantId}\u001f{key}";
 }
