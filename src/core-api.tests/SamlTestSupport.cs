@@ -21,6 +21,9 @@ internal sealed record AssertionSpec
     public DateTimeOffset NotOnOrAfter { get; init; } = DateTimeOffset.UtcNow.AddMinutes(10);
     public bool IncludeAudienceRestriction { get; init; } = true;
 
+    /// <summary>The AuthnRequest ID the bearer confirmation answers; omitted when null, as in an unsolicited response.</summary>
+    public string? InResponseTo { get; init; }
+
     public static AssertionSpec Expired() => new()
     {
         NotBefore = DateTimeOffset.UtcNow.AddHours(-2),
@@ -109,7 +112,7 @@ internal sealed class TestIdentityProvider : IDisposable
                 <saml:Subject>
                     <saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">{spec.Email}</saml:NameID>
                     <saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
-                        <saml:SubjectConfirmationData NotOnOrAfter="{spec.NotOnOrAfter:O}" Recipient="{spec.Recipient}"/>
+                        <saml:SubjectConfirmationData{(spec.InResponseTo is null ? "" : $" InResponseTo=\"{spec.InResponseTo}\"")} NotOnOrAfter="{spec.NotOnOrAfter:O}" Recipient="{spec.Recipient}"/>
                     </saml:SubjectConfirmation>
                 </saml:Subject>
                 <saml:Conditions NotBefore="{spec.NotBefore:O}" NotOnOrAfter="{spec.NotOnOrAfter:O}">

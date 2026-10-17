@@ -371,4 +371,59 @@ public sealed class SamlAssertionValidationTests : IDisposable
         Assert.False(result.IsValid);
         Assert.Equal("consumer-domain-prohibited", result.ErrorCode);
     }
+
+    [Fact]
+    public async Task An_assertion_answering_the_expected_request_is_accepted()
+    {
+        var result = await _provider.ValidateAssertionResponseAsync(
+            TestIdentityProvider.TenantId,
+            _idp.SignedResponse(new AssertionSpec { InResponseTo = "_request1" }),
+            TestIdentityProvider.SpEntityId,
+            expectedInResponseTo: "_request1");
+
+        Assert.True(result.IsValid, result.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData("_another-request")]
+    [InlineData(null)]
+    public async Task An_assertion_answering_another_request_or_none_is_rejected_when_one_is_expected(string? inResponseTo)
+    {
+        var result = await _provider.ValidateAssertionResponseAsync(
+            TestIdentityProvider.TenantId,
+            _idp.SignedResponse(new AssertionSpec { InResponseTo = inResponseTo }),
+            TestIdentityProvider.SpEntityId,
+            expectedInResponseTo: "_request1");
+
+        Assert.False(result.IsValid);
+        Assert.Equal("unsolicited-response", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task InResponseTo_is_read_from_the_signed_assertion_not_the_response_envelope()
+    {
+        // The Response element is outside the signature; naming the request there must not help.
+        var xml = _idp.Sign(TestIdentityProvider.UnsignedResponse(new AssertionSpec())).OuterXml
+            .Replace("<samlp:Response ", "<samlp:Response InResponseTo=\"_request1\" ", StringComparison.Ordinal);
+
+        var result = await _provider.ValidateAssertionResponseAsync(
+            TestIdentityProvider.TenantId, xml, TestIdentityProvider.SpEntityId, expectedInResponseTo: "_request1");
+
+        Assert.False(result.IsValid);
+        Assert.Equal("unsolicited-response", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task A_rejected_InResponseTo_does_not_consume_the_assertion()
+    {
+        var response = _idp.SignedResponse(new AssertionSpec { InResponseTo = "_request1" });
+
+        var wrong = await _provider.ValidateAssertionResponseAsync(
+            TestIdentityProvider.TenantId, response, TestIdentityProvider.SpEntityId, expectedInResponseTo: "_request2");
+        var right = await _provider.ValidateAssertionResponseAsync(
+            TestIdentityProvider.TenantId, response, TestIdentityProvider.SpEntityId, expectedInResponseTo: "_request1");
+
+        Assert.Equal("unsolicited-response", wrong.ErrorCode);
+        Assert.True(right.IsValid, right.ErrorMessage);
+    }
 }

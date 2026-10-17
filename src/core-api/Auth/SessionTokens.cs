@@ -24,6 +24,12 @@ public sealed class SessionTokenKeys
     public const string SigningKeySetting = "SessionTokens:SigningKeyPem";
     public const int MinimumKeySizeBits = 2048;
 
+    private static readonly byte[] DerivationSalt = Encoding.UTF8.GetBytes("lapluma session signing key derivation v1");
+
+    // HKDF pseudorandom key extracted from the private key, so purpose-specific symmetric keys
+    // can be derived without keeping a second copy of the key material around.
+    private readonly byte[]? _derivationKey;
+
     private SessionTokenKeys(RSA? privateKey)
     {
         if (privateKey is null)
@@ -31,6 +37,16 @@ public sealed class SessionTokenKeys
             ValidationKeys = [];
             PublicKeySet = new JsonWebKeySetDocument([]);
             return;
+        }
+
+        var pkcs8 = privateKey.ExportPkcs8PrivateKey();
+        try
+        {
+            _derivationKey = HKDF.Extract(HashAlgorithmName.SHA256, pkcs8, DerivationSalt);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(pkcs8);
         }
 
         var publicParameters = privateKey.ExportParameters(includePrivateParameters: false);
@@ -59,6 +75,17 @@ public sealed class SessionTokenKeys
 
     /// <summary>The document served at <c>/.well-known/jwks.json</c>. Never carries private parameters.</summary>
     public JsonWebKeySetDocument PublicKeySet { get; }
+
+    /// <summary>
+    /// A 256-bit key for one <paramref name="purpose"/>, derived from the signing key with HKDF-SHA256
+    /// (RFC 5869). Every instance holding the same signing key derives the same value, which is what
+    /// lets the sign-in flow stay stateless across instances; distinct purposes give independent
+    /// keys. Null when no signing key is configured.
+    /// </summary>
+    public byte[]? DeriveKey(string purpose) =>
+        _derivationKey is null
+            ? null
+            : HKDF.Expand(HashAlgorithmName.SHA256, _derivationKey, 32, Encoding.UTF8.GetBytes(purpose));
 
     public static SessionTokenKeys FromConfiguration(IConfiguration configuration) =>
         FromPem(configuration[SigningKeySetting]);
@@ -122,10 +149,17 @@ public sealed record PublicJsonWebKey(
     [property: JsonPropertyName("n")] string N,
     [property: JsonPropertyName("e")] string E);
 
+/// <summary>Who a session token is for: what a verified assertion says, carried through the sign-in code.</summary>
+public sealed record SessionIdentity(string Subject, string Email, string TenantId, IReadOnlyList<string> Roles)
+{
+    public static SessionIdentity From(SamlAssertion assertion) =>
+        new(assertion.SubjectNameId, assertion.Email, assertion.TenantId, assertion.Roles);
+}
+
 /// <summary>
-/// Mints the LaPluma session token returned by the SAML assertion consumer service: an RS256 JWT
-/// with the configured issuer and audience, a one-hour lifetime, and the caller's tenant, email,
-/// and roles. Both APIs validate it with the standard JWT bearer handler.
+/// Mints the LaPluma session token that <c>POST /auth/token</c> returns for a redeemed sign-in
+/// code: an RS256 JWT with the configured issuer and audience, a one-hour lifetime, and the
+/// caller's tenant, email, and roles. Both APIs validate it with the standard JWT bearer handler.
 /// </summary>
 public sealed class SessionTokenIssuer(SessionTokenKeys keys, IConfiguration configuration, TimeProvider clock)
 {
@@ -144,7 +178,9 @@ public sealed class SessionTokenIssuer(SessionTokenKeys keys, IConfiguration con
         !string.IsNullOrWhiteSpace(issuer) &&
         !string.IsNullOrWhiteSpace(audience);
 
-    public SamlTokenExchangeResponse Issue(SamlAssertion assertion)
+    public SamlTokenExchangeResponse Issue(SamlAssertion assertion) => Issue(SessionIdentity.From(assertion));
+
+    public SamlTokenExchangeResponse Issue(SessionIdentity identity)
     {
         if (!CanIssue)
         {
@@ -162,11 +198,11 @@ public sealed class SessionTokenIssuer(SessionTokenKeys keys, IConfiguration con
             SigningCredentials = keys.SigningCredentials,
             Claims = new Dictionary<string, object>
             {
-                [JwtRegisteredClaimNames.Sub] = assertion.SubjectNameId,
-                [JwtRegisteredClaimNames.Email] = assertion.Email,
+                [JwtRegisteredClaimNames.Sub] = identity.Subject,
+                [JwtRegisteredClaimNames.Email] = identity.Email,
                 [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString("N"),
-                [TenantClaim] = assertion.TenantId,
-                [RoleClaim] = assertion.Roles.ToArray(),
+                [TenantClaim] = identity.TenantId,
+                [RoleClaim] = identity.Roles.ToArray(),
             },
         };
 
@@ -174,9 +210,10 @@ public sealed class SessionTokenIssuer(SessionTokenKeys keys, IConfiguration con
             AccessToken: handler.CreateToken(descriptor),
             TokenType: "Bearer",
             ExpiresIn: (int)Lifetime.TotalSeconds,
-            TenantId: assertion.TenantId,
-            UserId: assertion.SubjectNameId,
-            Roles: assertion.Roles);
+            TenantId: identity.TenantId,
+            UserId: identity.Subject,
+            Roles: identity.Roles,
+            Email: identity.Email);
     }
 }
 

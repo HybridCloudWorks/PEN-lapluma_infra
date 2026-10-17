@@ -8,6 +8,21 @@ human decision live in `REVIEW.md`. Older entries cite "backlog item" numbers fr
 
 ### Security
 
+- **Native-app sign-in no longer depends on a token in a URL (INT-22).** The app waited for a
+  `lapluma://…?token=` redirect while the SAML consumer answered with JSON, so no sign-in could
+  finish. The contract is now PKCE: `GET /auth/saml/login` takes a registered `redirect_uri`
+  (default `lapluma://auth/callback`, overridable with `SignIn__RedirectUris__<n>`), an S256
+  `code_challenge`, and the app's `state`, sealed into an HMAC-signed `RelayState` with a 10-minute
+  expiry; the AuthnRequest ID is derived from it, and the consumer requires the assertion's
+  `InResponseTo` to match, so IdP-initiated and spliced responses are refused. The consumer checks
+  `RelayState` before the assertion and answers `302` to `redirect_uri?code=…&state=…` (or
+  `error=access_denied`), where the code is AES-256-GCM ciphertext valid for 60 seconds and
+  single-use per instance. The new anonymous `POST /auth/token` exchanges code and `code_verifier`
+  for the one-hour session JWT and is added to the gateway with `security: []`. Both keys are
+  derived from the session signing key with HKDF, so nothing new is provisioned and any instance can
+  finish any sign-in. The runbook documents the contract, the replay window, a manual token
+  procedure, and the App Review reviewer account.
+
 - **Authentication now rests on verified signatures alone (INF-21 to INF-24).** Both APIs accepted
   development-only credentials in every environment, did not check the signature of the JWTs they
   read, and issued an unsigned session token; the SAML consumer checked only that a signature
