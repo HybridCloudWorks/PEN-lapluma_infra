@@ -104,7 +104,9 @@ script updates them in place but will not create them.
 Terraform does not manage whether the instance runs (`lifecycle.ignore_changes` on
 `settings[0].activation_policy` in `modules/database`), so `terraform apply` neither starts nor stops
 it. `infra/scripts/manage-environment.ps1` (or `staging-power.yml`) does. Staging stays stopped until
-INF-27 is fixed: the instance has a public IPv4 address and does not enforce SSL.
+the INF-27 change (no public IPv4 address, encrypted connections only) is applied in the order
+[Private Cloud SQL, Signed Uploads, and Worker Push](private-database-signed-uploads-and-worker-push.md)
+gives.
 
 ## 3. Provisioning the secrets
 
@@ -231,8 +233,10 @@ to `INGRESS_TRAFFIC_ALL` (the declared state), so it must not run until the new 
    `tools/live_test_gateway.py` needs a real session token in `LAPLUMA_AUTH_TOKEN`.
 7. **Cloud SQL last.** Both APIs still serve fixtures (`Catalog__Source` and `Workflow__Source` are
    `fixture`), so nothing on the request path needs the database, and neither the checks above nor
-   `terraform apply` start it ([Cloud SQL power state](#cloud-sql-power-state)). Start it only when
-   it is needed, and preferably after INF-27 lands:
+   `terraform apply` start it ([Cloud SQL power state](#cloud-sql-power-state)). Do not start it
+   until INF-27 is applied: follow
+   [Private Cloud SQL, Signed Uploads, and Worker Push](private-database-signed-uploads-and-worker-push.md),
+   which removes the public address first. After that, start it only when it is needed:
    `infra/scripts/manage-environment.ps1 -Action resume` for staging, or
    `gcloud sql instances patch <instance> --project="$PROJECT" --activation-policy=ALWAYS`.
 

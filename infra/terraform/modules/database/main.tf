@@ -16,9 +16,14 @@ resource "google_sql_database_instance" "postgres" {
     disk_size         = 10
     disk_autoresize   = true
 
+    # Private IP only, encrypted only (INF-27). With no public IPv4 address nothing outside the
+    # VPC can reach the instance at all; the APIs connect over Direct VPC egress to the private
+    # address (Private Service Access, modules/network). ENCRYPTED_ONLY refuses any connection that
+    # is not TLS; the services also set SslMode=Require themselves.
     ip_configuration {
-      ipv4_enabled    = true
+      ipv4_enabled    = false
       private_network = var.vpc_network_id
+      ssl_mode        = "ENCRYPTED_ONLY"
     }
 
     backup_configuration {
@@ -53,8 +58,9 @@ resource "google_sql_database_instance" "postgres" {
   lifecycle {
     # Power state is not Terraform's to manage. settings sets no activation_policy, and the provider
     # then plans ALWAYS, so without this any apply would start an instance that was stopped on
-    # purpose. infra/scripts/manage-environment.ps1 (pause/resume) owns it, and staging stays stopped
-    # until INF-27 is fixed: the instance still has a public IPv4 address and does not enforce SSL.
+    # purpose. infra/scripts/manage-environment.ps1 (pause/resume) owns it. Removing the public
+    # address from an instance that is stopped follows a set order:
+    # docs/runbooks/private-database-signed-uploads-and-worker-push.md.
     ignore_changes = [settings[0].activation_policy]
   }
 }

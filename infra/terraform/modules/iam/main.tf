@@ -97,6 +97,16 @@ resource "google_service_account_iam_member" "gateway_sa_token_creator" {
   member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-apigateway.iam.gserviceaccount.com"
 }
 
+# The workflow API signs Cloud Storage V4 upload URLs as itself, through the IAM Credentials
+# signBlob API, so it needs iam.serviceAccounts.signBlob on its own account (INF-25). The grant is
+# on that one service account, not the project: it lets the workflow API sign as, or mint tokens
+# for, itself and no other identity.
+resource "google_service_account_iam_member" "workflow_api_self_token_creator" {
+  service_account_id = google_service_account.workflow_api_sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.workflow_api_sa.email}"
+}
+
 # Cloud SQL client access for Core and Workflow APIs only
 resource "google_project_iam_member" "core_api_cloudsql" {
   project = var.project_id

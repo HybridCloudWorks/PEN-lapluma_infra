@@ -7,8 +7,9 @@ This directory contains the modular, production-grade, and cost-optimized Terraf
 1. **Zero Static Deployment Keys**:
    - Authenticated via GitHub Actions OIDC Workload Identity Federation (`modules/iam`). No long-lived service account JSON keys exist.
 2. **Least Privilege & Role Isolation**:
-   - `core-api` & `workflow-api`: Authorized for Cloud SQL and private storage buckets.
-   - `processing-worker`: Strictly isolated from the database. Denied Cloud SQL roles, credentials, and database network routes. Operates purely through signed storage objects and Pub/Sub messages.
+   - `core-api` & `workflow-api`: Authorized for Cloud SQL and private storage buckets. They reach Cloud SQL over Direct VPC egress on its private address; the instance has no public IPv4 address and accepts encrypted connections only (`ssl_mode = "ENCRYPTED_ONLY"`).
+   - `workflow-api` signs Cloud Storage upload URLs as itself through IAM `signBlob`, holding `roles/iam.serviceAccountTokenCreator` on its own service account only.
+   - `processing-worker`: Strictly isolated from the database. Denied Cloud SQL roles, credentials, and database network routes. Operates purely through signed storage objects and Pub/Sub messages. Internal ingress; its only invoker is the push subscription's OIDC identity (`lp-ps-invoker-<env>`).
    - `acquisition-runner`: Authorized to stage official forms in `lp-artifacts` and trigger Pub/Sub notifications.
 3. **Authenticated Edge and Second Lock**:
    - API Gateway requires a LaPluma session JWT (`securityDefinitions.lapluma_session`, built from `session_token_issuer` and `session_token_audience`) on every route except health, readiness, `/.well-known/jwks.json`, and the SAML endpoints. Both APIs validate the same token again.

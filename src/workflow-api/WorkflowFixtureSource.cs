@@ -6,6 +6,11 @@ namespace LaPluma.WorkflowApi;
 
 /// <summary>
 /// The in-memory synthetic fixture. Every label is obviously synthetic and content-free.
+///
+/// The seeded clients and cases are one shared synthetic demo set that every tenant sees. What a
+/// caller creates is not: clients created through <see cref="CreateClientAsync"/> are kept per
+/// tenant and listed only to that tenant, so even the fixture never shows one institution's
+/// entries to another (INF-26).
 /// </summary>
 public sealed class WorkflowFixtureSource : IWorkflowSource
 {
@@ -77,7 +82,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
                 false)]),
         0);
 
-    private readonly ConcurrentDictionary<string, (string PayloadHash, ClientDirectoryEntry Entry)> created = new();
+    private readonly ConcurrentDictionary<(string TenantId, string IdempotencyKey), (string PayloadHash, ClientDirectoryEntry Entry)> created = new();
     private int createdCount;
 
     private readonly ConcurrentDictionary<string, string> caseStates = new(StringComparer.OrdinalIgnoreCase)
@@ -130,8 +135,10 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             ["viewClientDirectory", "createClient", "prepareCase", "reviewCase", "approveCase", "generatePackage", "viewProofMap", "runGuidedFinish", "manageEvidenceRelay"],
             true));
 
+    public Task CheckReadinessAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
     public Task<ClientDirectoryPage> ListClientsAsync(
-        string? query, string? cursor, CancellationToken cancellationToken)
+        string tenantId, string? query, string? cursor, CancellationToken cancellationToken)
     {
         if (cursor is not null)
         {
@@ -143,7 +150,9 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             GetUpdatedClientEntry(SeedClient),
             GetUpdatedClientEntry(SeedReviewClient)
         };
-        entries.AddRange(created.Values.Select(value => value.Entry));
+        entries.AddRange(created
+            .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
+            .Select(pair => pair.Value.Entry));
         if (!string.IsNullOrWhiteSpace(query))
         {
             entries = entries
@@ -156,7 +165,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<CreateClientOutcome> CreateClientAsync(
-        string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken)
+        string tenantId, string idempotencyKey, CreateClientRequest request, CancellationToken cancellationToken)
     {
         var displayLabel = request.DisplayLabel!;
         var payloadHash = Convert.ToHexStringLower(
@@ -165,7 +174,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
         var ordinal = Interlocked.Increment(ref createdCount);
         var candidate = new ClientDirectoryEntry(
             $"folder-fixture-{ordinal + 2:0000}", displayLabel, 1, 0, null, 0);
-        var stored = created.GetOrAdd(idempotencyKey, (payloadHash, candidate));
+        var stored = created.GetOrAdd((tenantId, idempotencyKey), (payloadHash, candidate));
         var isNew = ReferenceEquals(stored.Entry, candidate);
 
         if (!isNew && !string.Equals(stored.PayloadHash, payloadHash, StringComparison.Ordinal))
@@ -177,7 +186,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             isNew ? IdempotencyOutcome.Created : IdempotencyOutcome.Replayed, stored.Entry));
     }
 
-    public Task<CaseWorkspace?> GetCaseWorkspaceAsync(string caseId, CancellationToken cancellationToken)
+    public Task<CaseWorkspace?> GetCaseWorkspaceAsync(string tenantId, string caseId, CancellationToken cancellationToken)
     {
         var client = caseId switch
         {
@@ -202,7 +211,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
             []));
     }
 
-    public Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(string tenantId, CancellationToken cancellationToken)
     {
         var reviewableStates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -227,7 +236,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<RecordReviewDecisionOutcome> RecordReviewDecisionAsync(
-        string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string reviewerId, ReviewDecisionRequest request, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (!caseStates.TryGetValue(caseId, out var state))
         {
@@ -258,7 +267,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<CreateDraftPreviewOutcome> CreateDraftPreviewAsync(
-        string caseId, CancellationToken cancellationToken)
+        string tenantId, string caseId, CancellationToken cancellationToken)
     {
         if (!caseStates.TryGetValue(caseId, out var state))
         {
@@ -291,7 +300,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<CreateStepUpChallengeOutcome> CreateStepUpChallengeAsync(
-        string caseId, string userId, CancellationToken cancellationToken)
+        string tenantId, string caseId, string userId, CancellationToken cancellationToken)
     {
         if (!caseStates.ContainsKey(caseId))
         {
@@ -308,7 +317,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<ApproveCaseOutcome> ApproveCaseAsync(
-        string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string approverId, CaseApprovalRequest request, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (!caseStates.TryGetValue(caseId, out var state))
         {
@@ -360,7 +369,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<IReadOnlyList<CaseHistoryEvent>> GetCaseHistoryAsync(
-        string caseId, CancellationToken cancellationToken)
+        string tenantId, string caseId, CancellationToken cancellationToken)
     {
         if (!history.TryGetValue(caseId, out var events))
         {
@@ -375,7 +384,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<CommitSectionOutcome> CommitSectionAsync(
-        string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string sectionId, int baseRevision, Dictionary<string, string> values, string userId, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (!caseStates.TryGetValue(caseId, out var state))
         {
@@ -442,7 +451,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<PackageGenerationOutcome> RequestPackageGenerationAsync(
-        string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, string caseId, string userId, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (!caseStates.TryGetValue(caseId, out var state))
         {
@@ -497,7 +506,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     private readonly ConcurrentDictionary<string, WorkflowEventReceipt> processedEvents = new(StringComparer.OrdinalIgnoreCase);
 
     public Task<PackageDownloadOutcome> GetPackageDownloadAsync(
-        string caseId, string packageId, string userId, CancellationToken cancellationToken)
+        string tenantId, string caseId, string packageId, string userId, CancellationToken cancellationToken)
     {
         if (!caseStates.TryGetValue(caseId, out var state))
         {
@@ -534,7 +543,7 @@ public sealed class WorkflowFixtureSource : IWorkflowSource
     }
 
     public Task<WorkflowEventOutcome> ProcessWorkflowEventAsync(
-        PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken)
+        string tenantId, PubSubWorkflowEvent workflowEvent, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(workflowEvent.EventId) || string.IsNullOrWhiteSpace(workflowEvent.CaseId))
         {

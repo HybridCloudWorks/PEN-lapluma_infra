@@ -42,6 +42,16 @@ resource "google_cloud_run_v2_service" "core_api" {
       max_instance_count = var.environment == "pilot" ? 5 : 2
     }
 
+    # Direct VPC egress to reach Cloud SQL on its private address (INF-27). Only private ranges
+    # go through the VPC; Google APIs and the session-token key set are reached as before.
+    vpc_access {
+      network_interfaces {
+        network    = var.vpc_network
+        subnetwork = var.vpc_subnetwork
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+
     containers {
       image = var.core_api_image
 
@@ -139,6 +149,16 @@ resource "google_cloud_run_v2_service" "workflow_api" {
       max_instance_count = var.environment == "pilot" ? 5 : 2
     }
 
+    # Direct VPC egress to reach Cloud SQL on its private address (INF-27). Only private ranges
+    # go through the VPC; Google APIs and the session-token key set are reached as before.
+    vpc_access {
+      network_interfaces {
+        network    = var.vpc_network
+        subnetwork = var.vpc_subnetwork
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+
     containers {
       image = var.workflow_api_image
 
@@ -175,6 +195,20 @@ resource "google_cloud_run_v2_service" "workflow_api" {
         value = var.db_connection_name
       }
 
+      # Upload sessions mint V4 signed PUT URLs for the quarantine bucket, signed by this
+      # service's own account through IAM signBlob (INF-25). Without a bucket, upload issuing
+      # stays fail-closed (503).
+      dynamic "env" {
+        for_each = var.quarantine_bucket_name != "" ? {
+          Workflow__GcsQuarantineBucket     = var.quarantine_bucket_name
+          Workflow__GcsSignerServiceAccount = var.workflow_api_sa_email
+        } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
       startup_probe {
         initial_delay_seconds = 0
         timeout_seconds       = 3
@@ -201,6 +235,13 @@ resource "google_cloud_run_v2_service" "workflow_api" {
 }
 
 # Processing Worker Service (Internal ingress only)
+#
+# Pub/Sub push reaches it without opening ingress (INF-28): Cloud Run treats a push subscription in
+# the same project, delivering to the service's default run.app URL, as an internal source. The
+# subscription (modules/messaging) authenticates with an OIDC token for lp-ps-invoker-<env>, the
+# only principal granted run.invoker below; Cloud Run checks that token's signature, expiry and
+# audience (the service URL) before the worker sees the request. Nothing on the internet can reach
+# the service, authenticated or not. No VPC access: the worker never reaches the database.
 resource "google_cloud_run_v2_service" "processing_worker" {
   name     = "lp-proc-worker-${var.environment}"
   location = var.region
@@ -291,6 +332,7 @@ resource "google_secret_manager_secret_iam_member" "core_api_saml_identity_provi
   member    = "serviceAccount:${var.core_api_sa_email}"
 }
 
+# The push subscription's OIDC identity is the worker's only invoker.
 resource "google_cloud_run_v2_service_iam_member" "processing_worker_pubsub_invoker" {
   count    = var.pubsub_invoker_sa_email != "" ? 1 : 0
   project  = google_cloud_run_v2_service.processing_worker.project
@@ -303,6 +345,9 @@ resource "google_cloud_run_v2_service_iam_member" "processing_worker_pubsub_invo
 # ------------------------------------------------------------------------------
 # Cloud Run Job: Database Migrations (PostgreSQL 16 under ADR-019)
 # Executed on-demand or during deployment pipelines. Scale-to-zero compute footprint.
+# Connects over Direct VPC egress to the instance's private address with TLS required (INF-27).
+# The built-in Cloud SQL socket (/cloudsql) needs a public address, which the instance no longer
+# has, so it is gone.
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_job" "db_migration" {
   name     = "lp-db-migration-${var.environment}"
@@ -312,11 +357,12 @@ resource "google_cloud_run_v2_job" "db_migration" {
     template {
       service_account = var.core_api_sa_email
 
-      volumes {
-        name = "cloudsql"
-        cloud_sql_instance {
-          instances = [var.db_connection_name]
+      vpc_access {
+        network_interfaces {
+          network    = var.vpc_network
+          subnetwork = var.vpc_subnetwork
         }
+        egress = "PRIVATE_RANGES_ONLY"
       }
 
       containers {
@@ -329,14 +375,21 @@ resource "google_cloud_run_v2_job" "db_migration" {
           }
         }
 
-        volume_mounts {
-          name       = "cloudsql"
-          mount_path = "/cloudsql"
-        }
-
         env {
           name  = "CLOUD_SQL_CONNECTION_NAME"
           value = var.db_connection_name
+        }
+        env {
+          name  = "PGHOST"
+          value = var.db_private_ip
+        }
+        env {
+          name  = "PGPORT"
+          value = "5432"
+        }
+        env {
+          name  = "PGSSLMODE"
+          value = "require"
         }
         env {
           name  = "POSTGRES_DB_CATALOG"
